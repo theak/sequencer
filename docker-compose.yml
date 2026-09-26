@@ -1,0 +1,16 @@
+services:
+  sequencer:
+    image: akshaykannan/sequencer
+    # To build locally instead of pulling from Docker Hub, uncomment:
+    # build: .
+    ports:
+      - "42716:42716"
+    environment:
+      # Optional: turns on AI beat generation. Keep the real value in a .env file.
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    volumes:
+      - sequencer-data:/data
+    restart: unless-stopped
+
+volumes:
+  sequencer-data:
