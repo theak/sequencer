@@ -1,0 +1,13 @@
+# The builder only needs the crate sources + the embedded frontend
+# (Cargo.toml, Cargo.lock, src/, static/). Everything below is build output,
+# CI tooling, local data, or VCS metadata.
+target
+data
+.git
+.github
+.gitignore
+.dockerignore
+docker-compose.yml
+README.md
+.env
+.DS_Store

@@ -1,0 +1,17 @@
+# Rust
+/target
+
+# Local data dir from `cargo run`
+/data
+
+# Secrets / local env
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
