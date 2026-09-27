@@ -16,7 +16,7 @@
   --synth:#6fd3c2; --danger:#ff6b57;
   --ui:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --hdr:268px;
+  --hdr:300px;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -210,6 +210,8 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .rowmenu button kbd{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
 .rowmenu hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
 .row.drum .rh{cursor:context-menu;-webkit-touch-callout:none}
+.rmenu{flex:none;width:16px;height:22px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--ink-faint);padding:0;font-size:15px;line-height:1;font-weight:700}
+.rmenu:hover,.rmenu[aria-expanded="true"]{color:var(--ink);border-color:var(--line);background:var(--panel-2)}
 
 /* Lower panels */
 .lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
@@ -380,8 +382,11 @@ details.json[open] summary{margin-bottom:10px}
 
 <div class="pop rowmenu" id="rowPop" hidden role="menu" aria-label="Row tools">
   <span class="lbl" id="rowPopTitle">Row</span>
-  <button class="btn" role="menuitem" data-rowact="fill4">Fill every 4 steps <kbd>x...</kbd></button>
-  <button class="btn" role="menuitem" data-rowact="fill2">Fill every 2 steps <kbd>x.x.</kbd></button>
+  <button class="btn" role="menuitem" data-rowact="copy" id="rowCopy">Copy page 1</button>
+  <button class="btn" role="menuitem" data-rowact="paste" id="rowPaste" hidden>Paste here <kbd></kbd></button>
+  <hr class="drumonly">
+  <button class="btn drumonly" role="menuitem" data-rowact="fill4">Fill every 4 steps <kbd>x...</kbd></button>
+  <button class="btn drumonly" role="menuitem" data-rowact="fill2">Fill every 2 steps <kbd>x.x.</kbd></button>
   <hr>
   <button class="btn" role="menuitem" data-rowact="left">Shift 1 step left <kbd>←</kbd></button>
   <button class="btn" role="menuitem" data-rowact="right">Shift 1 step right <kbd>→</kbd></button>
@@ -983,7 +988,8 @@ function render(){
       <div class="rh" title="Right-click for row tools"><span class="abbr">${d.abbr}</span><span class="rname">${d.name}</span>${tune}
       <button class="mute" data-act="mute" data-kind="mute" data-id="${d.id}" aria-pressed="${muted.has(d.id)}" title="Mute (drag to mute several)">M</button>
       <button class="mute solo" data-act="mute" data-kind="solo" data-id="${d.id}" aria-pressed="${soloed.has(d.id)}" title="Solo (drag to solo several)">S</button>
-      <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level"></div>`;
+      <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level">
+      <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, fill, shift" aria-label="${d.name} row tools" aria-haspopup="menu">⋮</button></div>`;
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.indexOf(d.id)}" data-kind="drum" data-row="${d.id}" data-step="${off+i}" aria-label="${d.name} step ${off+i+1}"></button>`;
     h += `</div>`;
   }
@@ -997,6 +1003,7 @@ function render(){
       <button class="mute solo" data-act="mute" data-kind="solo" data-id="${key}" aria-pressed="${soloed.has(key)}" title="Solo (drag to solo several)">S</button>
       <span class="knob" data-act="timbre" data-uid="${s.uid}" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.timbre*100)}" aria-label="${esc(s.name)} timbre" title="Timbre: smooth to harsh (drag up/down, double-click resets)" style="${knobStyle(s.timbre)}"><i></i></span>
       <input type="range" class="vol" data-act="svol" data-uid="${s.uid}" min="0" max="100" data-default="70" data-fmt="%" value="${Math.round(s.volume*100)}" aria-label="${esc(s.name)} volume">
+      <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, shift" aria-label="${esc(s.name)} row tools" aria-haspopup="menu">⋮</button>
       <button class="del" data-act="delsyn" data-uid="${s.uid}" title="Remove synth" aria-label="Remove ${esc(s.name)}">✕</button></div>`;
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.length + S.synths.indexOf(s)}" data-kind="syn" data-row="${key}" data-step="${off+i}" aria-label="${esc(s.name)} step ${off+i+1}"></button>`;
     h += `</div>`;
@@ -1332,8 +1339,8 @@ function endDrag(e){
 window.addEventListener("pointerup", endDrag);
 window.addEventListener("pointercancel", e => { muteDrag = null; if(drag){ clearTimeout(drag.lp); drag = null; changed(); } });
 rack.addEventListener("contextmenu", e => {
-  const rh = e.target.closest(".row.drum .rh");
-  if(rh){ e.preventDefault(); openRowMenu(rh); return; }
+  const rh = e.target.closest(".row .rh");
+  if(rh && rh.closest(".row[data-row]") && !e.target.closest("input")){ e.preventDefault(); openRowMenu(rh); return; }
   const cell = e.target.closest(".cell");
   if(!cell) return;
   e.preventDefault();
@@ -1346,7 +1353,10 @@ rack.addEventListener("contextmenu", e => {
 rack.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if(!b) return;
   const act = b.dataset.act;
-  if(act==="mute"){
+  if(act==="rowmenu"){
+    const rh = b.closest(".rh");
+    if(!rowPop.hidden && rowMenuId===rh.closest(".row").dataset.row) closePops(); else openRowMenu(rh, b);
+  } else if(act==="mute"){
     if(e.detail===0) setFlag(b.dataset.kind, b.dataset.id, !flagSet(b.dataset.kind).has(b.dataset.id)); // keyboard; pointer handled on pointerdown
   } else if(act==="gmute"){
     groupMuted[b.dataset.g] = !groupMuted[b.dataset.g]; refreshFlags();
@@ -1437,7 +1447,7 @@ function placePop(pop, cell){
   let y = r.bottom + 6; if(y+ph > vh-8) y = Math.max(8, r.top - ph - 6);
   pop.style.left = x+"px"; pop.style.top = y+"px";
 }
-function closePops(){ rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; }
+function closePops(){ rack.querySelectorAll('.rmenu[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded","false")); rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; }
 function popsClosed(){ return rollPop.hidden && pianoPop.hidden && pagePop.hidden && rowPop.hidden && resetPop.hidden && lfoPop.hidden; }
 /* Right-click any slider -> Reset to its default */
 document.addEventListener("contextmenu", e => {
@@ -1466,24 +1476,52 @@ $("resetBtn").addEventListener("click", () => {
   closePops();
   if(inLfo){ lfoPop.hidden = false; $("lfoBtn").setAttribute("aria-expanded","true"); scopeLoop(); }
 });
-function openRowMenu(rh){
+/* Row tools. Copy/paste work on the page in view, so a row's page can be pasted onto another page or row. */
+let rowClip = null; // {kind:"drum"|"syn", cells:[16], from, page}
+const rowKind = id => DRUM_IDS.includes(id) ? "drum" : "syn";
+const rowName = id => rowKind(id)==="drum" ? DRUMS.find(x => x.id===id).name : synthByKey(id)?.name || "Synth";
+const rowSteps = id => rowKind(id)==="drum" ? S.drums[id] : synthByKey(id).steps;
+function setRowSteps(id, arr){ if(rowKind(id)==="drum") S.drums[id] = arr; else synthByKey(id).steps = arr; }
+const cloneCell = c => c && typeof c==="object" ? {...c} : c;
+function openRowMenu(rh, anchor){
   const id = rh.closest(".row").dataset.row;
   if(!rowPop.hidden && rowMenuId===id) return;
   closePops();
   rowMenuId = id; popCell = rh;
-  const d = DRUMS.find(x => x.id===id);
-  $("rowPopTitle").textContent = `${d.name}${S.pages>1 ? ` · all ${S.pages} pages` : ""}`;
-  placePop(rowPop, rh.querySelector(".rname") || rh);
+  const kind = rowKind(id), pg = S.pages>1 ? ` page ${viewPage+1}` : "";
+  $("rowPopTitle").textContent = `${rowName(id)}${S.pages>1 ? ` · all ${S.pages} pages` : ""}`;
+  $("rowCopy").textContent = `Copy${pg || " steps"}`;
+  const clip = rowClip && rowClip.kind===kind ? rowClip : null;
+  $("rowPaste").hidden = !clip;
+  if(clip){ $("rowPaste").firstChild.textContent = `Paste${pg ? " to"+pg : ""} `; $("rowPaste").querySelector("kbd").textContent = `${clip.from}${clip.pages>1 ? " p"+(clip.page+1) : ""}`; }
+  rowPop.querySelectorAll(".drumonly").forEach(el => el.hidden = kind!=="drum");
+  rack.querySelectorAll(".rmenu").forEach(x => x.setAttribute("aria-expanded", x.closest(".row")?.dataset.row===id));
+  placePop(rowPop, anchor || rh.querySelector(".rname") || rh);
 }
 rowPop.addEventListener("click", e => {
   const b = e.target.closest("[data-rowact]"); if(!b || !rowMenuId) return;
-  const id = rowMenuId, row = S.drums[id], len = row.length;
+  const id = rowMenuId, row = rowSteps(id), len = row.length, off = viewPage*PAGE;
   switch(b.dataset.rowact){
-    case "fill4": S.drums[id] = row.map((_,i) => i%4===0 ? {v:"x",r:1} : null); break;
-    case "fill2": S.drums[id] = row.map((_,i) => i%2===0 ? {v:"x",r:1} : null); break;
-    case "left":  S.drums[id] = row.map((_,i) => row[(i+1)%len]); break;
-    case "right": S.drums[id] = row.map((_,i) => row[(i-1+len)%len]); break;
-    case "clear": S.drums[id] = row.map(() => null); break;
+    case "copy": {
+      const cells = row.slice(off, off+PAGE).map(cloneCell);
+      if(!cells.some(c => c)){ toast("Nothing on this page to copy"); closePops(); return; }
+      rowClip = {kind: rowKind(id), cells, from: rowName(id), page: viewPage, pages: S.pages};
+      toast(`Copied ${rowName(id)}${S.pages>1 ? ` page ${viewPage+1}` : ""}`); closePops(); return;
+    }
+    case "paste": {
+      if(!rowClip || rowClip.kind!==rowKind(id)) return;
+      let cells = rowClip.cells.map(cloneCell);
+      const syn = rowKind(id)==="syn" && synthByKey(id);
+      if(syn && !syn.poly) cells = cells.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v); // mono rows take the top note
+      const next = row.slice(); next.splice(off, PAGE, ...cells); setRowSteps(id, next);
+      toast(`Pasted ${rowClip.from} onto ${rowName(id)}${S.pages>1 ? ` page ${viewPage+1}` : ""}`);
+      break;
+    }
+    case "fill4": setRowSteps(id, row.map((_,i) => i%4===0 ? {v:"x",r:1} : null)); break;
+    case "fill2": setRowSteps(id, row.map((_,i) => i%2===0 ? {v:"x",r:1} : null)); break;
+    case "left":  setRowSteps(id, row.map((_,i) => row[(i+1)%len])); break;
+    case "right": setRowSteps(id, row.map((_,i) => row[(i-1+len)%len])); break;
+    case "clear": setRowSteps(id, row.map(() => null)); break;
   }
   paintRow(id); changed();
   if(b.dataset.rowact!=="left" && b.dataset.rowact!=="right") closePops();
@@ -1495,7 +1533,7 @@ document.addEventListener("pointerdown", e => {
   if(!pianoPop.hidden && !pianoPop.contains(e.target) && !e.target.closest(".cell")) closePops();
   if(!resetPop.hidden && !resetPop.contains(e.target)){ const back = resetTarget && lfoPop.contains(resetTarget); closePops(); if(back && lfoPop.contains(e.target)){ lfoPop.hidden = false; $("lfoBtn").setAttribute("aria-expanded","true"); scopeLoop(); } }
   if(!lfoPop.hidden && !lfoPop.contains(e.target) && !e.target.closest("#lfoBtn") && !e.target.closest("#resetPop")) closePops();
-  if(!rowPop.hidden && !rowPop.contains(e.target) && !e.target.closest(".row.drum .rh")) closePops();
+  if(!rowPop.hidden && !rowPop.contains(e.target) && !e.target.closest(".row.drum .rh, .rmenu")) closePops();
   if(!pagePop.hidden && !pagePop.contains(e.target) && !e.target.closest('[data-act="addpage"]')) closePops();
 });
 // Space plays/stops from anywhere on the page, except while typing in a text box
