@@ -618,7 +618,7 @@ function pretty(o){
 const H = "-", R = ".";
 const EM7 = "D#3+G3+A#3+D4", AB = "D#3+G#3+C4+D#4";
 const PRESETS = [
-  {name:"Funky House Beat", bpm:119, swing:.17, bassNote:"C1", synthTone:.03, synthReverb:0, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, pages:2,
+  {name:"Funky House Beat", bpm:119, swing:.17, bassNote:"C1", synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, pages:2,
    drums:{kick:"X...x...x...x...|X...x...x...x...", snare:"....X..g....X.g.|....X..g....X..g", clap:"....x.......x...|....x.......x...",
      hatClosed:"XxgxxxgxXxgxxxxx|XxgxxxgxX.gxx.3.", hatOpen:"..x...x...x...x.|..x...x...x...x.", tom:"................|................", bass:"x...............|................"},
    levels:{kick:.95, snare:.85, clap:.7, hatClosed:.42, hatOpen:1, tom:.7, bass:.7},
@@ -1817,6 +1817,27 @@ function applyVerb(){
 }
 $("masterIn").addEventListener("input", e => { if(master) master.gain.setTargetAtTime(e.target.value/100, ctx.currentTime, .02); });
 $("masterIn").addEventListener("change", persistLocal);
+/* Sliders without a readout show their value in a tip above the thumb while hovered, focused or dragged */
+function valueTip(id, label){
+  const el = $(id), tip = $("knobTip");
+  let over = false, held = false;
+  const show = () => {
+    const r = el.getBoundingClientRect(), f = (el.value-el.min)/(el.max-el.min);
+    tip.hidden = false; tip.textContent = `${label} ${el.value}%`;
+    tip.style.left = (r.left + 8 + f*(r.width-16)) + "px"; tip.style.top = (r.top - 6) + "px";
+  };
+  const kb = () => el.matches(":focus-visible");
+  const hide = () => { if(!over && !held && !kb()) tip.hidden = true; };
+  el.addEventListener("pointerenter", () => { over = true; show(); });
+  el.addEventListener("pointerleave", () => { over = false; hide(); });
+  el.addEventListener("pointerdown", () => { held = true; show(); });
+  window.addEventListener("pointerup", () => { if(held){ held = false; hide(); } });
+  el.addEventListener("focus", () => { if(kb()) show(); });
+  el.addEventListener("blur", () => { held = false; hide(); });
+  el.addEventListener("input", () => { if(over || held || kb()) show(); });
+}
+valueTip("toneIn", "Synth tone");
+valueTip("masterIn", "Master");
 $("tierSel").addEventListener("change", persistLocal);
 $("prompt").addEventListener("input", () => { clearTimeout(persistLocal.t); persistLocal.t = setTimeout(persistLocal, 400); });
 $("nameIn").addEventListener("input", e => { S.name = e.target.value.slice(0,60); changedSoon(); });
