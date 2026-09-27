@@ -421,7 +421,7 @@ details.json[open] summary{margin-bottom:10px}
   </div>
   <div class="rowflex" style="gap:6px;max-width:190px">
     <button class="btn" id="holdBtn" title="Continue the previous note through this step">Hold ─</button>
-    <button class="btn" id="restBtn">Rest</button>
+    <button class="btn" id="restBtn" title="Clear this step and keep the keyboard open to punch in new notes">Clear</button>
     <span class="pnow" id="pnow" aria-live="polite"></span>
   </div>
   <div class="pianowrap" id="pianoWrap"><div class="piano" id="piano"></div></div>
@@ -1710,7 +1710,8 @@ function invert(up){
 $("invUp").addEventListener("click", () => invert(true));
 $("invDown").addEventListener("click", () => invert(false));
 $("holdBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row); s.steps[+popCell.dataset.step] = "-"; paintRow(popCell.dataset.row); changed(); closePops(); });
-$("restBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row); s.steps[+popCell.dataset.step] = null; paintRow(popCell.dataset.row); changed(); closePops(); });
+// Clear empties the step but keeps the keyboard open, so new notes can go straight in
+$("restBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step; s.steps[i] = null; paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); });
 
 /* ---------- Transport ---------- */
 $("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
