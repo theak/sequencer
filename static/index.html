@@ -1624,8 +1624,8 @@ let glide = null, preview = null;
 function pickNote(m){
   if(!popCell) return;
   const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step;
-  if(!s.poly){ s.steps[i] = midiName(m); paintRow(popCell.dataset.row); changed(); closePops(); return; }
-  // poly: the keyboard stays open so the chord can keep changing
+  // the keyboard stays open on every row, so a note or chord can keep changing
+  if(!s.poly){ s.steps[i] = midiName(m); paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); return; }
   const ms = candidate(s, m);
   if(ms.length>=MAX_CHORD && !ms.includes(m)) toast(`Chords top out at ${MAX_CHORD} notes`);
   setChord(s, i, ms, false);
