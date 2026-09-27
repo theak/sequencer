@@ -192,8 +192,6 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .ptog{border:0;cursor:pointer;min-width:36px;text-align:center;background:color-mix(in srgb,var(--synth) 45%,var(--panel-3))}
 .ptog[aria-pressed="true"]{background:var(--synth)}
 .ptog:hover{filter:brightness(1.15)}
-.seg.shapes{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:190px}
-.seg.shapes button{min-width:0;padding:5px 2px;font-size:11px}
 .pianopop-row{display:flex;gap:6px;max-width:190px;align-items:center}
 .pianopop-row .btn{padding:6px 8px}
 .addrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -410,8 +408,7 @@ details.json[open] summary{margin-bottom:10px}
 <div class="pop" id="pianoPop" hidden role="dialog" aria-label="Pick a note">
   <span class="pnote" id="pnote"></span>
   <div id="polyTools" hidden>
-    <div class="seg v shapes" id="shapeSeg" role="group" aria-label="Chord shape"></div>
-    <div class="pianopop-row" style="margin-top:6px">
+    <div class="pianopop-row">
       <span class="lbl">Invert</span>
       <button class="btn" id="invDown" title="Move the top note down an octave">↓</button>
       <button class="btn" id="invUp" title="Move the bottom note up an octave">↑</button>
@@ -1553,17 +1550,9 @@ const WH = 20, BH = 12;
   }
   $("piano").innerHTML = h; $("piano").style.height = (wi*WH)+"px";
 })();
-const SHAPES = [["note","Note",null],["maj","Maj",[0,4,7]],["min","Min",[0,3,7]],["7","7",[0,4,7,10]],["maj7","Maj7",[0,4,7,11]],["m7","m7",[0,3,7,10]],["sus4","Sus4",[0,5,7]],["dim","Dim",[0,3,6]]];
-let chordShape = "note";
-$("shapeSeg").innerHTML = SHAPES.map(([k,l]) => `<button data-shape="${k}" aria-pressed="${k===chordShape}" title="${k==="note" ? "Tap keys to add or remove single notes" : `Tap a root to place a ${l} chord`}">${l}</button>`).join("");
-function shapeNotes(root){
-  const sh = SHAPES.find(x => x[0]===chordShape)?.[2];
-  return sh ? sh.map(iv => { let m = root+iv; while(m>NOTE_HI) m -= 12; return m; }) : [root];
-}
 // The notes a step would hold if key m were picked now
 function candidate(s, m){
   if(!s.poly) return [m];
-  if(chordShape!=="note") return shapeNotes(m);
   const cur = stepNotes(s.steps[+popCell.dataset.step]);
   if(cur.includes(m)) return cur.filter(x => x!==m);
   return cur.length>=MAX_CHORD ? cur : [...cur, m];
@@ -1583,6 +1572,7 @@ function openPiano(cell){
   const ref = stepNotes(cur && cur!=="-" ? cur : prevNote(s.steps, i) || "C3");
   const refM = ref[Math.floor(ref.length/2)];
   $("polyTools").hidden = !s.poly;
+  $("pnow").hidden = s.poly; // poly rows already name the chord in the header line
   pianoLabel(s, i);
   $("holdBtn").disabled = i===0 && !s.steps[total-1];
   placePop(pianoPop, cell);
@@ -1599,7 +1589,7 @@ function pickNote(m){
   if(!s.poly){ s.steps[i] = midiName(m); paintRow(popCell.dataset.row); changed(); closePops(); return; }
   // poly: the keyboard stays open so the chord can keep changing
   const ms = candidate(s, m);
-  if(chordShape==="note" && ms.length>=MAX_CHORD && !ms.includes(m)) toast(`Chords top out at ${MAX_CHORD} notes`);
+  if(ms.length>=MAX_CHORD && !ms.includes(m)) toast(`Chords top out at ${MAX_CHORD} notes`);
   setChord(s, i, ms, false);
 }
 function setChord(s, i, ms, hear){
@@ -1668,15 +1658,6 @@ $("piano").addEventListener("click", e => {
   if(e.detail!==0) return;
   const k = e.target.closest(".k"); if(!k) return;
   previewNote(+k.dataset.m); pickNote(+k.dataset.m);
-});
-$("shapeSeg").addEventListener("click", e => {
-  const b = e.target.closest("[data-shape]"); if(!b) return;
-  chordShape = b.dataset.shape;
-  $("shapeSeg").querySelectorAll("[data-shape]").forEach(x => x.setAttribute("aria-pressed", x===b));
-  // re-voice the chord already on this step, keeping its bottom note as the root
-  const s = popCell && synthByKey(popCell.dataset.row), i = popCell ? +popCell.dataset.step : -1;
-  const ms = s ? stepNotes(s.steps[i]) : [];
-  if(chordShape!=="note" && ms.length) setChord(s, i, shapeNotes(ms[0]), true);
 });
 function invert(up){
   const s = popCell && synthByKey(popCell.dataset.row); if(!s) return;
