@@ -415,7 +415,7 @@ details.json[open] summary{margin-bottom:10px}
   <span class="pnote" id="pnote"></span>
   <div id="polyTools" hidden>
     <div class="pianopop-row">
-      <span class="lbl">Invert</span>
+      <span class="lbl" id="invLbl">Invert</span>
       <button class="btn" id="invDown" title="Move the top note down an octave">↓</button>
       <button class="btn" id="invUp" title="Move the bottom note up an octave">↑</button>
     </div>
@@ -1641,7 +1641,7 @@ function pianoLabel(s, i){
     (isChord(cur) ? ` · ${stepLabel(cur)} (${cur.split("+").join(" ")})` : cur && cur!=="-" ? ` · ${cur}` : cur==="-" ? " · hold" : "");
   $("pnow").textContent = ms.length ? stepLabel(cur) : "";
   $("piano").querySelectorAll(".k").forEach(k => k.classList.toggle("sel", ms.includes(+k.dataset.m)));
-  $("invDown").disabled = $("invUp").disabled = ms.length<2;
+  $("invDown").disabled = $("invUp").disabled = ms.length < (s.poly ? 2 : 1);
 }
 function openPiano(cell){
   closePops(); popCell = cell;
@@ -1649,7 +1649,11 @@ function openPiano(cell){
   const cur = s.steps[i], total = s.steps.length;
   const ref = stepNotes(cur && cur!=="-" ? cur : prevNote(s.steps, i) || (s.is808 ? "F1" : "C3"));
   const refM = ref[Math.floor(ref.length/2)];
-  $("polyTools").hidden = !s.poly;
+  // poly rows invert the chord; mono rows and the 808 move the note an octave
+  $("polyTools").hidden = false;
+  $("invLbl").hidden = !s.poly;
+  $("invDown").title = s.poly ? "Move the top note down an octave" : "Down an octave";
+  $("invUp").title = s.poly ? "Move the bottom note up an octave" : "Up an octave";
   $("pnow").hidden = s.poly; // poly rows already name the chord in the header line
   pianoLabel(s, i);
   $("holdBtn").disabled = i===0 && !s.steps[total-1];
@@ -1740,6 +1744,15 @@ $("piano").addEventListener("click", e => {
 function invert(up){
   const s = popCell && synthByKey(popCell.dataset.row); if(!s) return;
   const i = +popCell.dataset.step, ms = stepNotes(s.steps[i]);
+  if(!s.poly){
+    if(!ms.length) return;
+    const m = ms[0] + (up ? 12 : -12);
+    if(m<NOTE_LO || m>NOTE_HI) return toast("That's as far as it goes");
+    setChord(s, i, [m], true);
+    const key = $("piano").querySelector(`[data-m="${m}"]`), w = $("pianoWrap");
+    if(key && (key.offsetTop < w.scrollTop || key.offsetTop+WH > w.scrollTop+w.clientHeight)) w.scrollTop = key.offsetTop - w.clientHeight/2 + WH/2;
+    return;
+  }
   if(ms.length<2) return;
   const lo = ms[0], hi = ms[ms.length-1];
   if(up && lo+12<=NOTE_HI) ms[0] = lo+12;
