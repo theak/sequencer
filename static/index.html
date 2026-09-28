@@ -16,7 +16,7 @@
   --synth:#6fd3c2; --danger:#ff6b57;
   --ui:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --hdr:268px;
+  --hdr:300px;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -87,6 +87,7 @@ input[type=range]{accent-color:var(--orange);width:110px}
   --kc:color-mix(in srgb, var(--orange) calc(var(--h)*100%), var(--synth))}
 .knob::before{content:"";position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a4750,#26242a 70%);box-shadow:0 1px 2px rgba(0,0,0,.6)}
 .knob i{position:absolute;left:50%;top:50%;width:2px;height:7px;margin-left:-1px;border-radius:1px;background:var(--ink);transform-origin:50% 0;transform:rotate(calc(45deg + var(--v)*270deg))}
+.knob-sp{flex:none;width:22px}
 .knob:hover::before,.knob.drag::before{background:radial-gradient(circle at 35% 30%,#57545e,#2c2a30 70%)}
 .knob-tip{position:fixed;z-index:60;pointer-events:none;background:var(--panel-3);border:1px solid var(--ink-faint);border-radius:5px;padding:3px 7px;font-family:var(--mono);font-size:11px;white-space:nowrap;transform:translate(-50%,-100%);box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .del{flex:none;width:22px;height:22px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--ink-faint);padding:0;font-size:13px}
@@ -187,6 +188,16 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .syn .cell.on.held{border-radius:4px 0 0 4px}
 .syn .cell.tie.held{border-radius:0}
 .syn .cell.gs{--gl:10px}
+.syn .cell.chord{letter-spacing:-.03em;white-space:nowrap;overflow:hidden;padding:0 2px;gap:0}
+.syn .cell.chord::after{content:"";position:absolute;left:3px;top:3px;width:5px;height:7px;background:repeating-linear-gradient(#0d2622 0 1px,transparent 1px 3px);opacity:.5}
+.b808{min-width:36px;text-align:center;background:var(--synth)}
+.subsec{display:flex;align-items:center;gap:10px;margin:8px 0 2px}
+.subsec .lbl{color:var(--synth)}
+.ptog{border:0;cursor:pointer;min-width:36px;text-align:center;background:color-mix(in srgb,var(--synth) 45%,var(--panel-3))}
+.ptog[aria-pressed="true"]{background:var(--synth)}
+.ptog:hover{filter:brightness(1.15)}
+.pianopop-row{display:flex;gap:6px;max-width:190px;align-items:center}
+.pianopop-row .btn{padding:6px 8px}
 .addrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pagebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px dashed var(--line)}
 .ptabs{display:flex;gap:4px}
@@ -203,6 +214,8 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .rowmenu button kbd{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
 .rowmenu hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
 .row.drum .rh{cursor:context-menu;-webkit-touch-callout:none}
+.rmenu{flex:none;width:16px;height:22px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--ink-faint);padding:0;font-size:15px;line-height:1;font-weight:700}
+.rmenu:hover,.rmenu[aria-expanded="true"]{color:var(--ink);border-color:var(--line);background:var(--panel-2)}
 
 /* Lower panels */
 .lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
@@ -257,10 +270,22 @@ details.json[open] summary{margin-bottom:10px}
   .steps-head .rh{display:none}
   .cell{height:34px}
   .syn .cell{font-size:8.5px}
+  .syn .cell.chord{font-size:7.5px;flex-direction:column;line-height:1.1}
+  .syn .cell.chord::after{display:none}
   .brand h1{font-size:21px}
   #nameIn{width:140px}
 }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
+/* page swipes: the rack keeps sideways touch gestures for itself (vertical scroll and pinch still work) */
+.rack{touch-action:pan-y pinch-zoom}
+@keyframes pageInL{from{transform:translateX(22px);opacity:.35}to{transform:none;opacity:1}}
+@keyframes pageInR{from{transform:translateX(-22px);opacity:.35}to{transform:none;opacity:1}}
+@keyframes edgeL{40%{transform:translateX(-7px)}}
+@keyframes edgeR{40%{transform:translateX(7px)}}
+.rack.slide-l .cell,.rack.slide-l .steps-head .n{animation:pageInL .22s ease-out}
+.rack.slide-r .cell,.rack.slide-r .steps-head .n{animation:pageInR .22s ease-out}
+.rack.edge-l .cell{animation:edgeL .24s ease-out}
+.rack.edge-r .cell{animation:edgeR .24s ease-out}
 </style>
 </head>
 <body>
@@ -345,7 +370,7 @@ details.json[open] summary{margin-bottom:10px}
 
   <details class="json" id="jsonDetails">
     <summary>Pattern JSON</summary>
-    <p class="hint" style="margin:0 0 8px">This is the format the AI writes. Edit it by hand and apply, or copy it somewhere else. Drum strings use <span class="num">.</span> rest, <span class="num">x</span> hit, <span class="num">X</span> accent, <span class="num">g</span> ghost, <span class="num">2 3 4 6 8</span> rolls. With several pages, drum strings get one 16-step chunk per page separated by <span class="num">|</span>. Synth steps use a note like <span class="num">"F#2"</span>, <span class="num">"-"</span> to hold, <span class="num">"."</span> to rest.</p>
+    <p class="hint" style="margin:0 0 8px">This is the format the AI writes. Edit it by hand and apply, or copy it somewhere else. Drum strings use <span class="num">.</span> rest, <span class="num">x</span> hit, <span class="num">X</span> accent, <span class="num">g</span> ghost, <span class="num">2 3 4 6 8</span> rolls. With several pages, drum strings get one 16-step chunk per page separated by <span class="num">|</span>. Synth steps use a note like <span class="num">"F#2"</span>, <span class="num">"-"</span> to hold, <span class="num">"."</span> to rest. On a <span class="num">"poly": true</span> channel a step can be a chord, notes joined by <span class="num">+</span> like <span class="num">"C3+E3+G3"</span>.</p>
     <textarea id="jsonBox" spellcheck="false" aria-label="Pattern JSON"></textarea>
     <div class="rowflex" style="margin-top:8px">
       <button class="btn primary" id="applyJson">Apply JSON</button>
@@ -371,11 +396,17 @@ details.json[open] summary{margin-bottom:10px}
 
 <div class="pop rowmenu" id="rowPop" hidden role="menu" aria-label="Row tools">
   <span class="lbl" id="rowPopTitle">Row</span>
-  <button class="btn" role="menuitem" data-rowact="fill4">Fill every 4 steps <kbd>x...</kbd></button>
-  <button class="btn" role="menuitem" data-rowact="fill2">Fill every 2 steps <kbd>x.x.</kbd></button>
+  <button class="btn" role="menuitem" data-rowact="copy" id="rowCopy">Copy page 1</button>
+  <button class="btn" role="menuitem" data-rowact="paste" id="rowPaste" hidden>Paste here <kbd></kbd></button>
+  <hr class="drumonly">
+  <button class="btn drumonly" role="menuitem" data-rowact="fill4">Fill every 4 steps <kbd>x...</kbd></button>
+  <button class="btn drumonly" role="menuitem" data-rowact="fill2">Fill every 2 steps <kbd>x.x.</kbd></button>
   <hr>
   <button class="btn" role="menuitem" data-rowact="left">Shift 1 step left <kbd>←</kbd></button>
   <button class="btn" role="menuitem" data-rowact="right">Shift 1 step right <kbd>→</kbd></button>
+  <hr class="synonly">
+  <button class="btn synonly" role="menuitem" data-rowact="octup">Octave up <kbd>+12</kbd></button>
+  <button class="btn synonly" role="menuitem" data-rowact="octdown">Octave down <kbd>−12</kbd></button>
   <hr>
   <button class="btn" role="menuitem" data-rowact="clear">Clear row</button>
 </div>
@@ -398,9 +429,16 @@ details.json[open] summary{margin-bottom:10px}
 
 <div class="pop" id="pianoPop" hidden role="dialog" aria-label="Pick a note">
   <span class="pnote" id="pnote"></span>
+  <div id="polyTools" hidden>
+    <div class="pianopop-row">
+      <span class="lbl" id="invLbl">Invert</span>
+      <button class="btn" id="invDown" title="Move the top note down an octave">↓</button>
+      <button class="btn" id="invUp" title="Move the bottom note up an octave">↑</button>
+    </div>
+  </div>
   <div class="rowflex" style="gap:6px;max-width:190px">
     <button class="btn" id="holdBtn" title="Continue the previous note through this step">Hold ─</button>
-    <button class="btn" id="restBtn">Rest</button>
+    <button class="btn" id="restBtn" title="Clear this step and keep the keyboard open to punch in new notes">Clear</button>
     <span class="pnow" id="pnow" aria-live="polite"></span>
   </div>
   <div class="pianowrap" id="pianoWrap"><div class="piano" id="piano"></div></div>
@@ -418,15 +456,27 @@ const DRUMS = [
   {id:"kick", abbr:"BD", name:"Kick", level:.9},
   {id:"snare", abbr:"SD", name:"Snare", level:.8},
   {id:"clap", abbr:"CP", name:"Clap", level:.7},
+  {id:"snap", abbr:"SP", name:"Snap", level:.6},
+  {id:"rim", abbr:"RS", name:"Rim", level:.55},
   {id:"hatClosed", abbr:"CH", name:"Closed hat", level:.55},
   {id:"hatOpen", abbr:"OH", name:"Open hat", level:.5},
-  {id:"tom", abbr:"TM", name:"Tom", level:.7},
-  {id:"bass", abbr:"808", name:"Bass", level:.85},
+  {id:"shaker", abbr:"SH", name:"Shaker", level:.45},
 ];
 const DRUM_IDS = DRUMS.map(d => d.id);
 const ROLLS = [1,2,3,4,6,8];
 const VEL = {g:.38, x:.78, X:1};
+const TONE_IDS = DRUM_IDS; // every drum has a tone knob (0.5 is the classic sound)
+const defaultTones = () => Object.fromEntries(TONE_IDS.map(id => [id, .5]));
 const MAX_SYNTHS = 8;
+/* Tonal drums: locked, always-mono rows played from the keyboard. They sit under the drums, teal like the synths.
+   "-" holds only mean something on the 808; the others ring out on their own and the next hit cuts them off. */
+const TONAL = {
+  "808":   {abbr:"808", name:"Bass",    vol:.85, note:"F1",  label:"Drive", key:"drive", range:"clean to gritty",         words:null},
+  tom:     {abbr:"TM",  name:"Tom",     vol:.7,  note:"F#3", label:"Size",  key:"size",  range:"tight to big room",       words:["tight","dry","classic","big","huge"]},
+  conga:   {abbr:"CG",  name:"Conga",   vol:.65, note:"D4",  label:"Tone",  key:"tone",  range:"muted slap to open ring", words:["slap","muted","classic","open","ringing"]},
+  cowbell: {abbr:"CB",  name:"Cowbell", vol:.5,  note:"C#5", label:"Tone",  key:"tone",  range:"short clank to ringing",  words:["clank","short","classic","ringing","long"]},
+};
+const TONAL_IDS = Object.keys(TONAL);
 const PAGE = 16, MAX_PAGES = 4;
 const NOTE_LO = 24, NOTE_HI = 84; // C1..C6
 const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -443,14 +493,64 @@ function nameMidi(s){
   return m;
 }
 const mtof = m => 440*Math.pow(2,(m-69)/12);
+/* Chords: a poly step is its notes low to high joined by "+", e.g. "D#3+G3+A#3+D4" */
+const MAX_CHORD = 6;
+function stepNotes(v){
+  if(!v || v==="-") return [];
+  return String(v).split("+").map(nameMidi).filter(m => m!=null);
+}
+function chordStr(ms){
+  const u = [...new Set(ms)].sort((a,b) => a-b).slice(0,MAX_CHORD);
+  return u.length ? u.map(midiName).join("+") : null;
+}
+const isChord = v => !!v && v.includes("+");
+const CHORD_NAMES = [["",[0,4,7]],["m",[0,3,7]],["dim",[0,3,6]],["aug",[0,4,8]],["sus2",[0,2,7]],["sus4",[0,5,7]],["5",[0,7]],
+  ["6",[0,4,7,9]],["m6",[0,3,7,9]],["7",[0,4,7,10]],["maj7",[0,4,7,11]],["m7",[0,3,7,10]],["mMaj7",[0,3,7,11]],["m7b5",[0,3,6,10]],["dim7",[0,3,6,9]],["7sus4",[0,5,7,10]],
+  ["add9",[0,2,4,7]],["madd9",[0,2,3,7]],["9",[0,2,4,7,10]],["maj9",[0,2,4,7,11]],["m9",[0,2,3,7,10]],["7",[0,4,10]],["maj7",[0,4,11]],["m7",[0,3,10]]];
+// Name a chord, trying the bass note as the root first so inversions still read right
+function chordName(ms){
+  const pcs = [...new Set(ms.map(m => m%12))];
+  if(pcs.length<2) return null;
+  const bass = Math.min(...ms)%12;
+  for(const root of [bass, ...pcs.filter(p => p!==bass)]){
+    const iv = pcs.map(p => (p-root+12)%12).sort((a,b) => a-b).join(",");
+    const hit = CHORD_NAMES.find(([,s]) => s.join(",")===iv);
+    if(hit) return NAMES[root]+hit[0];
+  }
+  return null;
+}
+// [root, quality] for display, e.g. ["D#","maj7"], or the bass note and how many more for shapes without a name
+function chordParts(v){
+  const ms = stepNotes(v);
+  if(ms.length<2) return [v, ""];
+  const n = chordName(ms);
+  if(n){ const r = /^[A-G]#?/.exec(n)[0]; return [r, n.slice(r.length)]; }
+  return [midiName(ms[0]), "+"+(ms.length-1)];
+}
+const stepLabel = v => chordParts(v).join("");
 
 let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, bassNote:"F1", synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, pages, drums, levels, synths:[]};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE))};
 }
-function newSynth(name, len=S.pages*PAGE){ return {uid:++uid, name, volume:.7, timbre:.5, steps:Array(len).fill(null)}; }
+/* Tonal rows live in S.synths ahead of the user's synths, marked with fixed:<kind> (the 808 also keeps is808) */
+function newTonal(kind, len){ return {uid:++uid, name: kind==="808" ? "808" : TONAL[kind].name, fixed:kind, is808: kind==="808", perc: kind!=="808", poly:false, volume:TONAL[kind].vol, timbre:.5, steps:Array(len).fill(null)}; }
+const userSynths = (st=S) => st.synths.filter(s => !s.fixed);
+const tonalRow = (kind, st=S) => st.synths.find(s => s.fixed===kind);
+const noHolds = steps => steps.map(v => v==="-" ? null : v);
+// a good first note for a row with nothing in it yet: each tonal drum's home pitch, a C major triad on poly synths, C3 on mono ones
+const defNote = s => s?.fixed ? TONAL[s.fixed].note : s?.poly ? "C3+E3+G3" : "C3";
+// the note or chord you last added, clicked or changed on each row (by uid); new clicks on that row repeat it
+const lastNote = new Map();
+function clickNote(s, i){
+  let v = lastNote.get(s.uid) || prevNote(s.steps, i) || defNote(s);
+  if(!s.poly && isChord(v)) v = midiName(Math.max(...stepNotes(v))); // a row switched to mono takes the top note
+  return v;
+}
+const topNotes = steps => steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v);
+function newSynth(name, len=S.pages*PAGE, poly=false){ return {uid:++uid, name, poly, volume:poly ? .55 : .7, timbre:poly ? .35 : .5, steps:Array(len).fill(null)}; }
 const stepCount = () => S.pages*PAGE;
 
 function charCell(c){
@@ -488,11 +588,10 @@ function parseSteps(v, len){
   for(let i=0;i<len;i++){
     const x = arr[i];
     if(x==null){ out.push(null); continue; }
-    const s = String(x).trim();
+    const s = Array.isArray(x) ? x.join("+") : String(x).trim(); // ["C3","E3"] is a chord too
     if(s===""||s==="."||s==="0"||/^(r|rest|x)$/i.test(s)){ out.push(null); continue; }
     if(/^[-_~=]+$/.test(s)||/^(hold|tie)$/i.test(s)){ out.push("-"); continue; }
-    const m = nameMidi(s);
-    out.push(m==null ? null : midiName(m));
+    out.push(chordStr(s.split("+").map(nameMidi).filter(m => m!=null)));
   }
   return out;
 }
@@ -506,6 +605,8 @@ function fromJSON(o){
     let longest = PAGE;
     for(const k of Object.keys(dr0)) longest = Math.max(longest, drumChars(dr0[k]).length);
     if(Array.isArray(o.synths)) for(const s of o.synths) longest = Math.max(longest, synthList(s?.steps).length);
+    if(o.bass808) longest = Math.max(longest, synthList(o.bass808.steps).length);
+    for(const k of ["tom","conga","cowbell"]) if(o[k] && typeof o[k]==="object") longest = Math.max(longest, synthList(Array.isArray(o[k]) ? o[k] : o[k].steps).length);
     pages = Math.ceil(longest/PAGE);
   }
   pages = Math.min(MAX_PAGES, Math.max(1, pages));
@@ -514,8 +615,6 @@ function fromJSON(o){
   st.name = String(o.name || "Untitled beat").slice(0,60);
   st.bpm = Math.round(clamp(o.bpm,60,200,110));
   st.swing = clamp(o.swing,0,.5,0);
-  const bn = nameMidi(o.bassNote || "F1");
-  st.bassNote = midiName(bn==null ? 29 : Math.min(bn, 47));
   st.synthTone = clamp(o.synthTone,0,1,.45);
   st.synthReverb = clamp(o.synthReverb,0,1,.15);
   st.transpose = Math.round(clamp(o.transpose,-1200,1200,0));
@@ -524,7 +623,10 @@ function fromJSON(o){
   st.drumDrive = clamp(o.drumDrive,0,1,0);
   st.sidechain = clamp(o.sidechain,0,1,0);
   const dr = o.drums && typeof o.drums==="object" ? o.drums : {};
-  const alias = {bd:"kick",kick:"kick",sd:"snare",snare:"snare",cp:"clap",clap:"clap",ch:"hatClosed",hh:"hatClosed",hat:"hatClosed",hatclosed:"hatClosed",closedhat:"hatClosed",oh:"hatOpen",hatopen:"hatOpen",openhat:"hatOpen",tom:"tom",toms:"tom",lt:"tom",tomlow:"tom",lowtom:"tom",mt:"tom",tommid:"tom",midtom:"tom",ht:"tom",tomhigh:"tom",hightom:"tom",bass:"bass",sub:"bass","808":"bass",bass808:"bass"};
+  const alias = {bd:"kick",kick:"kick",sd:"snare",snare:"snare",cp:"clap",clap:"clap",ch:"hatClosed",hh:"hatClosed",hat:"hatClosed",hatclosed:"hatClosed",closedhat:"hatClosed",oh:"hatOpen",hatopen:"hatOpen",openhat:"hatOpen",snap:"snap",snaps:"snap",fingersnap:"snap",sp:"snap",rim:"rim",rimshot:"rim",rs:"rim",clave:"rim",claves:"rim",cl:"rim",sidestick:"rim",shaker:"shaker",shakers:"shaker",sh:"shaker",maracas:"shaker",ma:"shaker",shk:"shaker"};
+  // older beats had the tom as a drum row (sometimes three of them)
+  const isTomKey = k => ["tom","toms","lt","tomlow","lowtom","mt","tommid","midtom","ht","tomhigh","hightom"].includes(k.toLowerCase().replace(/[\s_-]/g,""));
+  const isBassKey = k => ["bass","sub","808","bass808"].includes(k.toLowerCase().replace(/[\s_-]/g,""));
   for(const k of Object.keys(dr)){
     const id = alias[k.toLowerCase().replace(/[\s_-]/g,"")];
     if(!id) continue;
@@ -535,14 +637,61 @@ function fromJSON(o){
     const id = alias[k.toLowerCase().replace(/[\s_-]/g,"")];
     if(id && o.levels[k]!=null) st.levels[id] = clamp(o.levels[k],0,1,st.levels[id]);
   }
+  const tomLevel = o.levels && typeof o.levels==="object" ? Object.keys(o.levels).find(isTomKey) : null;
+  st.tones = defaultTones();
+  const tn = o.tones && typeof o.tones==="object" ? o.tones : {};
+  for(const k of Object.keys(tn)){
+    const id = alias[k.toLowerCase().replace(/[\s_-]/g,"")];
+    if(id && id in st.tones) st.tones[id] = clamp(tn[k],0,1,.5);
+  }
+  if(o.kickTone!=null && !Object.keys(tn).some(k => alias[k.toLowerCase().replace(/[\s_-]/g,"")]==="kick")) st.tones.kick = clamp(o.kickTone,0,1,.5); // the first version only had a kick knob
   const syn = Array.isArray(o.synths) ? o.synths.slice(0,MAX_SYNTHS) : [];
-  st.synths = syn.map((s,i) => {
+  // the 808: new format is bass808 {volume, drive, steps}; older beats had a "bass" drum row hit at bassNote
+  const b8 = tonalRow("808", st), nb = o.bass808 && typeof o.bass808==="object" ? o.bass808 : null;
+  if(nb){
+    b8.volume = clamp(nb.volume,0,1,.85); b8.timbre = clamp(nb.drive,0,1,.5);
+    b8.steps = topNotes(parseSteps(nb.steps, len));
+  } else {
+    const lk = Object.keys(dr).find(isBassKey);
+    const lv = o.levels && typeof o.levels==="object" ? Object.keys(o.levels).find(isBassKey) : null;
+    if(lv) b8.volume = clamp(o.levels[lv],0,1,.85);
+    if(lk){
+      const bn = nameMidi(o.bassNote || "F1"), note = midiName(bn==null ? 29 : Math.min(bn, 47));
+      const hits = parseDrum(dr[lk], len), sd = 60/st.bpm/4, ring = Math.max(0, Math.ceil(1.6/sd) - 1);
+      // each hit rang out until the next one (or its ~1.6s decay), so hold it that long
+      hits.forEach((c,i) => {
+        if(!c) return;
+        b8.steps[i] = note;
+        for(let k=1; k<=ring && k<len; k++){ const j = (i+k)%len; if(hits[j]) break; b8.steps[j] = "-"; }
+      });
+    }
+  }
+  // tom, conga, cowbell: {volume, size|tone, steps} objects; a bare steps array works too
+  for(const kind of ["tom","conga","cowbell"]){
+    const row = tonalRow(kind, st), src = o[kind];
+    if(Array.isArray(src)) row.steps = noHolds(topNotes(parseSteps(src, len)));
+    else if(src && typeof src==="object"){
+      row.volume = clamp(src.volume,0,1,TONAL[kind].vol);
+      row.timbre = clamp(src[TONAL[kind].key] ?? src.tone ?? src.timbre,0,1,.5);
+      row.steps = noHolds(topNotes(parseSteps(src.steps, len)));
+    }
+  }
+  {
+    const tom = tonalRow("tom", st);
+    if(!(o.tom && typeof o.tom==="object")){
+      if(tomLevel) tom.volume = clamp(o.levels[tomLevel],0,1,.7);
+      // old tom rows were one pitch (184 Hz, about F#3): each hit becomes that note. Rolls and accents don't carry over.
+      for(const k of Object.keys(dr).filter(isTomKey)) parseDrum(dr[k], len).forEach((c,i) => { if(c) tom.steps[i] = TONAL.tom.note; });
+    }
+  }
+  st.synths = [...TONAL_IDS.map(k => tonalRow(k, st)), ...syn.map((s,i) => {
     const n = newSynth(String(s?.name || ("Synth "+(i+1))).slice(0,24), len);
     n.volume = clamp(s?.volume,0,1,.7);
     n.timbre = clamp(s?.timbre,0,1,.5);
     n.steps = parseSteps(s?.steps, len);
+    n.poly = !!s?.poly || n.steps.some(isChord); // chords only make sense on a poly channel
     return n;
-  });
+  })];
   return st;
 }
 function toJSON(st){
@@ -553,10 +702,11 @@ function toJSON(st){
     levels[id] = +st.levels[id].toFixed(2);
   });
   return {
-    name: st.name, bpm: st.bpm, swing: +st.swing.toFixed(2), bassNote: st.bassNote,
+    name: st.name, bpm: st.bpm, swing: +st.swing.toFixed(2),
     synthTone: +st.synthTone.toFixed(2), synthReverb: +st.synthReverb.toFixed(2), transpose: st.transpose, warble: {...st.warble}, sidechain: +st.sidechain.toFixed(2), drumDrive: +st.drumDrive.toFixed(2), pages: st.pages,
-    drums, levels,
-    synths: st.synths.map(s => ({name:s.name, volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
+    drums, levels, tones: Object.fromEntries(TONE_IDS.map(id => [id, +st.tones[id].toFixed(2)])),
+    ...Object.fromEntries(TONAL_IDS.map(k => { const b = tonalRow(k, st); return [k==="808" ? "bass808" : k, {volume:+b.volume.toFixed(2), [TONAL[k].key]:+b.timbre.toFixed(2), steps:b.steps.map(x => x ?? ".")}]; })),
+    synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
   };
 }
 function pretty(o){
@@ -565,27 +715,37 @@ function pretty(o){
 
 /* ---------- Starters (built-in examples) ---------- */
 const H = "-", R = ".";
+const EM7 = "D#3+G3+A#3+D4", AB = "D#3+G#3+C4+D#4";
 const PRESETS = [
-  {name:"Night Drive", bpm:100, swing:.12, bassNote:"A1", pages:2,
+  {name:"Funky House Beat", bpm:119, swing:.17, synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, pages:2,
+   drums:{kick:"X...x...x...x...|X...x...x...x...", snare:"....X..g....X.g.|....X..g....X..g", clap:"....x.......x...|....x.......x...",
+     hatClosed:"XxgxxxgxXxgxxxxx|XxgxxxgxX.gxx.3.", hatOpen:"..x...x...x...x.|..x...x...x...x."},
+   levels:{kick:.95, snare:.85, clap:.7, hatClosed:.42, hatOpen:1},
+   bass808:{volume:.7, steps:["C1","-","-","-","-","-","-","-","-","-","-","-","-",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."]},
+   synths:[
+    {name:"Bass", volume:.85, timbre:.5, steps:["C2",H,R,R,R,R,"G1",H,R,R,"A#1",R,R,"C2",R,"D2", "F1",H,R,R,"G#1",R,"C2",H,R,"D#2",R,R,"D2",R,"D#2",R]},
+    {name:"Chords", poly:true, volume:.58, timbre:.33, steps:[EM7,H,H,R,R,R,R,EM7,H,R,EM7,H,R,R,R,R, AB,H,H,R,R,R,AB,H,R,R,R,AB,H,H,R,R]},
+    {name:"Synth 6", volume:.38, timbre:.56, steps:[R,"C4","C5","C4",R,R,R,R,R,R,R,R,R,R,R,R, R,R,R,R,R,R,R,R,R,R,R,R,R,"C5","C4","C3"]},
+   ]},
+  {name:"Night Drive", bpm:100, swing:.12, pages:2, tones:{kick:.7, snare:.3, clap:.6, hatClosed:.35, hatOpen:.5},
    drums:{kick:"x.....x.x.......|x.....x.x.......", snare:"....X.......X..g|....X.......X...", clap:"............x...|............x...",
-     hatClosed:"x.xgx...x.xgx.4.|x.xgx...x.xg....", hatOpen:"......x.........|......x.........", bass:"x...............|x...............",
-     tom:"................|.............xx2"},
+     hatClosed:"x.xgx...x.xgx.4.|x.xgx...x.xg....", hatOpen:"......x.........|......x........."},
+   tom:{steps:[...Array(29).fill(R),"F#3","F#3","F#3"]},
+   bass808:{steps:["A1","-","-","-","-","-","-","-","-","-","-",".",".",".",".",".","A1","-","-","-","-","-","-","-","-","-","-",".",".",".",".","."]},
    synths:[
     {name:"Bass", volume:.8, steps:["A2",H,R,"A3",R,"A2",H,"G2","F2",H,R,"F3",R,"F2","G2",H, "D2",H,R,"D3",R,"D2",H,"C2","E2",H,R,"E3",R,"E2","G2",H]},
-    {name:"Chord 1", volume:.45, steps:["C4",H,H,H,H,H,R,R,"A3",H,H,H,H,H,R,R, "A3",H,H,H,H,H,R,R,"B3",H,H,H,H,H,R,R]},
-    {name:"Chord 2", volume:.45, steps:["E4",H,H,H,H,H,R,R,"C4",H,H,H,H,H,R,R, "C4",H,H,H,H,H,R,R,"D4",H,H,H,H,H,R,R]},
-    {name:"Chord 3", volume:.45, steps:["G4",H,H,H,H,H,R,R,"E4",H,H,H,H,H,R,R, "F4",H,H,H,H,H,R,R,"G4",H,H,H,H,H,R,R]},
+    {name:"Chords", poly:true, volume:.75, steps:["C4+E4+G4",H,H,H,H,H,R,R,"A3+C4+E4",H,H,H,H,H,R,R, "A3+C4+F4",H,H,H,H,H,R,R,"B3+D4+G4",H,H,H,H,H,R,R]},
    ]},
-  {name:"Warehouse Stab", bpm:124, swing:.06, bassNote:"F1",
+  {name:"Warehouse Stab", bpm:124, swing:.06, tones:{kick:.3, snare:.6, clap:.8, hatClosed:.65, hatOpen:.3},
    drums:{kick:"x...x...x...x...", clap:"....x.......x...", snare:"..............g.", hatClosed:"xg.gxg.gxg.gxg.g", hatOpen:"..x...x...x...x."},
    synths:[
     {name:"Bass", volume:.85, steps:[R,R,"F2",R,R,R,"F2",R,R,R,"G#2",R,R,R,"D#2",R]},
-    {name:"Stab 1", volume:.4, steps:[R,R,R,"G#3",H,R,R,R,R,R,"G#3",H,R,R,R,R]},
-    {name:"Stab 2", volume:.4, steps:[R,R,R,"C4",H,R,R,R,R,R,"C4",H,R,R,R,R]},
-    {name:"Stab 3", volume:.4, steps:[R,R,R,"D#4",H,R,R,R,R,R,"D#4",H,R,R,R,R]},
+    {name:"Stab", poly:true, volume:.7, steps:[R,R,R,"G#3+C4+D#4",H,R,R,R,R,R,"G#3+C4+D#4",H,R,R,R,R]},
    ]},
-  {name:"Cold Glide", bpm:140, swing:0, bassNote:"F1",
-   drums:{kick:"x......x..x.x...", snare:"........X.......", clap:"........x.......", hatClosed:"xxx.x3x.xx4.x.6.", tom:"..............3.", bass:"x......x..x....."},
+  {name:"Cold Glide", bpm:140, swing:0, tones:{kick:.85, snare:.8, clap:.55, hatClosed:.75, hatOpen:.5},
+   drums:{kick:"x......x..x.x...", snare:"........X.......", clap:"........x.......", hatClosed:"xxx.x3x.xx4.x.6."},
+   tom:{steps:[...Array(14).fill(R),"F#3",R]},
+   bass808:{steps:["F1","-","-","-","-","-","-","F1","-","-","F1","-","-","-","-","-"]},
    synths:[
     {name:"Lead", volume:.42, steps:["F4",H,R,"G#4",R,"C5",H,H,"A#4",H,R,"G#4",H,R,"G4",H]},
    ]},
@@ -601,7 +761,7 @@ try { S = fromJSON(saved0?.beat ?? PRESETS[0]); } catch { S = fromJSON(PRESETS[0
 const muted = new Set(), soloed = new Set();
 // soloing a group counts every row in it as soloed
 const groupSolo = {drums:false, synths:false}, groupMuted = {drums:false, synths:false};
-const groupOf = id => DRUM_IDS.includes(id) ? "drums" : "synths";
+const groupOf = id => DRUM_IDS.includes(id) || S.synths.find(s => "s"+s.uid===id)?.fixed ? "drums" : "synths"; // tonal rows mute with the drums
 const anySolo = () => soloed.size>0 || groupSolo.drums || groupSolo.synths;
 const audible = id => !muted.has(id) && !groupMuted[groupOf(id)] && (!anySolo() || soloed.has(id) || groupSolo[groupOf(id)]);
 let currentDocId = null;
@@ -622,7 +782,9 @@ function persistLocal(){
 
 /* ---------- Audio ---------- */
 let ctx = null, master, comp, drumBus, synthBus, noiseBuf, shaper;
-let openHatChoke = null, bassChoke = null;
+let openHatChoke = null, bassChoke = null, kickChoke = null, drumRoom = null;
+const tonalChoke = new Map(); // row uid -> the last hit's gain, so the next hit on that row cuts it off
+let chorusIn = null, flangeIn = null;
 let duck = null, duckVerb = null, verbSend = null, W = null, tposeNode = null, D = null, lfo = null, lfoAmt = null;
 // drive curve: soft clip with a little asymmetry for even harmonics (the "grit")
 function driveCurve(){
@@ -665,6 +827,11 @@ function ensureCtx(){
   drumBus.connect(drivePre).connect(driveShape).connect(driveLow).connect(driveHigh).connect(driveWet).connect(drumComp);
   drumComp.connect(drumPost);
   D = {drumClean, drivePre, driveLow, driveHigh, driveWet, drumComp, drumPost};
+  // drum room: a reverb the clap, snap, rim and tom send into at the big end of their knobs (after the drive, so it stays clean)
+  const crPre = ctx.createDelay(.1); crPre.delayTime.value = .018;
+  const crConv = ctx.createConvolver(); crConv.buffer = makeImpulse(2.4, 2.4);
+  drumRoom = gainNode(1);
+  drumRoom.connect(crPre).connect(filt("highpass",350)).connect(crConv).connect(filt("lowpass",6500)).connect(drumPost);
   drumPost.connect(dryHP); synthBus.connect(dryHP); dryHP.connect(dryGain).connect(master);
   // Both reverbs are controlled on their OUTPUT (wet return), not the send,
   // so pulling the slider down cuts the tail immediately instead of letting it ring out.
@@ -674,6 +841,7 @@ function ensureCtx(){
   const damp = filt("lowpass", 5200);
   verbSend = gainNode(verbLevel(S.synthReverb));
   synthBus.connect(pre).connect(hp).connect(conv).connect(damp).connect(verbSend).connect(duckVerb).connect(master);
+  [chorusIn, flangeIn] = makePolyFx(duck);
   // wash hall: drums + synths + noise -> long hall IR -> wet level (hallOut) -> master
   const drumSend = gainNode(0), hallIn = gainNode(0), washPre = ctx.createDelay(.1); washPre.delayTime.value = .03;
   const hp2 = filt("highpass", 180), hall = ctx.createConvolver(); hall.buffer = makeImpulse(7, 1.6);
@@ -706,69 +874,163 @@ function noise(t,dur){ const s = ctx.createBufferSource(); s.buffer = noiseBuf; 
 function osc(type,f,t,stop){ const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f,t); o.start(t); o.stop(stop); return o; }
 function filt(type,f,q=.7){ const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
 
+// blend a tone knob's value through three settings: a at 0, b at 0.5 (the classic sound), c at 1
+const morph = (x,a,b,c) => x < .5 ? a + (b-a)*x*2 : b + (c-b)*(x-.5)*2;
 const VOICE = {
-  kick(t,v,out){
-    const o = osc("sine",160,t,t+.7);
-    o.frequency.exponentialRampToValueAtTime(52,t+.08); o.frequency.exponentialRampToValueAtTime(43,t+.45);
-    const g = gainNode(0); envExp(g.gain,t,v*1.1,.62); o.connect(g).connect(out);
-    const n = noise(t,.02), lp = filt("lowpass",3200), gc = gainNode(0); envExp(gc.gain,t,v*.28,.018,.001);
+  // tone 0-1 morphs tight (short, high, clicky) through classic house (0.5) to boom (long, low, soft attack)
+  kick(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c);
+    const dec = k(.2,.62,1.3), o = osc("sine",k(260,160,110),t,t+dec+.08);
+    o.frequency.exponentialRampToValueAtTime(k(62,52,44),t+k(.025,.08,.14)); o.frequency.exponentialRampToValueAtTime(k(56,43,36),t+k(.16,.45,.9));
+    const g = gainNode(0), choke = gainNode(1); envExp(g.gain,t,v*1.1*k(1.25,1,1),dec); o.connect(g).connect(choke).connect(out);
+    const n = noise(t,.02), lp = filt("lowpass",k(5000,3200,2200)), gc = gainNode(0); envExp(gc.gain,t,v*k(.5,.28,.12),.018,.001);
     n.connect(lp).connect(gc).connect(out);
+    if(kickChoke) kickChoke.gain.setTargetAtTime(0,t,.006); // a new kick cuts the last one's tail so long kicks don't smear
+    kickChoke = choke;
   },
-  snare(t,v,out){
-    const o1 = osc("triangle",190,t,t+.2), o2 = osc("sine",330,t,t+.2);
-    o1.frequency.exponentialRampToValueAtTime(170,t+.1);
-    const gt = gainNode(0); envExp(gt.gain,t,v*.55,.13); o1.connect(gt); o2.connect(gt); gt.connect(out);
-    const n = noise(t,.3), hp = filt("highpass",1600), gn = gainNode(0); envExp(gn.gain,t,v*.7,.22);
-    n.connect(hp).connect(gn).connect(out);
+  // tone 0-1: fat (low, long, dark) through classic (0.5) to crack (high, short, bright)
+  snare(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), bd = k(.2,.13,.08), f = k(150,190,250);
+    const o1 = osc("triangle",f,t,t+bd+.07), o2 = osc("sine",f*330/190,t,t+bd+.07);
+    o1.frequency.exponentialRampToValueAtTime(f*170/190,t+k(.12,.1,.06));
+    const gt = gainNode(0); envExp(gt.gain,t,v*k(.7,.55,.4),bd); o1.connect(gt); o2.connect(gt); gt.connect(out);
+    const nd = k(.32,.22,.14), n = noise(t,nd+.08), hp = filt("highpass",k(900,1600,2600)), gn = gainNode(0); envExp(gn.gain,t,v*k(.62,.7,.8),nd);
+    if(tone < .5) n.connect(filt("lowpass",k(5500,16000,16000))).connect(hp); else n.connect(hp); // fat snares get darker noise
+    hp.connect(gn).connect(out);
   },
-  clap(t,v,out){
-    const n = noise(t,.4), bp = filt("bandpass",1150,.9), hp = filt("highpass",500), g = gainNode(0);
+  // tone 0-1: tight snap through classic (0.5) to big room (wider bursts, longer tail, room reverb)
+  clap(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), sp = k(.006,.011,.015), tail = k(.16,.3,.42);
+    const n = noise(t,tail+.1), bp = filt("bandpass",k(1350,1150,1050),.9), hp = filt("highpass",500), g = gainNode(0);
     const p = g.gain; p.setValueAtTime(.0001,t);
-    for(let k=0;k<3;k++){ const tk = t+k*.011; p.setValueAtTime(v*.9,tk); p.exponentialRampToValueAtTime(v*.12,tk+.009); }
-    p.setValueAtTime(v*.85,t+.033); p.exponentialRampToValueAtTime(.0001,t+.3);
+    for(let j=0;j<3;j++){ const tk = t+j*sp; p.setValueAtTime(v*.9,tk); p.exponentialRampToValueAtTime(v*.12,tk+sp*9/11); }
+    p.setValueAtTime(v*.85,t+3*sp); p.exponentialRampToValueAtTime(.0001,t+tail);
     n.connect(bp).connect(hp).connect(g).connect(out);
+    const wet = Math.max(0, tone-.5)*2;
+    if(wet > 0 && drumRoom && drumRoom.context===ctx) g.connect(gainNode(wet*1.6)).connect(drumRoom);
   },
-  hat(t,v,out,open){
-    const dec = open ? .38 : .055, stop = t+dec+.05;
-    const sum = gainNode(1/6), bp = filt("bandpass",10000,.6), hp = filt("highpass",7000), g = gainNode(0), choke = gainNode(1);
-    [2,3,4.16,5.43,6.79,8.21].forEach(r => osc("square",40*r,t,stop).connect(sum));
-    envExp(g.gain,t,v*.55,dec,.001);
+  // bright 0-1: dark/dusty through classic (0.5) to crisp. len 0-1 (open hat only): short tss to long wash
+  hat(t,v,out,open,bright=.5,len=.5){
+    const k = (a,b,c) => morph(bright,a,b,c);
+    const dec = open ? morph(len,.15,.38,.8) : k(.07,.055,.05), stop = t+dec+.05;
+    const sum = gainNode(1/6), bp = filt("bandpass",k(6500,10000,12500),.6), hp = filt("highpass",k(4500,7000,9000)), g = gainNode(0), choke = gainNode(1);
+    const base = k(34,40,46);
+    [2,3,4.16,5.43,6.79,8.21].forEach(r => osc("square",base*r,t,stop).connect(sum));
+    envExp(g.gain,t,v*.55*k(1,1,1.2),dec,.001); // bright hats lose energy to the filters, so lift them a touch
     sum.connect(bp).connect(hp).connect(g).connect(choke).connect(out);
     if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,t,.008); openHatChoke = null; }
     if(open) openHatChoke = choke;
   },
-  tom(t,v,out,f){
-    const o = osc("sine",f*1.4,t,t+.6);
-    o.frequency.exponentialRampToValueAtTime(f,t+.06);
-    const g = gainNode(0); envExp(g.gain,t,v*.85,f<110?.5:.4); o.connect(g).connect(out);
-    const n = noise(t,.03), lp = filt("lowpass",2400), gn = gainNode(0); envExp(gn.gain,t,v*.12,.025,.001);
+  // tom: size 0-1 goes tight and dry through classic (0.5) to big: a longer ring, a deeper sweep and the drum room
+  tom(t,v,out,f,size=.5){
+    const k = (a,b,c) => morph(size,a,b,c), dec = (f<110 ? .5 : .4)*k(.55,1,1.9);
+    const o = osc("sine",f*k(1.25,1.4,1.6),t,t+dec+.2);
+    o.frequency.exponentialRampToValueAtTime(f,t+k(.04,.06,.09));
+    if(tposeNode) tposeNode.connect(o.detune); // tonal drums follow the global transpose, like the 808
+    const g = gainNode(0); envExp(g.gain,t,v*.85,dec); o.connect(g).connect(out);
+    const n = noise(t,.03), lp = filt("lowpass",2400), gn = gainNode(0); envExp(gn.gain,t,v*.12*k(1.4,1,.8),.025,.001);
     n.connect(lp).connect(gn).connect(out);
+    const wet = Math.max(0, size-.5)*2;
+    if(wet > 0 && drumRoom && drumRoom.context===ctx) g.connect(gainNode(wet*1.1)).connect(drumRoom);
   },
-  bass(t,v,out){
-    const f = mtof(nameMidi(S.bassNote) ?? 29);
-    const o = osc("sine",f*2.2,t,t+1.7);
+  // conga: tone 0-1 goes muted slap through classic (0.5) to an open, ringing tone
+  conga(t,v,out,f,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), dec = k(.07,.2,.5);
+    const o = osc("sine",f*k(1.25,1.12,1.06),t,t+dec+.1), o2 = osc("sine",f*1.52,t,t+dec+.1);
+    o.frequency.exponentialRampToValueAtTime(f,t+.025);
+    if(tposeNode){ tposeNode.connect(o.detune); tposeNode.connect(o2.detune); }
+    const g = gainNode(0); envExp(g.gain,t,v*.8,dec,.001); o.connect(g).connect(out);
+    const g2 = gainNode(0); envExp(g2.gain,t,v*k(.3,.18,.12),dec*.4,.001); o2.connect(g2).connect(out);   // the skin's overtone
+    const n = noise(t,.04), bp = filt("bandpass",k(3200,2400,1800),1.2), gn = gainNode(0); envExp(gn.gain,t,v*k(.7,.3,.1),.03,.001); // the hand slap
+    n.connect(bp).connect(gn).connect(out);
+  },
+  // cowbell: the 808's two detuned squares through a band-pass. tone 0-1 goes short clank through classic (0.5) to a long ring
+  cowbell(t,v,out,f,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), dec = k(.12,.35,.8), stop = t+dec+.05;
+    const sum = gainNode(.5), bp = filt("bandpass",Math.min(f*k(3.5,4.2,5),12000),k(1.2,.9,.7)), hp = filt("highpass",400);
+    const oa = osc("square",f,t,stop), ob = osc("square",f*1.48,t,stop);
+    if(tposeNode){ tposeNode.connect(oa.detune); tposeNode.connect(ob.detune); }
+    oa.connect(sum); ob.connect(sum);
+    const g = gainNode(0), p = g.gain;
+    p.setValueAtTime(.0001,t); p.exponentialRampToValueAtTime(v*.55,t+.002);
+    p.exponentialRampToValueAtTime(v*.18,t+.04); p.exponentialRampToValueAtTime(.0001,t+dec);
+    sum.connect(bp).connect(hp).connect(g).connect(out);
+  },
+  // snap: a finger snap. A sharp skin crack, noise ringing three resonances (the palm cavity around 1.5 kHz, the
+  // finger slap around 2.8 kHz and a little hand body near 850 Hz) and a quick pitch-dropping "tock", varied a touch on every hit so repeats sound played.
+  // size 0-1 goes tight and dry through classic (0.5) to a big stack of snaps in the drum room
+  snap(t,v,out,size=.5){
+    const k = (a,b,c) => morph(size,a,b,c), lay = Math.max(0, size-.5)*2, bus = gainNode(.75);
+    bus.connect(out);
+    const one = (tt, g, tune) => {
+      const r = tune * (1 + (Math.random()-.5)*.06), dec = k(.04,.06,.075);
+      const c = noise(tt,.006), chp = filt("highpass",2500), cg = gainNode(0); envExp(cg.gain,tt,g*.5,.006,.0003);
+      c.connect(chp).connect(cg).connect(bus);
+      const n = noise(tt,dec+.03), b1 = filt("bandpass",1500*r,k(8,6,5)), b2 = filt("bandpass",2800*r,k(6,4.5,4)), bg = gainNode(0);
+      const b3 = filt("bandpass",850*r,3), g3 = gainNode(.45), g2 = gainNode(.6);
+      envExp(bg.gain,tt,g*3.6,dec,.0008); n.connect(b1).connect(bg); n.connect(b2).connect(g2).connect(bg); n.connect(b3).connect(g3).connect(bg); bg.connect(bus);
+      const o = osc("sine",2200*r,tt,tt+.045), og = gainNode(0); o.frequency.exponentialRampToValueAtTime(1100*r,tt+.02);
+      envExp(og.gain,tt,g*.3,.028,.0005); o.connect(og).connect(bus);
+    };
+    one(t, v, k(1.08,1,.96));
+    if(lay > 0){ one(t+.012, v*.75*lay, .93); one(t+.026, v*.6*lay, 1.07); }
+    if(lay > 0 && drumRoom && drumRoom.context===ctx) bus.connect(gainNode(lay*1.3)).connect(drumRoom);
+  },
+  // rim: tone 0-1 goes 808 clave (woody) through the 808 rimshot (0.5) to a sharp crack with some room
+  rim(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), bus = gainNode(.7), ws = ctx.createWaveShaper(), pre = gainNode(k(.8,2.2,3));
+    ws.curve = shaper;
+    pre.connect(ws).connect(filt("highpass",k(600,350,500))).connect(bus); bus.connect(out);
+    const hi = osc("sine",k(2500,1700,1900),t,t+.12), gh = gainNode(0); envExp(gh.gain,t,v*k(.9,.5,.45),k(.06,.035,.03),.0005); hi.connect(gh).connect(pre);
+    const low = k(0,.6,.5); // the rimshot's low knock, gone at the clave end
+    if(low > 0){ const lo = osc("sine",k(455,455,520),t,t+.08), gl = gainNode(0); envExp(gl.gain,t,v*low,.03,.0005); lo.connect(gl).connect(pre); }
+    const crack = k(0,.12,.4);
+    if(crack > 0){ const n = noise(t,.03), hp = filt("highpass",k(3000,2500,3500)), gn = gainNode(0); envExp(gn.gain,t,v*crack,.014,.0005); n.connect(hp).connect(gn).connect(bus); }
+    const wet = Math.max(0, tone-.5)*2;
+    if(wet > 0 && drumRoom && drumRoom.context===ctx) bus.connect(gainNode(wet*.7)).connect(drumRoom);
+  },
+  // shaker: tone 0-1 goes tight tick through classic (0.5) to a loose, long shake
+  shaker(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), atk = k(.002,.008,.02), dec = k(.04,.09,.18);
+    const n = noise(t,atk+dec+.05), bp = filt("bandpass",k(9000,7000,6000),.8), hp = filt("highpass",k(5000,4000,3200)), g = gainNode(0), p = g.gain;
+    p.setValueAtTime(.0001,t); p.linearRampToValueAtTime(v*.3,t+atk); p.exponentialRampToValueAtTime(.0001,t+atk+dec);
+    n.connect(bp).connect(hp).connect(g).connect(out);
+  },
+  // 808 sub: pitch-swept sine into soft clipping. It rings with its natural ~1.6s decay until the
+  // note's held length ends or the next 808 note chokes it. drive 0.5 is the classic amount.
+  bass(t,v,out,midi,dur=1.6,drive=.5){
+    const f = mtof(midi);
+    const o = osc("sine",f*2.2,t,t+Math.min(dur,1.6)+.2);
     o.frequency.exponentialRampToValueAtTime(f,t+.05);
     if(tposeNode) tposeNode.connect(o.detune); // global transpose follows the 808 too
     const ws = ctx.createWaveShaper(); ws.curve = shaper;
+    const pre = .25 + 1.5*drive, pre_ = gainNode(pre), post = gainNode(Math.tanh(2.2)/Math.tanh(2.2*pre)); // loudness stays level as drive changes
     const g = gainNode(0), choke = gainNode(1);
     g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(v*.8,t+.004);
     g.gain.exponentialRampToValueAtTime(v*.5,t+.35); g.gain.exponentialRampToValueAtTime(.0001,t+1.6);
-    o.connect(ws).connect(g).connect(choke).connect(out);
+    if(dur < 1.6) choke.gain.setTargetAtTime(0,t+dur,.03);
+    o.connect(pre_).connect(ws).connect(post).connect(g).connect(choke).connect(out);
     if(bassChoke) bassChoke.gain.setTargetAtTime(0,t,.012);
     bassChoke = choke;
+    return choke;
   },
 };
 function playDrum(id,t,v){
+  if(id==="kick") sidechainHit(t); // the pump follows the kick pattern even when the kick is silent
   if(v<=0) return;
-  const out = drumBus;
+  drumVoice(id,t,v);
+}
+function drumVoice(id,t,v){
+  const out = drumBus, T = S.tones;
   switch(id){
-    case "kick": VOICE.kick(t,v,out); sidechainHit(t); break;
-    case "snare": VOICE.snare(t,v,out); break;
-    case "clap": VOICE.clap(t,v,out); break;
-    case "hatClosed": VOICE.hat(t,v,out,false); break;
-    case "hatOpen": VOICE.hat(t,v,out,true); break;
-    case "tom": VOICE.tom(t,v,out,184); break;
-    case "bass": VOICE.bass(t,v,out); break;
+    case "kick": VOICE.kick(t,v,out,T.kick); break;
+    case "snare": VOICE.snare(t,v,out,T.snare); break;
+    case "clap": VOICE.clap(t,v,out,T.clap); break;
+    case "hatClosed": VOICE.hat(t,v,out,false,T.hatClosed); break;
+    case "hatOpen": VOICE.hat(t,v,out,true,T.hatClosed,T.hatOpen); break; // open hat brightness follows the closed hat
+    case "snap": VOICE.snap(t,v,out,T.snap); break;
+    case "rim": VOICE.rim(t,v,out,T.rim); break;
+    case "shaker": VOICE.shaker(t,v,out,T.shaker); break;
   }
 }
 // duck the synths: fast dip on the kick, then a pumping recovery that lasts about a beat
@@ -782,25 +1044,68 @@ function sidechainHit(t){
     g.setTargetAtTime(1, t + beat*.1, beat*.22);      // hold, then swell back over most of the beat
   }
 }
-function playSynth(midi,t,dur,vol,tim=.5){
-  if(vol<=0) return;
-  const f = mtof(midi), peak = .15*vol, rel = .04;
+// One voice: a note number, or an array for a chord. A chord is one instrument: every note's
+// oscillators feed the same filter and amp envelope, scaled by 1/sqrt(n) so chords sit level with single notes.
+// Any synth row's voice: tonal rows play their drum (mono, on the drum bus), others the synth
+function playVoice(s, ms, t, dur, vol){
+  if(s?.fixed){
+    const m = [].concat(ms).filter(x => x!=null); if(!m.length || vol<=0) return;
+    const top = Math.max(...m);
+    if(s.is808) return VOICE.bass(t, vol*VEL.x, drumBus, top, dur, s.timbre);
+    const ch = gainNode(1), prev = tonalChoke.get(s.uid);
+    ch.connect(drumBus);
+    if(prev) prev.gain.setTargetAtTime(0, t, .03); // one voice per row: a new hit cuts the last one's ring
+    tonalChoke.set(s.uid, ch);
+    VOICE[s.fixed](t, vol*VEL.x, ch, mtof(top), s.timbre);
+    return ch;
+  }
+  return playSynth(ms, t, dur, vol, s ? s.timbre : .5, !!s?.poly);
+}
+// poly width: the top half of a poly synth's timbre knob sends here for width and movement instead of grit.
+// No reverb here (the Synth Reverb slider does that): a stereo chorus (two slowly swept ~15 ms delays, one per side)
+// and a stereo flanger (short swept delays with feedback, the two sides sweeping in opposite directions), both back
+// into the ducked synth path.
+function makePolyFx(dry){
+  const cIn = gainNode(1), fIn = gainNode(1), merger = ctx.createChannelMerger(2);
+  [[.012,.31,0],[.019,.23,1]].forEach(([d,rate,ch]) => {
+    const dl = ctx.createDelay(.05); dl.delayTime.value = d;
+    const l = ctx.createOscillator(); l.frequency.value = rate; const la = gainNode(.005); l.connect(la).connect(dl.delayTime); l.start();
+    cIn.connect(dl); dl.connect(merger, 0, ch);
+  });
+  // flanger: delays swept between about 3 and 7 ms (a feedback loop can't go below one 128-sample block, ~3 ms)
+  const fl = ctx.createOscillator(); fl.frequency.value = .16; fl.start();
+  [[.005,.002,0],[.0055,-.002,1]].forEach(([d,depth,ch]) => {
+    const dl = ctx.createDelay(.02), fb = gainNode(.55), dd = gainNode(depth); dl.delayTime.value = d;
+    fl.connect(dd).connect(dl.delayTime);
+    fIn.connect(dl); dl.connect(fb).connect(dl); dl.connect(merger, 0, ch);
+  });
+  merger.connect(dry);
+  return [cIn, fIn];
+}
+function playSynth(midi,t,dur,vol,tim=.5,poly=false){
+  const notes = (Array.isArray(midi) ? midi : [midi]).filter(m => m!=null);
+  if(vol<=0 || !notes.length) return;
+  const freqs = notes.map(mtof), peak = .15*vol/Math.sqrt(notes.length), rel = .04;
+  const f = Math.exp(freqs.reduce((a,x) => a+Math.log(x), 0)/freqs.length); // filter tracks the chord's centre
   const g = gainNode(0);
   g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+.006);
   g.gain.setTargetAtTime(peak*.62,t+.006,.14); g.gain.setTargetAtTime(0,t+dur,rel);
   // cutoff: ~80 Hz at 0% (dark and muffled), ~1.6 kHz at the 45% default, ~5.4 kHz at 100%
   const base = (80 + Math.pow(S.synthTone,1.54)*5300) * Math.pow(f*Math.pow(2,S.transpose/1200)/220,.3);
-  // timbre: 0 smooth triangle, .5 the classic 2 saws + square, 1 square-heavy and clipped
-  const sm = Math.max(0, 1 - tim*2), hv = Math.max(0, tim*2 - 1);
-  const cut = base * (.75 + .5*tim);
+  // timbre: 0 smooth triangle, .5 the classic 2 saws + square, 1 square-heavy and clipped.
+  // Poly rows keep the classic tone above .5 and gain chorus, flange and width (sp) instead of grit, at the same loudness.
+  const sm = Math.max(0, 1 - tim*2), up = Math.max(0, tim*2 - 1), hv = poly ? 0 : up, sp = poly ? up : 0;
+  const cut = base * (.75 + .5*(poly ? Math.min(tim,.5) : tim));
   const lp = filt("lowpass",cut,5 - 2*sm);
   lp.frequency.setValueAtTime(Math.min(cut*(4.5 - 2*sm),16000),t); lp.frequency.setTargetAtTime(cut,t,.1);
   const stop = t+dur+rel*8;
   const oscs = [];
-  const add = (type,det,lvl) => { if(lvl<=.001) return; const o = osc(type,f,t,stop); o.detune.value = det; o.connect(gainNode(lvl)).connect(lp); oscs.push(o); };
+  const add = (type,det,lvl) => { if(lvl<=.001) return; const lg = gainNode(lvl); lg.connect(lp); for(const fq of freqs){ const o = osc(type,fq,t,stop); o.detune.value = det; o.connect(lg); oscs.push(o); } };
   add("triangle", 0, sm*.75);
-  add("sawtooth", -8, (1-sm)*(1 - .75*hv));
-  add("sawtooth", 8, (1-sm)*(1 - .75*hv));
+  add("sawtooth", -8, (1-sm)*(1 - .75*hv)*(1 - .3*sp));
+  add("sawtooth", 8, (1-sm)*(1 - .75*hv)*(1 - .3*sp));
+  add("sawtooth", -(12 + 14*sp), .45*sp);              // poly space: a wider pair of detuned saws for shimmer
+  add("sawtooth", 12 + 14*sp, .45*sp);
   add("square", 0, .35*(1-sm) + 1.1*hv);
   add("square", 5 + 7*hv, .8*hv);                       // a second, drifting square for buzz
   if(tposeNode) oscs.forEach(o => tposeNode.connect(o.detune));
@@ -808,7 +1113,11 @@ function playSynth(midi,t,dur,vol,tim=.5){
     const pre = gainNode(1 + hv*3), sh = ctx.createWaveShaper(), post = gainNode(1/(1 + hv*.25));
     sh.curve = shaper; lp.connect(pre).connect(sh).connect(post).connect(g);
   } else lp.connect(g);
-  g.connect(duck);
+  if(sp > 0 && chorusIn && chorusIn.context===ctx){
+    g.connect(gainNode(1 - .45*sp)).connect(duck);
+    g.connect(gainNode(.9*sp)).connect(chorusIn);
+    g.connect(gainNode(.35*sp)).connect(flangeIn);
+  } else g.connect(duck);
   return g;
 }
 
@@ -828,7 +1137,9 @@ function fallbackTimer(){ if(worker){ try{ worker.terminate(); }catch{} worker =
 function scheduleStep(step,t,sd){
   for(const id of DRUM_IDS){
     const c = S.drums[id][step];
-    if(!c || !audible(id)) continue;
+    if(!c) continue;
+    // a muted kick still drives the sidechain, as long as it has hits
+    if(!audible(id)){ if(id==="kick") for(let k=0;k<c.r;k++) sidechainHit(t+k*sd/c.r); continue; }
     const v = VEL[c.v]*S.levels[id];
     for(let k=0;k<c.r;k++){
       const vk = c.r>1 ? v*(.62+.38*(k+1)/c.r) : v;
@@ -841,8 +1152,7 @@ function scheduleStep(step,t,sd){
     const total = s.steps.length;
     let len = 1;
     while(len<total && s.steps[(step+len)%total]==="-") len++;
-    const m = nameMidi(n);
-    if(m!=null) playSynth(m, t, len*sd - .004, s.volume, s.timbre);
+    playVoice(s, stepNotes(n), t, len*sd - .004, s.volume);
   }
 }
 function tick(){
@@ -876,6 +1186,8 @@ function stopPlay(){
   vq.length = 0; setPlayhead(-1);
   if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,ctx.currentTime,.01); openHatChoke = null; }
   if(bassChoke){ bassChoke.gain.setTargetAtTime(0,ctx.currentTime,.02); bassChoke = null; }
+  kickChoke = null;
+  tonalChoke.forEach(g => g.gain.setTargetAtTime(0,ctx.currentTime,.02)); tonalChoke.clear();
   $("playBtn").setAttribute("aria-pressed","false");
   $("playBtn").innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span>';
 }
@@ -913,37 +1225,51 @@ function render(){
     `</div><button class="btn" data-act="addpage" ${S.pages>=MAX_PAGES?"disabled":""}>+ Add page</button>` +
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
     `<div class="spacer"></div><label class="check"><input type="checkbox" data-act="follow" ${followPlay?"checked":""}> Follow playhead</label>` +
-    `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages</span></div>`;
+    `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages${S.pages>1 ? " · swipe sideways to switch" : ""}</span></div>`;
   const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupMuted[g]}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupSolo[g]}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
   h += `<div class="sec"><div class="sech"><h2>Drums</h2>${gm("drums")}</div><span class="hint">Click or drag in any direction to paint · right-click or long-press for rolls</span></div>`;
   h += `<div class="row steps-head"><div class="rh"></div>` + Array.from({length:16},(_,i) => `<div class="n ${i%4===0?"beat":""} ${i%4===0&&i>0?"gs":""}">${off+i+1}</div>`).join("") + `</div>`;
   for(const d of DRUMS){
-    const tune = d.id==="bass" ? `<select class="tune" data-act="tune" aria-label="808 bass note">${Array.from({length:24},(_,k)=>NOTE_LO+k).map(m=>`<option ${midiName(m)===S.bassNote?"selected":""}>${midiName(m)}</option>`).join("")}</select>` : "";
+    const tune = "";
     h += `<div class="row drum ${audible(d.id)?"":"muted"}" data-row="${d.id}">
       <div class="rh" title="Right-click for row tools"><span class="abbr">${d.abbr}</span><span class="rname">${d.name}</span>${tune}
       <button class="mute" data-act="mute" data-kind="mute" data-id="${d.id}" aria-pressed="${muted.has(d.id)}" title="Mute (drag to mute several)">M</button>
       <button class="mute solo" data-act="mute" data-kind="solo" data-id="${d.id}" aria-pressed="${soloed.has(d.id)}" title="Solo (drag to solo several)">S</button>
-      <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level"></div>`;
+      ${TONES[d.id] ? `<span class="knob" data-act="timbre" data-uid="drum:${d.id}" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(S.tones[d.id]*100)}" aria-valuetext="${Math.round(S.tones[d.id]*100)}% ${toneWord(d.id, S.tones[d.id])}" aria-label="${d.name} ${TONES[d.id].label.toLowerCase()}" title="${TONES[d.id].label}: ${TONES[d.id].range} (drag up/down, double-click resets)" style="${knobStyle(S.tones[d.id])}"><i></i></span>` : `<span class="knob-sp" aria-hidden="true"></span>`}
+      <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level">
+      <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, fill, shift" aria-label="${d.name} row tools" aria-haspopup="menu">⋮</button></div>`;
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.indexOf(d.id)}" data-kind="drum" data-row="${d.id}" data-step="${off+i}" aria-label="${d.name} step ${off+i+1}"></button>`;
     h += `</div>`;
   }
-  h += `<div class="sec"><div class="sech"><h2>Synths</h2>${gm("synths")}</div><span class="hint">Click an empty step to repeat the last note (the keyboard opens to change it) · drag right from a note to hold it · right-click clears</span></div>`;
-  for(const s of S.synths){
-    const key = "s"+s.uid;
-    h += `<div class="row syn ${audible(key)?"":"muted"}" data-row="${key}">
-      <div class="rh"><span class="abbr" style="background:var(--synth)">SY</span>
-      <input class="rname-in" data-act="rename" data-uid="${s.uid}" value="${esc(s.name)}" maxlength="24" aria-label="Synth name">
-      <button class="mute" data-act="mute" data-kind="mute" data-id="${key}" aria-pressed="${muted.has(key)}" title="Mute (drag to mute several)">M</button>
-      <button class="mute solo" data-act="mute" data-kind="solo" data-id="${key}" aria-pressed="${soloed.has(key)}" title="Solo (drag to solo several)">S</button>
-      <span class="knob" data-act="timbre" data-uid="${s.uid}" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.timbre*100)}" aria-label="${esc(s.name)} timbre" title="Timbre: smooth to harsh (drag up/down, double-click resets)" style="${knobStyle(s.timbre)}"><i></i></span>
-      <input type="range" class="vol" data-act="svol" data-uid="${s.uid}" min="0" max="100" data-default="70" data-fmt="%" value="${Math.round(s.volume*100)}" aria-label="${esc(s.name)} volume">
-      <button class="del" data-act="delsyn" data-uid="${s.uid}" title="Remove synth" aria-label="Remove ${esc(s.name)}">✕</button></div>`;
-    for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.length + S.synths.indexOf(s)}" data-kind="syn" data-row="${key}" data-step="${off+i}" aria-label="${esc(s.name)} step ${off+i+1}"></button>`;
-    h += `</div>`;
-  }
-  h += `<div class="addrow"><button class="btn" data-act="addsyn" ${S.synths.length>=MAX_SYNTHS?"disabled":""}>+ Add synth channel</button><span class="hint">${S.synths.length}/${MAX_SYNTHS} · each channel plays one note at a time, stack channels for chords</span></div>`;
+  h += `<div class="subsec"><span class="lbl">Tonal</span><span class="hint">Click to add a hit (it repeats the row's last pitch) · click a hit to change its pitch · right-click clears</span></div>`;
+  for(const s of S.synths) if(s.fixed) h += synRow(s, off);
+  h += `<div class="sec"><div class="sech"><h2>Synths</h2>${gm("synths")}</div><span class="hint">Click a step to add a note (it repeats the row's last note or chord) · click a note to change it on the keyboard · drag right from a note to hold it · right-click clears · POLY rows build chords on the keyboard</span></div>`;
+  for(const s of S.synths) if(!s.fixed) h += synRow(s, off);
+  const full = userSynths().length>=MAX_SYNTHS ? "disabled" : "";
+  h += `<div class="addrow"><button class="btn" data-act="addsyn" ${full}>+ Add synth</button><button class="btn" data-act="addpoly" ${full}>+ Add chord synth</button><span class="hint">${userSynths().length}/${MAX_SYNTHS} · mono plays one note at a time, poly plays chords</span></div>`;
   const fb = $("flagbar"); fb.remove();           // keep the live Unmute/Unsolo bar across re-renders
   rack.innerHTML = h;
+  renderRest(fb);
+}
+// one synth or tonal-drum row. Tonal rows are locked (no rename, poly or delete) and line up with the drum rows.
+function synRow(s, off){
+    const key = "s"+s.uid, meta = s.fixed && TONAL[s.fixed];
+    let h = "";
+    h += `<div class="row syn ${meta ? "tonal" : ""} ${audible(key)?"":"muted"}" data-row="${key}">
+      <div class="rh">${meta ? `<span class="abbr b808" title="${meta.name==="Bass" ? "The 808" : "The "+meta.name.toLowerCase()} is always here and always mono">${meta.abbr}</span>
+      <span class="rname">${meta.name}</span>` : `<button class="abbr ptog" data-act="poly" data-uid="${s.uid}" aria-pressed="${s.poly}" title="${s.poly ? "Poly: each step can be a chord. Click for mono" : "Mono: one note at a time. Click for poly (chords)"}">${s.poly ? "POLY" : "MONO"}</button>
+      <input class="rname-in" data-act="rename" data-uid="${s.uid}" value="${esc(s.name)}" maxlength="24" aria-label="Synth name">`}
+      <button class="mute" data-act="mute" data-kind="mute" data-id="${key}" aria-pressed="${muted.has(key)}" title="Mute (drag to mute several)">M</button>
+      <button class="mute solo" data-act="mute" data-kind="solo" data-id="${key}" aria-pressed="${soloed.has(key)}" title="Solo (drag to solo several)">S</button>
+      <span class="knob" data-act="timbre" data-uid="${s.uid}" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.timbre*100)}" aria-valuetext="${knobDesc(s).valuetext}" aria-label="${esc(meta ? meta.name : s.name)} ${meta ? meta.label.toLowerCase() : "timbre"}" title="${meta ? `${meta.label}: ${meta.range}` : s.poly ? "Timbre: smooth to wide and swirly" : "Timbre: smooth to harsh"} (drag up/down, double-click resets)" style="${knobStyle(s.timbre)}"><i></i></span>
+      <input type="range" class="vol" data-act="svol" data-uid="${s.uid}" min="0" max="100" data-default="${meta ? Math.round(meta.vol*100) : 70}" data-fmt="%" value="${Math.round(s.volume*100)}" aria-label="${esc(meta ? meta.name : s.name)} volume">
+      <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, shift" aria-label="${esc(meta ? meta.name : s.name)} row tools" aria-haspopup="menu">⋮</button>
+      ${meta ? "" : `<button class="del" data-act="delsyn" data-uid="${s.uid}" title="Remove synth" aria-label="Remove ${esc(s.name)}">✕</button>`}</div>`;
+    for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.length + S.synths.indexOf(s)}" data-kind="syn" data-row="${key}" data-step="${off+i}" aria-label="${esc(meta ? meta.name : s.name)} step ${off+i+1}"></button>`;
+    h += `</div>`;
+    return h;
+}
+function renderRest(fb){
   // a page flip mid-drag rebuilds the rack: hand the drag over to the fresh knob so it keeps going
   if(knobDrag){
     const k = rack.querySelector(`.knob[data-uid="${knobDrag.uid}"]`);
@@ -976,8 +1302,10 @@ function paintCell(el){
     el.classList.toggle("on", !!n && n!=="-");
     el.classList.toggle("tie", tieValid);
     el.classList.toggle("held", (n && n!=="-" || tieValid) && next==="-" && i%PAGE<15);
-    el.textContent = n && n!=="-" ? n : "";
-    if(n==="-" && !tieValid) el.textContent = "";
+    el.classList.toggle("chord", isChord(n));
+    if(isChord(n)){ const [r,qq] = chordParts(n); el.innerHTML = `<span>${r}</span>` + (qq ? `<span class="cq">${qq}</span>` : ""); }
+    else el.textContent = n && n!=="-" ? n : "";
+    el.title = isChord(n) ? n.split("+").join(" ") : "";
   }
 }
 function tieSounding(s,i){
@@ -1052,23 +1380,51 @@ document.addEventListener("keydown", e => {
 /* Timbre knobs */
 function knobStyle(v){ return `--v:${v.toFixed(3)};--h:${Math.max(0, v*2-1).toFixed(3)}`; }
 const timbreWord = v => v < .2 ? "smooth" : v < .42 ? "soft" : v <= .58 ? "classic" : v < .8 ? "edgy" : "harsh";
+const polyWord = v => v < .2 ? "smooth" : v < .42 ? "soft" : v <= .58 ? "classic" : v < .8 ? "wide" : "swirly";
+const TONES = {
+  kick:      {label:"Tone",   range:"tight to boom",     words:["tight","punchy","house","deep","boom"]},
+  snap:      {label:"Size",   range:"tight to big layered room", words:["tight","dry","classic","layered","big room"]},
+  rim:       {label:"Tone",   range:"clave to rimshot to crack", words:["clave","woody","rimshot","sharp","crack"]},
+  shaker:    {label:"Tone",   range:"tight to loose",    words:["tight","short","classic","loose","long"]},
+  snare:     {label:"Tone",   range:"fat to crack",      words:["fat","warm","classic","snappy","crack"]},
+  clap:      {label:"Tone",   range:"tight to big room", words:["tight","snappy","classic","roomy","big room"]},
+  hatClosed: {label:"Tone",   range:"dark to bright (open hat follows)", words:["dark","dusty","classic","crisp","bright"]},
+  hatOpen:   {label:"Length", range:"short tss to long wash", words:["tss","short","classic","long","wash"]},
+};
+const pickWord = (words, v) => words[v < .2 ? 0 : v < .42 ? 1 : v <= .58 ? 2 : v < .8 ? 3 : 4];
+const toneWord = (id, v) => pickWord(TONES[id].words, v);
+// a knob's name and its value in words, for the tip and screen readers
+function knobDesc(s){
+  const pct = Math.round(s.timbre*100);
+  const [label, word] = s.drum ? [TONES[s.drum].label, toneWord(s.drum, s.timbre)]
+    : s.fixed ? [TONAL[s.fixed].label, TONAL[s.fixed].words ? pickWord(TONAL[s.fixed].words, s.timbre) : ""]
+    : ["Timbre", (s.poly ? polyWord : timbreWord)(s.timbre)];
+  return {tip: `${label} ${pct}%${word ? " · "+word : ""}`, valuetext: `${pct}%${word ? " "+word : ""}`};
+}
+// what a knob turns: a synth's timbre, or a drum's tone (data-uid="drum:<id>")
+const knobObj = uid => {
+  if(!uid.startsWith("drum:")) return S.synths.find(x => String(x.uid)===uid);
+  const id = uid.slice(5);
+  return {drum:id, get timbre(){ return S.tones[id]; }, set timbre(v){ S.tones[id] = v; }};
+};
 function setKnob(k, v, tip){
-  const s = S.synths.find(x => String(x.uid)===k.dataset.uid); if(!s) return;
+  const s = knobObj(k.dataset.uid); if(!s) return;
   s.timbre = Math.round(Math.max(0, Math.min(1, v))*100)/100;
   k.setAttribute("style", knobStyle(s.timbre));
   k.setAttribute("aria-valuenow", Math.round(s.timbre*100));
-  k.setAttribute("aria-valuetext", `${Math.round(s.timbre*100)}% ${timbreWord(s.timbre)}`);
+  k.setAttribute("aria-valuetext", knobDesc(s).valuetext);
   if(tip){
     const r = k.getBoundingClientRect(), el = $("knobTip");
-    el.hidden = false; el.textContent = `Timbre ${Math.round(s.timbre*100)}% · ${timbreWord(s.timbre)}`;
+    el.hidden = false; el.textContent = knobDesc(s).tip;
     el.style.left = (r.left + r.width/2) + "px"; el.style.top = (r.top - 6) + "px";
   }
   return s;
 }
 function knobPreview(s){
   if(playing) return;
-  const n = s.steps.find(x => x && x!=="-") || "C3";
-  ensureCtx(); playSynth(nameMidi(n), ctx.currentTime+.005, .35, Math.max(.5, s.volume), s.timbre);
+  if(s.drum){ ensureCtx(); drumVoice(s.drum, ctx.currentTime+.005, VEL.x*Math.max(.5, S.levels[s.drum])); return; }
+  const n = s.steps.find(x => x && x!=="-") || defNote(s);
+  ensureCtx(); playVoice(s, stepNotes(n), ctx.currentTime+.005, s.is808 ? .8 : .35, Math.max(.5, s.volume));
 }
 let knobDrag = null, rangeHeld = false;
 rack.addEventListener("pointerdown", e => { if(e.target.matches?.('input[type="range"]')) rangeHeld = true; }, true);
@@ -1084,7 +1440,7 @@ const endKnob = e => {
   if(!knobDrag || (e && e.pointerId!==knobDrag.pid)) return;
   const {k, moved} = knobDrag; knobDrag = null;
   k.classList.remove("drag"); $("knobTip").hidden = true;
-  if(moved){ changed(); const s = S.synths.find(x => String(x.uid)===k.dataset.uid); if(s) knobPreview(s); }
+  if(moved){ changed(); const s = knobObj(k.dataset.uid); if(s) knobPreview(s); }
 };
 window.addEventListener("pointerup", endKnob);
 /* While dragging any slider or knob: R snaps to its default, Esc puts it back where the drag started. Both end the drag. */
@@ -1140,14 +1496,14 @@ rack.addEventListener("keydown", e => {
   const step = {ArrowUp:.05, ArrowRight:.05, ArrowDown:-.05, ArrowLeft:-.05, PageUp:.2, PageDown:-.2}[e.key];
   if(step==null) return;
   e.preventDefault();
-  const s = S.synths.find(x => String(x.uid)===k.dataset.uid);
+  const s = knobObj(k.dataset.uid);
   setKnob(k, s.timbre + step, false); changed();
 });
 rack.addEventListener("pointerdown", e => {
   const kn = e.target.closest(".knob");
   if(kn && (e.pointerType!=="mouse" || e.button===0)){
     e.preventDefault(); kn.focus({preventScroll:true});
-    const s = S.synths.find(x => String(x.uid)===kn.dataset.uid);
+    const s = knobObj(kn.dataset.uid);
     knobDrag = {k:kn, uid:kn.dataset.uid, pid:e.pointerId, y:e.clientY, v:s.timbre, v0:s.timbre, moved:false};
     kn.classList.add("drag"); setKnob(kn, s.timbre, true);
     return;
@@ -1171,10 +1527,12 @@ rack.addEventListener("pointerdown", e => {
   lastPT = e.pointerType;
   if(e.pointerType==="mouse" && e.button!==0) return;
   e.preventDefault();
+  // tapping the step the keyboard is already open on closes it instead of reopening it
+  const pickerOnIt = !pianoPop.hidden && popCell?.dataset.row===cell.dataset.row && popCell?.dataset.step===cell.dataset.step;
   closePops();
   ensureCtx();
   const {kind,row} = cell.dataset, step = +cell.dataset.step;
-  drag = {kind,row,start:step,last:step,lastRow:DRUM_IDS.indexOf(row),moved:false,pid:e.pointerId,cell};
+  drag = {kind,row,start:step,last:step,lastRow:DRUM_IDS.indexOf(row),moved:false,pid:e.pointerId,cell,pickerOnIt};
   if(kind==="drum"){
     const cur = S.drums[row][step];
     drag.orig = cur ? {...cur} : null;
@@ -1184,6 +1542,13 @@ rack.addEventListener("pointerdown", e => {
     if(drag.paint) playDrum(row, ctx.currentTime+.005, VEL.x*S.levels[row]);
   } else {
     const s = synthByKey(row);
+    // every note row clicks in like a drum: an empty step repeats the row's previous note or chord (or a good default
+    // on an empty row) without opening anything, and clicking a note opens the keyboard to change it
+    if(!s.steps[step]){
+      s.steps[step] = clickNote(s, step); lastNote.set(s.uid, s.steps[step]); drag.placed = true; paintRow(row);
+      playVoice(s, stepNotes(s.steps[step]), ctx.currentTime+.005, s.is808 ? .8 : .3, Math.max(.5, s.volume));
+    }
+    if(s.perc) drag.erase = !drag.placed; // dragging along a tom, conga or cowbell row paints hits, or erases them if it started on one
     drag.orig = s.steps.slice();
   }
   if(e.pointerType!=="mouse"){
@@ -1234,6 +1599,12 @@ window.addEventListener("pointermove", e => {
   }
   if(el.dataset.row!==drag.row || s===drag.last) return;
   drag.moved = true; clearTimeout(drag.lp);
+  if(synthByKey(drag.row)?.perc){ // tom, conga and cowbell ring out on their own: nothing to hold, so a drag paints or erases like a drum
+    const syn = synthByKey(drag.row), a = Math.min(drag.last, s), z = Math.max(drag.last, s);
+    for(let i=a;i<=z;i++) syn.steps[i] = drag.erase ? null : syn.steps[i] || drag.orig[drag.start];
+    paintRow(drag.row); drag.last = s;
+    return;
+  }
   {
     const syn = synthByKey(drag.row);
     syn.steps = drag.orig.slice();
@@ -1253,24 +1624,15 @@ function endDrag(e){
   if(!drag || (e && e.pointerId!==drag.pid)) return;
   clearTimeout(drag.lp);
   const d = drag; drag = null;
-  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup"){
-    // empty step: reuse the most recent note before it in this row; otherwise pick on the piano
-    const prev = d.orig[d.start]==null ? prevNote(d.orig, d.start) : null;
-    if(prev){
-      const syn = synthByKey(d.row);
-      syn.steps[d.start] = prev;
-      paintRow(d.row);
-      ensureCtx(); playSynth(nameMidi(prev), ctx.currentTime+.005, .3, Math.max(.5, syn.volume), syn.timbre);
-    }
-    openPiano(d.cell); // always show the keyboard so the repeated note can be moved right away
-  }
+  // a plain click on an existing note (or hold) opens the keyboard; a click that just added a note doesn't
+  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup" && !d.pickerOnIt && !d.placed) openPiano(d.cell);
   changed();
 }
 window.addEventListener("pointerup", endDrag);
 window.addEventListener("pointercancel", e => { muteDrag = null; if(drag){ clearTimeout(drag.lp); drag = null; changed(); } });
 rack.addEventListener("contextmenu", e => {
-  const rh = e.target.closest(".row.drum .rh");
-  if(rh){ e.preventDefault(); openRowMenu(rh); return; }
+  const rh = e.target.closest(".row .rh");
+  if(rh && rh.closest(".row[data-row]") && !e.target.closest("input")){ e.preventDefault(); openRowMenu(rh); return; }
   const cell = e.target.closest(".cell");
   if(!cell) return;
   e.preventDefault();
@@ -1283,7 +1645,10 @@ rack.addEventListener("contextmenu", e => {
 rack.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if(!b) return;
   const act = b.dataset.act;
-  if(act==="mute"){
+  if(act==="rowmenu"){
+    const rh = b.closest(".rh");
+    if(!rowPop.hidden && rowMenuId===rh.closest(".row").dataset.row) closePops(); else openRowMenu(rh, b);
+  } else if(act==="mute"){
     if(e.detail===0) setFlag(b.dataset.kind, b.dataset.id, !flagSet(b.dataset.kind).has(b.dataset.id)); // keyboard; pointer handled on pointerdown
   } else if(act==="gmute"){
     groupMuted[b.dataset.g] = !groupMuted[b.dataset.g]; refreshFlags();
@@ -1299,9 +1664,21 @@ rack.addEventListener("click", e => {
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = `Delete page ${viewPage+1}?`; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = `Delete page ${viewPage+1}`; b.classList.remove("warn"); } }, 2500); return; }
     removePage(viewPage);
   } else if(act==="addsyn"){
-    if(S.synths.length>=MAX_SYNTHS) return;
-    S.synths.push(newSynth("Synth "+(S.synths.length+1), stepCount()));
+    if(userSynths().length>=MAX_SYNTHS) return;
+    S.synths.push(newSynth("Synth "+(userSynths().length+1), stepCount()));
     render(); commit();
+  } else if(act==="addpoly"){
+    if(userSynths().length>=MAX_SYNTHS) return;
+    S.synths.push(newSynth(S.synths.some(s => s.name==="Chords") ? "Chords "+(S.synths.filter(s => s.poly).length+1) : "Chords", stepCount(), true));
+    render(); commit();
+  } else if(act==="poly"){
+    const s = S.synths.find(x => String(x.uid)===b.dataset.uid); if(!s) return;
+    const had = s.poly && s.steps.some(isChord);
+    s.poly = !s.poly;
+    // going mono keeps each chord's top note, which is usually the melody
+    if(!s.poly) s.steps = s.steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v);
+    closePops(); render(); commit();
+    toast(s.poly ? `${s.name} is poly: steps can hold chords` : had ? `${s.name} is mono: kept the top note of each chord (Undo restores them)` : `${s.name} is mono`);
   } else if(act==="delsyn"){
     if(b.dataset.armed){ S.synths = S.synths.filter(s => String(s.uid)!==b.dataset.uid); muted.delete("s"+b.dataset.uid); soloed.delete("s"+b.dataset.uid); render(); commit(); return; }
     b.dataset.armed = "1"; b.textContent = "?"; b.title = "Click again to remove";
@@ -1318,7 +1695,6 @@ rack.addEventListener("change", e => {
   const t = e.target;
   if(t.dataset.act==="follow"){ followPlay = t.checked; persistLocal(); return; }
   if(["vol","svol","rename"].includes(t.dataset.act)){ changed(); return; }
-  if(t.dataset.act==="tune"){ S.bassNote = t.value; changed(); ensureCtx(); playDrum("bass", ctx.currentTime+.01, .8); }
 });
 function insertPage(copy){
   if(S.pages>=MAX_PAGES) return;
@@ -1347,6 +1723,43 @@ function removePage(p){
   render(); commit(); toast(`Deleted page ${p+1}`);
 }
 let cs = null; function changedSoon(){ clearTimeout(cs); cs = setTimeout(syncJson, 250); }
+/* Page swipes: a two-finger sideways scroll on a trackpad, or a one-finger sideways swipe on touch, flips pages.
+   Swipe left (content moves left) for the next page. Touch swipes that start on a step, knob or control keep
+   painting and turning as before; anywhere else on the rack (row names, headers, the page bar) swipes. */
+function flip(cls){
+  if(reduceMotion) return;
+  rack.classList.remove("slide-l","slide-r","edge-l","edge-r"); void rack.offsetWidth; rack.classList.add(cls);
+  clearTimeout(flip.t); flip.t = setTimeout(() => rack.classList.remove(cls), 280);
+}
+function swipePage(dir){
+  clearTimeout(rowLP);
+  const p = viewPage + dir;
+  if(p < 0 || p >= S.pages){ flip(dir > 0 ? "edge-l" : "edge-r"); return; } // a little bump at the first and last page
+  viewPage = p; closePops(); render(); flip(dir > 0 ? "slide-l" : "slide-r");
+}
+let wheelX = 0, wheelLock = false, wheelT = null;
+rack.addEventListener("wheel", e => {
+  if(S.pages < 2 || drag || knobDrag || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault(); // also keeps the browser's swipe-back gesture from firing over the rack
+  // one flick flips one page: stay locked until the scroll (and its inertia) has been quiet for a moment
+  clearTimeout(wheelT); wheelT = setTimeout(() => { wheelX = 0; wheelLock = false; }, 220);
+  if(wheelLock) return;
+  wheelX += e.deltaMode===1 ? e.deltaX*16 : e.deltaX;
+  if(Math.abs(wheelX) > 140){ wheelLock = true; const dir = Math.sign(wheelX); wheelX = 0; swipePage(dir); }
+}, {passive:false});
+let swipe = null;
+rack.addEventListener("pointerdown", e => {
+  swipe = null;
+  if(e.pointerType==="mouse" || S.pages < 2 || e.target.closest(".cell,.knob,input,select,button")) return;
+  swipe = {id:e.pointerId, x:e.clientX, y:e.clientY};
+}, true);
+window.addEventListener("pointermove", e => {
+  if(!swipe || e.pointerId!==swipe.id) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if(Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)){ swipe = null; return; } // that's a vertical scroll
+  if(Math.abs(dx) > 60 && Math.abs(dx) > 2*Math.abs(dy)){ swipe = null; swipePage(dx < 0 ? 1 : -1); }
+});
+["pointerup","pointercancel"].forEach(t => window.addEventListener(t, e => { if(swipe && e.pointerId===swipe.id) swipe = null; }));
 
 /* ---------- Popovers ---------- */
 const rollPop = $("rollPop"), pianoPop = $("pianoPop"), pagePop = $("pagePop"), rowPop = $("rowPop"), resetPop = $("resetPop");
@@ -1362,7 +1775,7 @@ function placePop(pop, cell){
   let y = r.bottom + 6; if(y+ph > vh-8) y = Math.max(8, r.top - ph - 6);
   pop.style.left = x+"px"; pop.style.top = y+"px";
 }
-function closePops(){ rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; }
+function closePops(){ rack.querySelectorAll('.rmenu[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded","false")); rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; }
 function popsClosed(){ return rollPop.hidden && pianoPop.hidden && pagePop.hidden && rowPop.hidden && resetPop.hidden && lfoPop.hidden; }
 /* Right-click any slider -> Reset to its default */
 document.addEventListener("contextmenu", e => {
@@ -1391,27 +1804,67 @@ $("resetBtn").addEventListener("click", () => {
   closePops();
   if(inLfo){ lfoPop.hidden = false; $("lfoBtn").setAttribute("aria-expanded","true"); scopeLoop(); }
 });
-function openRowMenu(rh){
+/* Row tools. Copy/paste work on the page in view, so a row's page can be pasted onto another page or row. */
+let rowClip = null; // {kind:"drum"|"syn", cells:[16], from, page}
+const rowKind = id => DRUM_IDS.includes(id) ? "drum" : "syn";
+const rowName = id => rowKind(id)==="drum" ? DRUMS.find(x => x.id===id).name : synthByKey(id)?.name || "Synth";
+const rowSteps = id => rowKind(id)==="drum" ? S.drums[id] : synthByKey(id).steps;
+function setRowSteps(id, arr){ if(rowKind(id)==="drum") S.drums[id] = arr; else synthByKey(id).steps = arr; }
+const cloneCell = c => c && typeof c==="object" ? {...c} : c;
+function openRowMenu(rh, anchor){
   const id = rh.closest(".row").dataset.row;
   if(!rowPop.hidden && rowMenuId===id) return;
   closePops();
   rowMenuId = id; popCell = rh;
-  const d = DRUMS.find(x => x.id===id);
-  $("rowPopTitle").textContent = `${d.name}${S.pages>1 ? ` · all ${S.pages} pages` : ""}`;
-  placePop(rowPop, rh.querySelector(".rname") || rh);
+  const kind = rowKind(id), pg = S.pages>1 ? ` page ${viewPage+1}` : "";
+  $("rowPopTitle").textContent = `${rowName(id)}${S.pages>1 ? ` · all ${S.pages} pages` : ""}`;
+  $("rowCopy").textContent = `Copy${pg || " steps"}`;
+  const clip = rowClip && rowClip.kind===kind ? rowClip : null;
+  $("rowPaste").hidden = !clip;
+  if(clip){ $("rowPaste").firstChild.textContent = `Paste${pg ? " to"+pg : ""} `; $("rowPaste").querySelector("kbd").textContent = `${clip.from}${clip.pages>1 ? " p"+(clip.page+1) : ""}`; }
+  rowPop.querySelectorAll(".drumonly").forEach(el => el.hidden = kind!=="drum");
+  rowPop.querySelectorAll(".synonly").forEach(el => el.hidden = kind!=="syn");
+  rack.querySelectorAll(".rmenu").forEach(x => x.setAttribute("aria-expanded", x.closest(".row")?.dataset.row===id));
+  placePop(rowPop, anchor || rh.querySelector(".rname") || rh);
 }
 rowPop.addEventListener("click", e => {
   const b = e.target.closest("[data-rowact]"); if(!b || !rowMenuId) return;
-  const id = rowMenuId, row = S.drums[id], len = row.length;
+  const id = rowMenuId, row = rowSteps(id), len = row.length, off = viewPage*PAGE;
   switch(b.dataset.rowact){
-    case "fill4": S.drums[id] = row.map((_,i) => i%4===0 ? {v:"x",r:1} : null); break;
-    case "fill2": S.drums[id] = row.map((_,i) => i%2===0 ? {v:"x",r:1} : null); break;
-    case "left":  S.drums[id] = row.map((_,i) => row[(i+1)%len]); break;
-    case "right": S.drums[id] = row.map((_,i) => row[(i-1+len)%len]); break;
-    case "clear": S.drums[id] = row.map(() => null); break;
+    case "copy": {
+      const cells = row.slice(off, off+PAGE).map(cloneCell);
+      if(!cells.some(c => c)){ toast("Nothing on this page to copy"); closePops(); return; }
+      rowClip = {kind: rowKind(id), cells, from: rowName(id), page: viewPage, pages: S.pages};
+      toast(`Copied ${rowName(id)}${S.pages>1 ? ` page ${viewPage+1}` : ""}`); closePops(); return;
+    }
+    case "paste": {
+      if(!rowClip || rowClip.kind!==rowKind(id)) return;
+      let cells = rowClip.cells.map(cloneCell);
+      const syn = rowKind(id)==="syn" && synthByKey(id);
+      if(syn && !syn.poly) cells = cells.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v); // mono rows take the top note
+      if(syn?.perc) cells = noHolds(cells);
+      const next = row.slice(); next.splice(off, PAGE, ...cells); setRowSteps(id, next);
+      toast(`Pasted ${rowClip.from} onto ${rowName(id)}${S.pages>1 ? ` page ${viewPage+1}` : ""}`);
+      break;
+    }
+    case "fill4": setRowSteps(id, row.map((_,i) => i%4===0 ? {v:"x",r:1} : null)); break;
+    case "fill2": setRowSteps(id, row.map((_,i) => i%2===0 ? {v:"x",r:1} : null)); break;
+    case "left":  setRowSteps(id, row.map((_,i) => row[(i+1)%len])); break;
+    case "right": setRowSteps(id, row.map((_,i) => row[(i-1+len)%len])); break;
+    case "clear": setRowSteps(id, row.map(() => null)); break;
+    case "octup": case "octdown": {
+      // the whole row (every page) moves together, chords and all, so it stays in tune with itself
+      const d = b.dataset.rowact==="octup" ? 12 : -12, syn = synthByKey(id), all = row.flatMap(stepNotes);
+      if(!all.length){ toast(`Nothing on ${rowName(id)} to move`); return; }
+      if(Math.max(...all)+d > NOTE_HI || Math.min(...all)+d < NOTE_LO){ toast(d > 0 ? `${rowName(id)} already reaches the top (C6)` : `${rowName(id)} already reaches the bottom (C1)`); return; }
+      setRowSteps(id, row.map(v => v && v!=="-" ? chordStr(stepNotes(v).map(m => m+d)) : v));
+      const ln = lastNote.get(syn.uid), lm = ln && stepNotes(ln).map(m => m+d);
+      if(lm && Math.max(...lm) <= NOTE_HI && Math.min(...lm) >= NOTE_LO) lastNote.set(syn.uid, chordStr(lm)); // new clicks follow the row
+      break;
+    }
   }
   paintRow(id); changed();
-  if(b.dataset.rowact!=="left" && b.dataset.rowact!=="right") closePops();
+  if(!["left","right","octup","octdown"].includes(b.dataset.rowact)) closePops(); // these are handy to press a few times
 });
 $("copyPageBtn").addEventListener("click", () => insertPage(true));
 $("blankPageBtn").addEventListener("click", () => insertPage(false));
@@ -1420,7 +1873,7 @@ document.addEventListener("pointerdown", e => {
   if(!pianoPop.hidden && !pianoPop.contains(e.target) && !e.target.closest(".cell")) closePops();
   if(!resetPop.hidden && !resetPop.contains(e.target)){ const back = resetTarget && lfoPop.contains(resetTarget); closePops(); if(back && lfoPop.contains(e.target)){ lfoPop.hidden = false; $("lfoBtn").setAttribute("aria-expanded","true"); scopeLoop(); } }
   if(!lfoPop.hidden && !lfoPop.contains(e.target) && !e.target.closest("#lfoBtn") && !e.target.closest("#resetPop")) closePops();
-  if(!rowPop.hidden && !rowPop.contains(e.target) && !e.target.closest(".row.drum .rh")) closePops();
+  if(!rowPop.hidden && !rowPop.contains(e.target) && !e.target.closest(".row.drum .rh, .rmenu")) closePops();
   if(!pagePop.hidden && !pagePop.contains(e.target) && !e.target.closest('[data-act="addpage"]')) closePops();
 });
 // Space plays/stops from anywhere on the page, except while typing in a text box
@@ -1475,18 +1928,36 @@ const WH = 20, BH = 12;
   }
   $("piano").innerHTML = h; $("piano").style.height = (wi*WH)+"px";
 })();
+// The notes a step would hold if key m were picked now
+function candidate(s, m){
+  if(!s.poly) return [m];
+  const cur = stepNotes(s.steps[+popCell.dataset.step]);
+  if(cur.includes(m)) return cur.filter(x => x!==m);
+  return cur.length>=MAX_CHORD ? cur : [...cur, m];
+}
+function pianoLabel(s, i){
+  const cur = s.steps[i], ms = stepNotes(cur);
+  if(ms.length) lastNote.set(s.uid, cur); // opening a note or changing it on the keyboard makes it the row's current note
+  $("pnote").textContent = `${s.name} · step ${i+1}${S.pages>1 ? ` (page ${Math.floor(i/PAGE)+1})` : ""}` +
+    (isChord(cur) ? ` · ${stepLabel(cur)} (${cur.split("+").join(" ")})` : cur && cur!=="-" ? ` · ${cur}` : cur==="-" ? " · hold" : "");
+  $("pnow").textContent = ms.length ? stepLabel(cur) : "";
+  $("piano").querySelectorAll(".k").forEach(k => k.classList.toggle("sel", ms.includes(+k.dataset.m)));
+  $("invDown").disabled = $("invUp").disabled = ms.length < (s.poly ? 2 : 1);
+}
 function openPiano(cell){
   closePops(); popCell = cell;
   const s = synthByKey(cell.dataset.row), i = +cell.dataset.step;
-  const cur = s.steps[i];
-  let ref = cur && cur!=="-" ? cur : null;
-  const total = s.steps.length;
-  if(!ref) for(let k=1;k<total && !ref;k++){ const v = s.steps[(i-k+total)%total]; if(v && v!=="-") ref = v; }
-  const refM = nameMidi(ref || "C3");
-  $("piano").querySelectorAll(".k").forEach(k => k.classList.toggle("sel", cur && cur!=="-" && +k.dataset.m===refM));
-  $("pnote").textContent = `${s.name} · step ${i+1}${S.pages>1 ? ` (page ${Math.floor(i/PAGE)+1})` : ""}` + (cur && cur!=="-" ? ` · ${cur}` : cur==="-" ? " · hold" : "");
-  $("holdBtn").disabled = i===0 && !s.steps[total-1];
-  $("pnow").textContent = cur && cur!=="-" ? cur : "";
+  const cur = s.steps[i], total = s.steps.length;
+  const ref = stepNotes(cur && cur!=="-" ? cur : prevNote(s.steps, i) || defNote(s));
+  const refM = ref[Math.floor(ref.length/2)];
+  // poly rows invert the chord; mono rows and the 808 move the note an octave
+  $("polyTools").hidden = false;
+  $("invLbl").hidden = !s.poly;
+  $("invDown").title = s.poly ? "Move the top note down an octave" : "Down an octave";
+  $("invUp").title = s.poly ? "Move the bottom note up an octave" : "Up an octave";
+  $("pnow").hidden = s.poly; // poly rows already name the chord in the header line
+  pianoLabel(s, i);
+  $("holdBtn").disabled = s.perc || (i===0 && !s.steps[total-1]);
   placePop(pianoPop, cell);
   const key = $("piano").querySelector(`[data-m="${refM}"]`);
   if(key) $("pianoWrap").scrollTop = key.offsetTop - 330/2 + WH/2;
@@ -1498,20 +1969,33 @@ let glide = null, preview = null;
 function pickNote(m){
   if(!popCell) return;
   const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step;
-  s.steps[i] = midiName(m);
-  paintRow(popCell.dataset.row); changed(); closePops();
+  // the keyboard stays open on every row, so a note or chord can keep changing
+  if(!s.poly){ s.steps[i] = midiName(m); paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); return; }
+  const ms = candidate(s, m);
+  if(ms.length>=MAX_CHORD && !ms.includes(m)) toast(`Chords top out at ${MAX_CHORD} notes`);
+  setChord(s, i, ms, false);
 }
-function previewNote(m){
+function setChord(s, i, ms, hear){
+  s.steps[i] = chordStr(ms);
+  paintRow(popCell.dataset.row); changed(); pianoLabel(s, i);
+  if(hear && ms.length) previewNotes(ms);
+}
+function previewNotes(ms){
   ensureCtx();
   const now = ctx.currentTime;
   if(preview){
     const g = preview.gain;
     if(g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else { g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); }
     g.setTargetAtTime(0, now, .015);
+    preview = null;
   }
   const s = popCell && synthByKey(popCell.dataset.row);
-  preview = playSynth(m, now+.005, .45, Math.max(.5, s ? s.volume : .7), s ? s.timbre : .5);
-  $("pnow").textContent = midiName(m);
+  if(ms.length) preview = playVoice(s, ms, now+.005, s?.is808 ? .8 : .45, Math.max(.5, s ? s.volume : .7));
+  $("pnow").textContent = ms.length ? stepLabel(chordStr(ms)) : "";
+}
+function previewNote(m){
+  const s = popCell && synthByKey(popCell.dataset.row);
+  previewNotes(s ? candidate(s, m) : [m]);
 }
 function glideTo(k){
   if(!glide || !k || k===glide.key) return;
@@ -1558,8 +2042,30 @@ $("piano").addEventListener("click", e => {
   const k = e.target.closest(".k"); if(!k) return;
   previewNote(+k.dataset.m); pickNote(+k.dataset.m);
 });
+function invert(up){
+  const s = popCell && synthByKey(popCell.dataset.row); if(!s) return;
+  const i = +popCell.dataset.step, ms = stepNotes(s.steps[i]);
+  if(!s.poly){
+    if(!ms.length) return;
+    const m = ms[0] + (up ? 12 : -12);
+    if(m<NOTE_LO || m>NOTE_HI) return toast("That's as far as it goes");
+    setChord(s, i, [m], true);
+    const key = $("piano").querySelector(`[data-m="${m}"]`), w = $("pianoWrap");
+    if(key && (key.offsetTop < w.scrollTop || key.offsetTop+WH > w.scrollTop+w.clientHeight)) w.scrollTop = key.offsetTop - w.clientHeight/2 + WH/2;
+    return;
+  }
+  if(ms.length<2) return;
+  const lo = ms[0], hi = ms[ms.length-1];
+  if(up && lo+12<=NOTE_HI) ms[0] = lo+12;
+  else if(!up && hi-12>=NOTE_LO) ms[ms.length-1] = hi-12;
+  else return toast("That's as far as it goes");
+  setChord(s, i, ms, true);
+}
+$("invUp").addEventListener("click", () => invert(true));
+$("invDown").addEventListener("click", () => invert(false));
 $("holdBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row); s.steps[+popCell.dataset.step] = "-"; paintRow(popCell.dataset.row); changed(); closePops(); });
-$("restBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row); s.steps[+popCell.dataset.step] = null; paintRow(popCell.dataset.row); changed(); closePops(); });
+// Clear empties the step but keeps the keyboard open, so new notes can go straight in
+$("restBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step; s.steps[i] = null; paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); });
 
 /* ---------- Transport ---------- */
 $("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
@@ -1704,6 +2210,27 @@ function applyVerb(){
 }
 $("masterIn").addEventListener("input", e => { if(master) master.gain.setTargetAtTime(e.target.value/100, ctx.currentTime, .02); });
 $("masterIn").addEventListener("change", persistLocal);
+/* Sliders without a readout show their value in a tip above the thumb while hovered, focused or dragged */
+function valueTip(id, label){
+  const el = $(id), tip = $("knobTip");
+  let over = false, held = false;
+  const show = () => {
+    const r = el.getBoundingClientRect(), f = (el.value-el.min)/(el.max-el.min);
+    tip.hidden = false; tip.textContent = `${label} ${el.value}%`;
+    tip.style.left = (r.left + 8 + f*(r.width-16)) + "px"; tip.style.top = (r.top - 6) + "px";
+  };
+  const kb = () => el.matches(":focus-visible");
+  const hide = () => { if(!over && !held && !kb()) tip.hidden = true; };
+  el.addEventListener("pointerenter", () => { over = true; show(); });
+  el.addEventListener("pointerleave", () => { over = false; hide(); });
+  el.addEventListener("pointerdown", () => { held = true; show(); });
+  window.addEventListener("pointerup", () => { if(held){ held = false; hide(); } });
+  el.addEventListener("focus", () => { if(kb()) show(); });
+  el.addEventListener("blur", () => { held = false; hide(); });
+  el.addEventListener("input", () => { if(over || held || kb()) show(); });
+}
+valueTip("toneIn", "Synth tone");
+valueTip("masterIn", "Master");
 $("tierSel").addEventListener("change", persistLocal);
 $("prompt").addEventListener("input", () => { clearTimeout(persistLocal.t); persistLocal.t = setTimeout(persistLocal, 400); });
 $("nameIn").addEventListener("input", e => { S.name = e.target.value.slice(0,60); changedSoon(); });
@@ -1718,7 +2245,7 @@ $("newBtn").addEventListener("click", e => {
   const b = e.currentTarget;
   if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Clear everything?"; b.classList.add("warn"); setTimeout(() => { delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn"); }, 2500); return; }
   delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn");
-  const st = blankState(1); st.synths = [newSynth("Synth 1", PAGE)];
+  const st = blankState(1); st.synths.push(newSynth("Synth 1", PAGE));
   loadState(st, null);
 });
 function syncTransport(){
@@ -1768,11 +2295,10 @@ FORMAT (reply with only this JSON object):
   "name": "2-4 word title",
   "bpm": 60-200,
   "swing": 0-0.5,            // delays every off-beat 16th by this fraction of a step. 0 straight, 0.08-0.2 laid back, 0.33 triplet shuffle
-  "bassNote": "F1",          // pitch of the 808 bass track, C1-B2
   "synthTone": 0.45,         // 0-1 filter brightness for all synths (0.2 dark/warm, 0.45 neutral, 0.8 bright/buzzy)
   "sidechain": 0,            // 0-1 how hard all synths duck on every kick (0 off, 0.3 subtle glue, 0.6 house pump, 1 full EDM pump). Great with sustained synth chords.
   "drumDrive": 0,            // 0-1 saturation + bus compression on the drums (0 clean 808, 0.5 punchy, 1 fully gritty)
-  "transpose": 0,            // optional, cents applied to all synths and the 808 bass (-1200 to 1200; 100 = one semitone). Usually 0: write the notes in the key you want.
+  "transpose": 0,            // optional, cents applied to all synths and the 808 (-1200 to 1200; 100 = one semitone). Usually 0: write the notes in the key you want.
   "warble": {"on": false, "depth": 15, "rate": 1.5},  // optional pitch LFO on the transpose: depth 0-50 cents, rate 0.1-12 Hz. Tape wobble ~18c @ 1.2Hz, vibrato ~22c @ 5.5Hz. Leave off unless the vibe is lo-fi, dreamy or seasick.
   "synthReverb": 0.15,       // 0-1 reverb on all synths (0.1 dry, 0.3 roomy, 0.5 big pads). Above 0.5 it becomes a washout: the whole mix drowns in reverb over a rising white-noise sweep. Keep it at 0.5 or below unless the request asks for a buildup or washout.
   "pages": 1,                // 1-4 bars of 16 steps; the loop is pages*16 steps long
@@ -1780,27 +2306,39 @@ FORMAT (reply with only this JSON object):
     "kick":      "x...x...x...x...",
     "snare":     "....x.......x...",
     "clap":      "................",
+    "snap":      "................",
+    "rim":       "................",
     "hatClosed": "x.x.x.x.x.x.x.x.",
     "hatOpen":   "................",
-    "tom":       "................",   // one tuned tom for fills
-    "bass":      "x..............."   // 808 sub-bass boom at bassNote, usually lands with the kick
+    "shaker":    "................"
   },
-  "levels": { "hatClosed": 0.5 },   // optional per-track volume 0-1
+  "levels": { "hatClosed": 0.5 },   // optional per-drum volume 0-1
+  "tones": { "kick": 0.5, "snare": 0.5, "clap": 0.5, "snap": 0.5, "rim": 0.5, "hatClosed": 0.5, "hatOpen": 0.5, "shaker": 0.5 },  // optional per-drum character 0-1, see DRUM TONES
+  "bass808": { "volume": 0.85, "drive": 0.5, "steps": ["F1","-","-","-",".",".","F1","-","G#1","-","-",".",".",".","D#1","-"] },  // the 808 sub-bass, see 808 below
+  "tom":     { "volume": 0.7,  "size": 0.5, "steps": [".",".",".",".",".",".",".",".",".",".",".",".","A3","F#3","D3","A2"] },  // tonal drums, see TONAL DRUMS
+  "conga":   { "volume": 0.65, "tone": 0.5, "steps": [".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."] },
+  "cowbell": { "volume": 0.5,  "tone": 0.5, "steps": [".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."] },
   "synths": [                       // 0-6 channels
-    { "name": "Bass", "volume": 0.8, "timbre": 0.5, "steps": ["F2","-",".","F2",".",".","G#2","-",".",".","C3",".","A#2","-",".","."] }
+    { "name": "Bass", "volume": 0.8, "timbre": 0.5, "steps": ["F2","-",".","F2",".",".","G#2","-",".",".","C3",".","A#2","-",".","."] },
+    { "name": "Chords", "poly": true, "volume": 0.55, "timbre": 0.35, "steps": ["F3+G#3+C4+D#4","-","-",".",".",".","C#3+F3+G#3+C4","-",".",".","D#3+G3+A#3","-","-","-",".","."] }
   ]
 }
 
 PAGES: use 1 page for a simple loop. Use 2-4 pages for a chord progression, call-and-response, or variation such as a fill on the last page. Every drum string and synth steps array covers ALL pages: pages*16 steps in total. Put "|" between pages in drum strings (e.g. 2 pages: "x...x...x...x...|x...x...x.x.x..."); "|" is ignored.
 DRUM STRINGS: pages*16 characters, one per 16th note. "." rest, "x" normal hit, "X" accent, "g" ghost (quiet), "2" "3" "4" "6" or "8" = a roll of that many fast hits inside one step (hi-hat rolls, snare fills). Closed hat cuts off a ringing open hat.
-SYNTH STEPS: exactly pages*16 strings. A note name "C1"-"C6" (sharps like "F#2"), "-" holds the previous note through this step, "." is silence. A note lasts one step unless followed by "-". Every synth channel is MONOPHONIC. All channels share one warm filtered-saw sound that suits basslines, leads and pads. Optional per-channel "timbre" 0-1 (default 0.5) changes the waveform: 0 smooth and round (triangle, good for soft pads and sub bass), 0.5 classic saw, 1 harsh buzzy square with grit (acid leads, aggressive stabs). For chords, add 2-4 channels (e.g. "Chord 1", "Chord 2", "Chord 3"), each playing one chord tone on the same steps.
+EXTRA DRUMS: "snap" is a finger snap (R&B, pop, lo-fi; on the backbeat instead of or with the clap). "rim" is the 808 rimshot/clave, a short click for syncopated patterns (reggaeton, bossa, minimal, afro). "shaker" drives 16th-note groove (house, afro, pop, latin); use "g" ghosts and "x" accents for a push-pull feel. Leave any of them all "." if the style doesn't need it.
+DRUM TONES: each drum has a 0-1 knob in "tones" (0.5 = the classic 808/909-style sound). Match them to the genre. snap is size: 0.2 tight and dry, 0.5 classic, 0.8+ a big layered snap in a room. rim: 0.1-0.25 woody clave, 0.5 808 rimshot, 0.8+ sharp crack with some room. shaker: 0.2 tight tick, 0.5 classic, 0.8 loose and long. kick: 0.15-0.3 short tight techno/garage punch, 0.5 house, 0.7 deep, 0.85+ long low hip-hop/trap boom. snare: 0.2-0.3 fat dusty boom-bap/lo-fi, 0.5 classic, 0.75+ high tight crack (trap, drum and bass, pop). clap: 0.2 tight snap, 0.5 classic, 0.7+ big room with reverb (house, techno, anthems). hatClosed is brightness: 0.2-0.35 dark dusty lo-fi, 0.5 classic, 0.7+ crisp bright (trap, house). hatOpen is length: 0.2-0.3 short "tss", 0.5 classic, 0.8+ long wash; its brightness follows hatClosed.
+SYNTH STEPS: exactly pages*16 strings. A note name "C1"-"C6" (sharps like "F#2"), "-" holds the previous note through this step, "." is silence. A note lasts one step unless followed by "-". Channels are monophonic unless marked "poly": true. All channels share one warm filtered-saw sound that suits basslines, leads and pads. Optional per-channel "timbre" 0-1 (default 0.5) changes the waveform: 0 smooth and round (triangle, good for soft pads and sub bass), 0.5 classic saw, 1 harsh buzzy square with grit (acid leads, aggressive stabs). On "poly": true channels the top half is different: above 0.5 the tone stays classic and gains chorus, flanger swirl and stereo width instead of grit (0.7 wide chorus, 0.9-1 swirly flanged pads). It adds no reverb: use synthReverb for space.
+808: "bass808" is the TR-808 sub-bass, always present and always monophonic. Its steps work exactly like SYNTH STEPS (pages*16 strings, note, "-" hold, "." silence), so it can play a melodic bassline. Notes C1-B2 sound best (F1 is the classic). A note booms and decays naturally over about 1.5 s: hold it with "-" to let it ring, or follow it with "." for a short punchy hit. It usually lands with the kick. "drive" 0-1 is its distortion (0 clean sine, 0.5 classic, 1 gritty). Leave "steps" all "." for no 808.
+TONAL DRUMS: "tom", "conga" and "cowbell" are pitched drums, always present and monophonic. Their steps are note names like SYNTH STEPS, but "-" holds do nothing: each hit rings out on its own until the next hit on that row. Stay in the song's key. tom (default F#3, good range G2-C4): fills and tribal patterns, often falling in pitch; "size" 0-1 is tight and dry (0.2) to big and roomy (0.8+). conga (default D4, good range G3-G4): latin, afro and house percussion, usually two or three pitches a fourth or fifth apart; "tone" 0-1 is muted slap (0.2) to open ringing (0.8). cowbell (default C#5, good range C4-C6): the 808 cowbell for accents or a melodic line (phonk and Memphis rap cowbell melodies, latin); "tone" 0-1 is short clank (0.2) to long ring (0.8). Leave "steps" all "." for any you don't use.
+CHORDS: put all chords on ONE channel with "poly": true (usually named "Chords", "Pad" or "Stabs"). A chord step is 2-6 note names joined by "+" with no spaces, written low to high, e.g. "D#3+G3+A#3+D4" (Ebmaj7). "-" holds the whole chord, "." is silence, and a single note is fine too. Don't split one chord across several channels. Keep a poly channel's volume around 0.4-0.65: its notes are already balanced so a chord is as loud as one note.
 
 MAKE IT SOUND GOOD:
 - Index 0 is the downbeat; beats are indexes 0, 4, 8, 12 of each page. A note can hold across a page boundary with "-".
 - Standard backbeat: snare/clap on 4 and 12. Half-time styles (trap, dubstep, drill): snare on 8.
-- Stay in one key. Bass in octaves 1-2, chords in 3-4, leads in 4-5. Voice chords close together.
+- Stay in one key. Bass in octaves 1-2, chords in 3-4, leads in 4-5. Voice chords close together (3-4 notes within about an octave and a half), and move between chords with small voice-leading steps instead of jumping every note.
 - Use accents, ghost notes and an occasional roll for groove; leave space, don't fill every step.
-- Let the synth bass and 808 bass agree (same root on the same steps) or use only one of them.`;
+- Carry the bassline on the 808 or on a synth "Bass" channel. If both play, keep them on the same roots and rhythm, usually an octave apart.`;
 }
 
 let genEnabled = false, genCtl = null;
@@ -1870,7 +2408,7 @@ $("genBtn").addEventListener("click", async () => {
     loadState(st, null);
     compFinish(true, `“${st.name}” is in`);
     revealRack();
-    $("genStatus").textContent = `${tierNote} · Loaded “${st.name}” · ${st.bpm} BPM · ${st.pages} page${st.pages===1?"":"s"} · ${st.synths.length} synth channel${st.synths.length===1?"":"s"}.`;
+    $("genStatus").textContent = `${tierNote} · Loaded “${st.name}” · ${st.bpm} BPM · ${st.pages} page${st.pages===1?"":"s"} · ${userSynths(st).length} synth channel${userSynths(st).length===1?"":"s"}${tonalRow("808", st).steps.some(x => x) ? " + 808" : ""}${st.synths.some(x => x.poly) ? " (with chords)" : ""}.`;
     if(!playing) startPlay();
   } catch(e){
     compFinish(false);
@@ -1883,8 +2421,8 @@ $("genBtn").addEventListener("click", async () => {
 });
 /* ---------- Composer view: shows the beat being written as the model streams it ---------- */
 const THINKING = ["Listening to the brief","Choosing a tempo","Finding the pocket","Picking a key","Sketching the groove","Counting it in"];
-const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bassNote:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", pages:"Planning the bars",
-  kick:"Programming the kick", snare:"Placing the snare", clap:"Adding claps", hatClosed:"Laying down hats", hatOpen:"Opening the hats", tom:"Writing tom fills", bass:"Tuning the 808", levels:"Mixing levels"};
+const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", tones:"Shaping the drums", pages:"Planning the bars",
+  kick:"Programming the kick", snare:"Placing the snare", clap:"Adding claps", snap:"Snapping along", rim:"Clicking the rim", shaker:"Shaking it", hatClosed:"Laying down hats", hatOpen:"Opening the hats", tom:"Tuning the tom", conga:"Playing congas", cowbell:"Ringing the cowbell", bass:"Tuning the 808", levels:"Mixing levels"};
 const GROUP_COL = ["#e2472f","#ef8b2c","#eecb4c","#efe7d3"];
 let cmp = null;
 function partial(text){
@@ -1897,10 +2435,20 @@ function partial(text){
     const r = new RegExp(`"${id}"\\s*:\\s*"([^"]*)`).exec(text);
     if(r) out.drums[id] = r[1].replace(/[\s|,]/g,"");
   }
-  const si = text.indexOf('"synths"');
+  // tonal rows draw as the first teal rows; cut their objects out so their steps aren't read twice
+  let rest = text;
+  out.inTonal = null;
+  for(const k of ["bass808","tom","conga","cowbell"]){
+    const m = new RegExp(`"${k}"\\s*:\\s*\\{[^}]*?"steps"\\s*:\\s*\\[([^\\]]*)`).exec(text);
+    if(m){ out.synths.push([...m[1].matchAll(/"([^"]*)"/g)].map(x => x[1])); out.curSynth = out.synths.length-1; }
+    const i = text.search(new RegExp(`"${k}"\\s*:\\s*\\{`));
+    if(i>=0 && text.indexOf("}", i)<0) out.inTonal = k;
+    rest = rest.replace(new RegExp(`"${k}"\\s*:\\s*\\{[^}]*\\}?`), "");
+  }
+  const si = rest.indexOf('"synths"');
   if(si>=0){
     const re = /"steps"\s*:\s*\[([^\]]*)/g; let a;
-    while((a = re.exec(text.slice(si)))) out.synths.push([...a[1].matchAll(/"([^"]*)"/g)].map(x => x[1]));
+    while((a = re.exec(rest.slice(si)))) out.synths.push([...a[1].matchAll(/"([^"]*)"/g)].map(x => x[1]));
     out.curSynth = out.synths.length-1;
   }
   const keys = [...text.matchAll(/"(\w+)"\s*:/g)];
@@ -1936,6 +2484,7 @@ function compDraw(){
   // phase + name
   if(!cmp.done){
     if(!writing) $("compPhase").textContent = THINKING[Math.floor(secs/2.4) % THINKING.length];
+    else if(P.inTonal) $("compPhase").textContent = KEY_PHASE[P.inTonal];
     else if(P.cur==="steps" || P.cur==="synths" || P.cur==="volume" || (P.cur==="name" && P.curSynth>=0)) $("compPhase").textContent = `Voicing synth ${Math.max(1,P.curSynth+1)}`;
     else $("compPhase").textContent = KEY_PHASE[P.cur] || "Writing the pattern";
   }

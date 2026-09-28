@@ -1,6 +1,6 @@
 # AK-16 Sequencer
 
-An 808-style drum machine and synth sequencer that runs in your browser. It has 16-step patterns with up to 4 pages, synth channels, swing, sidechain and tape warble. You can save beats, and you can describe a groove and have an AI model write it for you.
+An 808-style drum machine and synth sequencer that runs in your browser. It has 16-step patterns with up to 4 pages, eight drums with a tone knob each, pitched drums (808, tom, conga, cowbell) played from a keyboard, mono and polyphonic (chord) synth channels, swing, sidechain and tape warble. You can save beats, and you can describe a groove and have an AI model write it for you.
 
 It's one small Rust binary in a `scratch` container, with the whole frontend baked in. Beats are saved as JSON files on a volume. AI generation goes through [OpenRouter](https://openrouter.ai), so the API key stays on the server.
 
