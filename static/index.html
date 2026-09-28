@@ -529,6 +529,13 @@ const tonalRow = (kind, st=S) => st.synths.find(s => s.fixed===kind);
 const noHolds = steps => steps.map(v => v==="-" ? null : v);
 // a good first note for a row with nothing in it yet: each tonal drum's home pitch, a C major triad on poly synths, C3 on mono ones
 const defNote = s => s?.fixed ? TONAL[s.fixed].note : s?.poly ? "C3+E3+G3" : "C3";
+// the note or chord you last added, clicked or changed on each row (by uid); new clicks on that row repeat it
+const lastNote = new Map();
+function clickNote(s, i){
+  let v = lastNote.get(s.uid) || prevNote(s.steps, i) || defNote(s);
+  if(!s.poly && isChord(v)) v = midiName(Math.max(...stepNotes(v))); // a row switched to mono takes the top note
+  return v;
+}
 const topNotes = steps => steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v);
 function newSynth(name, len=S.pages*PAGE, poly=false){ return {uid:++uid, name, poly, volume:poly ? .55 : .7, timbre:poly ? .35 : .5, steps:Array(len).fill(null)}; }
 const stepCount = () => S.pages*PAGE;
@@ -1494,7 +1501,7 @@ rack.addEventListener("pointerdown", e => {
     // every note row clicks in like a drum: an empty step repeats the row's previous note or chord (or a good default
     // on an empty row) without opening anything, and clicking a note opens the keyboard to change it
     if(!s.steps[step]){
-      s.steps[step] = prevNote(s.steps, step) || defNote(s); drag.placed = true; paintRow(row);
+      s.steps[step] = clickNote(s, step); lastNote.set(s.uid, s.steps[step]); drag.placed = true; paintRow(row);
       playVoice(s, stepNotes(s.steps[step]), ctx.currentTime+.005, s.is808 ? .8 : .3, Math.max(.5, s.volume));
     }
     if(s.perc) drag.erase = !drag.placed; // dragging along a tom, conga or cowbell row paints hits, or erases them if it started on one
@@ -1838,6 +1845,7 @@ function candidate(s, m){
 }
 function pianoLabel(s, i){
   const cur = s.steps[i], ms = stepNotes(cur);
+  if(ms.length) lastNote.set(s.uid, cur); // opening a note or changing it on the keyboard makes it the row's current note
   $("pnote").textContent = `${s.name} · step ${i+1}${S.pages>1 ? ` (page ${Math.floor(i/PAGE)+1})` : ""}` +
     (isChord(cur) ? ` · ${stepLabel(cur)} (${cur.split("+").join(" ")})` : cur && cur!=="-" ? ` · ${cur}` : cur==="-" ? " · hold" : "");
   $("pnow").textContent = ms.length ? stepLabel(cur) : "";
