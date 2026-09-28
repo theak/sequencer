@@ -934,18 +934,24 @@ const VOICE = {
     p.exponentialRampToValueAtTime(v*.18,t+.04); p.exponentialRampToValueAtTime(.0001,t+dec);
     sum.connect(bp).connect(hp).connect(g).connect(out);
   },
-  // snap: size 0-1 goes tight and dry through classic (0.5) to a big stack of snaps in the drum room
+  // snap: a finger snap. A sharp skin crack, noise ringing three resonances (the palm cavity around 1.5 kHz, the
+  // finger slap around 2.8 kHz and a little hand body near 850 Hz) and a quick pitch-dropping "tock", varied a touch on every hit so repeats sound played.
+  // size 0-1 goes tight and dry through classic (0.5) to a big stack of snaps in the drum room
   snap(t,v,out,size=.5){
-    const k = (a,b,c) => morph(size,a,b,c), lay = Math.max(0, size-.5)*2, bus = gainNode(1);
+    const k = (a,b,c) => morph(size,a,b,c), lay = Math.max(0, size-.5)*2, bus = gainNode(.75);
     bus.connect(out);
-    const one = (tt, g, bf) => {
-      const n = noise(tt,.15), bp = filt("bandpass",bf,k(2.2,1.6,1.4)), hp = filt("highpass",1100), e = gainNode(0), p = e.gain;
-      p.setValueAtTime(.0001,tt); p.exponentialRampToValueAtTime(g,tt+.0015); p.exponentialRampToValueAtTime(.0001,tt+k(.035,.06,.08));
-      n.connect(bp).connect(hp).connect(e).connect(bus);
+    const one = (tt, g, tune) => {
+      const r = tune * (1 + (Math.random()-.5)*.06), dec = k(.04,.06,.075);
+      const c = noise(tt,.006), chp = filt("highpass",2500), cg = gainNode(0); envExp(cg.gain,tt,g*.5,.006,.0003);
+      c.connect(chp).connect(cg).connect(bus);
+      const n = noise(tt,dec+.03), b1 = filt("bandpass",1500*r,k(8,6,5)), b2 = filt("bandpass",2800*r,k(6,4.5,4)), bg = gainNode(0);
+      const b3 = filt("bandpass",850*r,3), g3 = gainNode(.45), g2 = gainNode(.6);
+      envExp(bg.gain,tt,g*3.6,dec,.0008); n.connect(b1).connect(bg); n.connect(b2).connect(g2).connect(bg); n.connect(b3).connect(g3).connect(bg); bg.connect(bus);
+      const o = osc("sine",2200*r,tt,tt+.045), og = gainNode(0); o.frequency.exponentialRampToValueAtTime(1100*r,tt+.02);
+      envExp(og.gain,tt,g*.3,.028,.0005); o.connect(og).connect(bus);
     };
-    one(t, v*1.5, k(3000,2500,2400));
-    const o = osc("sine",1900,t,t+.03), og = gainNode(0); envExp(og.gain,t,v*.18,.012,.0005); o.connect(og).connect(bus); // the finger "tick"
-    if(lay > 0){ one(t+.011, v*.8*lay, 2100); one(t+.023, v*.6*lay, 2900); }
+    one(t, v, k(1.08,1,.96));
+    if(lay > 0){ one(t+.012, v*.75*lay, .93); one(t+.026, v*.6*lay, 1.07); }
     if(lay > 0 && drumRoom && drumRoom.context===ctx) bus.connect(gainNode(lay*1.3)).connect(drumRoom);
   },
   // rim: tone 0-1 goes 808 clave (woody) through the 808 rimshot (0.5) to a sharp crack with some room
