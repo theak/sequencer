@@ -87,6 +87,7 @@ input[type=range]{accent-color:var(--orange);width:110px}
   --kc:color-mix(in srgb, var(--orange) calc(var(--h)*100%), var(--synth))}
 .knob::before{content:"";position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a4750,#26242a 70%);box-shadow:0 1px 2px rgba(0,0,0,.6)}
 .knob i{position:absolute;left:50%;top:50%;width:2px;height:7px;margin-left:-1px;border-radius:1px;background:var(--ink);transform-origin:50% 0;transform:rotate(calc(45deg + var(--v)*270deg))}
+.knob-sp{flex:none;width:22px}
 .knob:hover::before,.knob.drag::before{background:radial-gradient(circle at 35% 30%,#57545e,#2c2a30 70%)}
 .knob-tip{position:fixed;z-index:60;pointer-events:none;background:var(--panel-3);border:1px solid var(--ink-faint);border-radius:5px;padding:3px 7px;font-family:var(--mono);font-size:11px;white-space:nowrap;transform:translate(-50%,-100%);box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .del{flex:none;width:22px;height:22px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--ink-faint);padding:0;font-size:13px}
@@ -504,7 +505,7 @@ let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, pages, drums, levels, synths:[new808(pages*PAGE)]};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, kickTone:.5, pages, drums, levels, synths:[new808(pages*PAGE)]};
 }
 /* The 808 is a locked, always-mono synth row that sits first in the synth section */
 function new808(len){ return {uid:++uid, name:"808", is808:true, poly:false, volume:.85, timbre:.5, steps:Array(len).fill(null)}; }
@@ -580,6 +581,7 @@ function fromJSON(o){
   const wb = o.warble && typeof o.warble==="object" ? o.warble : {};
   st.warble = {on: !!wb.on, depth: Math.round(clamp(wb.depth,0,50,15)), rate: +clamp(wb.rate,.1,12,1.5).toFixed(2)};
   st.drumDrive = clamp(o.drumDrive,0,1,0);
+  st.kickTone = clamp(o.kickTone,0,1,.5);
   st.sidechain = clamp(o.sidechain,0,1,0);
   const dr = o.drums && typeof o.drums==="object" ? o.drums : {};
   const alias = {bd:"kick",kick:"kick",sd:"snare",snare:"snare",cp:"clap",clap:"clap",ch:"hatClosed",hh:"hatClosed",hat:"hatClosed",hatclosed:"hatClosed",closedhat:"hatClosed",oh:"hatOpen",hatopen:"hatOpen",openhat:"hatOpen",tom:"tom",toms:"tom",lt:"tom",tomlow:"tom",lowtom:"tom",mt:"tom",tommid:"tom",midtom:"tom",ht:"tom",tomhigh:"tom",hightom:"tom"};
@@ -634,7 +636,7 @@ function toJSON(st){
   });
   return {
     name: st.name, bpm: st.bpm, swing: +st.swing.toFixed(2),
-    synthTone: +st.synthTone.toFixed(2), synthReverb: +st.synthReverb.toFixed(2), transpose: st.transpose, warble: {...st.warble}, sidechain: +st.sidechain.toFixed(2), drumDrive: +st.drumDrive.toFixed(2), pages: st.pages,
+    synthTone: +st.synthTone.toFixed(2), synthReverb: +st.synthReverb.toFixed(2), transpose: st.transpose, warble: {...st.warble}, sidechain: +st.sidechain.toFixed(2), drumDrive: +st.drumDrive.toFixed(2), kickTone: +st.kickTone.toFixed(2), pages: st.pages,
     drums, levels,
     bass808: (b => ({volume:+b.volume.toFixed(2), drive:+b.timbre.toFixed(2), steps:b.steps.map(x => x ?? ".")}))(st.synths[0]),
     synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
@@ -648,7 +650,7 @@ function pretty(o){
 const H = "-", R = ".";
 const EM7 = "D#3+G3+A#3+D4", AB = "D#3+G#3+C4+D#4";
 const PRESETS = [
-  {name:"Funky House Beat", bpm:119, swing:.17, synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, pages:2,
+  {name:"Funky House Beat", bpm:119, swing:.17, synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, kickTone:.5, pages:2,
    drums:{kick:"X...x...x...x...|X...x...x...x...", snare:"....X..g....X.g.|....X..g....X..g", clap:"....x.......x...|....x.......x...",
      hatClosed:"XxgxxxgxXxgxxxxx|XxgxxxgxX.gxx.3.", hatOpen:"..x...x...x...x.|..x...x...x...x.", tom:"................|................"},
    levels:{kick:.95, snare:.85, clap:.7, hatClosed:.42, hatOpen:1, tom:.7},
@@ -658,7 +660,7 @@ const PRESETS = [
     {name:"Chords", poly:true, volume:.58, timbre:.33, steps:[EM7,H,H,R,R,R,R,EM7,H,R,EM7,H,R,R,R,R, AB,H,H,R,R,R,AB,H,R,R,R,AB,H,H,R,R]},
     {name:"Synth 6", volume:.38, timbre:.56, steps:[R,"C4","C5","C4",R,R,R,R,R,R,R,R,R,R,R,R, R,R,R,R,R,R,R,R,R,R,R,R,R,"C5","C4","C3"]},
    ]},
-  {name:"Night Drive", bpm:100, swing:.12, pages:2,
+  {name:"Night Drive", bpm:100, swing:.12, kickTone:.7, pages:2,
    drums:{kick:"x.....x.x.......|x.....x.x.......", snare:"....X.......X..g|....X.......X...", clap:"............x...|............x...",
      hatClosed:"x.xgx...x.xgx.4.|x.xgx...x.xg....", hatOpen:"......x.........|......x.........",
      tom:"................|.............xx2"},
@@ -667,13 +669,13 @@ const PRESETS = [
     {name:"Bass", volume:.8, steps:["A2",H,R,"A3",R,"A2",H,"G2","F2",H,R,"F3",R,"F2","G2",H, "D2",H,R,"D3",R,"D2",H,"C2","E2",H,R,"E3",R,"E2","G2",H]},
     {name:"Chords", poly:true, volume:.75, steps:["C4+E4+G4",H,H,H,H,H,R,R,"A3+C4+E4",H,H,H,H,H,R,R, "A3+C4+F4",H,H,H,H,H,R,R,"B3+D4+G4",H,H,H,H,H,R,R]},
    ]},
-  {name:"Warehouse Stab", bpm:124, swing:.06,
+  {name:"Warehouse Stab", bpm:124, swing:.06, kickTone:.3,
    drums:{kick:"x...x...x...x...", clap:"....x.......x...", snare:"..............g.", hatClosed:"xg.gxg.gxg.gxg.g", hatOpen:"..x...x...x...x."},
    synths:[
     {name:"Bass", volume:.85, steps:[R,R,"F2",R,R,R,"F2",R,R,R,"G#2",R,R,R,"D#2",R]},
     {name:"Stab", poly:true, volume:.7, steps:[R,R,R,"G#3+C4+D#4",H,R,R,R,R,R,"G#3+C4+D#4",H,R,R,R,R]},
    ]},
-  {name:"Cold Glide", bpm:140, swing:0,
+  {name:"Cold Glide", bpm:140, swing:0, kickTone:.85,
    drums:{kick:"x......x..x.x...", snare:"........X.......", clap:"........x.......", hatClosed:"xxx.x3x.xx4.x.6.", tom:"..............3."},
    bass808:{steps:["F1","-","-","-","-","-","-","F1","-","-","F1","-","-","-","-","-"]},
    synths:[
@@ -712,7 +714,7 @@ function persistLocal(){
 
 /* ---------- Audio ---------- */
 let ctx = null, master, comp, drumBus, synthBus, noiseBuf, shaper;
-let openHatChoke = null, bassChoke = null;
+let openHatChoke = null, bassChoke = null, kickChoke = null;
 let duck = null, duckVerb = null, verbSend = null, W = null, tposeNode = null, D = null, lfo = null, lfoAmt = null;
 // drive curve: soft clip with a little asymmetry for even harmonics (the "grit")
 function driveCurve(){
@@ -797,12 +799,16 @@ function osc(type,f,t,stop){ const o = ctx.createOscillator(); o.type = type; o.
 function filt(type,f,q=.7){ const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
 
 const VOICE = {
-  kick(t,v,out){
-    const o = osc("sine",160,t,t+.7);
-    o.frequency.exponentialRampToValueAtTime(52,t+.08); o.frequency.exponentialRampToValueAtTime(43,t+.45);
-    const g = gainNode(0); envExp(g.gain,t,v*1.1,.62); o.connect(g).connect(out);
-    const n = noise(t,.02), lp = filt("lowpass",3200), gc = gainNode(0); envExp(gc.gain,t,v*.28,.018,.001);
+  // tone 0-1 morphs tight (short, high, clicky) through classic house (0.5) to boom (long, low, soft attack)
+  kick(t,v,out,tone=.5){
+    const k = (a,b,c) => tone < .5 ? a + (b-a)*tone*2 : b + (c-b)*(tone-.5)*2;
+    const dec = k(.2,.62,1.3), o = osc("sine",k(260,160,110),t,t+dec+.08);
+    o.frequency.exponentialRampToValueAtTime(k(62,52,44),t+k(.025,.08,.14)); o.frequency.exponentialRampToValueAtTime(k(56,43,36),t+k(.16,.45,.9));
+    const g = gainNode(0), choke = gainNode(1); envExp(g.gain,t,v*1.1*k(1.25,1,1),dec); o.connect(g).connect(choke).connect(out);
+    const n = noise(t,.02), lp = filt("lowpass",k(5000,3200,2200)), gc = gainNode(0); envExp(gc.gain,t,v*k(.5,.28,.12),.018,.001);
     n.connect(lp).connect(gc).connect(out);
+    if(kickChoke) kickChoke.gain.setTargetAtTime(0,t,.006); // a new kick cuts the last one's tail so long kicks don't smear
+    kickChoke = choke;
   },
   snare(t,v,out){
     const o1 = osc("triangle",190,t,t+.2), o2 = osc("sine",330,t,t+.2);
@@ -858,7 +864,7 @@ function playDrum(id,t,v){
   if(v<=0) return;
   const out = drumBus;
   switch(id){
-    case "kick": VOICE.kick(t,v,out); break;
+    case "kick": VOICE.kick(t,v,out,S.kickTone); break;
     case "snare": VOICE.snare(t,v,out); break;
     case "clap": VOICE.clap(t,v,out); break;
     case "hatClosed": VOICE.hat(t,v,out,false); break;
@@ -984,6 +990,7 @@ function stopPlay(){
   vq.length = 0; setPlayhead(-1);
   if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,ctx.currentTime,.01); openHatChoke = null; }
   if(bassChoke){ bassChoke.gain.setTargetAtTime(0,ctx.currentTime,.02); bassChoke = null; }
+  kickChoke = null;
   $("playBtn").setAttribute("aria-pressed","false");
   $("playBtn").innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span>';
 }
@@ -1031,6 +1038,7 @@ function render(){
       <div class="rh" title="Right-click for row tools"><span class="abbr">${d.abbr}</span><span class="rname">${d.name}</span>${tune}
       <button class="mute" data-act="mute" data-kind="mute" data-id="${d.id}" aria-pressed="${muted.has(d.id)}" title="Mute (drag to mute several)">M</button>
       <button class="mute solo" data-act="mute" data-kind="solo" data-id="${d.id}" aria-pressed="${soloed.has(d.id)}" title="Solo (drag to solo several)">S</button>
+      ${d.id==="kick" ? `<span class="knob" data-act="timbre" data-uid="kick" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(S.kickTone*100)}" aria-valuetext="${Math.round(S.kickTone*100)}% ${kickWord(S.kickTone)}" aria-label="Kick tone" title="Tone: tight to boom (drag up/down, double-click resets)" style="${knobStyle(S.kickTone)}"><i></i></span>` : `<span class="knob-sp" aria-hidden="true"></span>`}
       <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level">
       <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, fill, shift" aria-label="${d.name} row tools" aria-haspopup="menu">⋮</button></div>`;
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.indexOf(d.id)}" data-kind="drum" data-row="${d.id}" data-step="${off+i}" aria-label="${d.name} step ${off+i+1}"></button>`;
@@ -1166,21 +1174,26 @@ document.addEventListener("keydown", e => {
 /* Timbre knobs */
 function knobStyle(v){ return `--v:${v.toFixed(3)};--h:${Math.max(0, v*2-1).toFixed(3)}`; }
 const timbreWord = v => v < .2 ? "smooth" : v < .42 ? "soft" : v <= .58 ? "classic" : v < .8 ? "edgy" : "harsh";
+const kickWord = v => v < .2 ? "tight" : v < .42 ? "punchy" : v <= .58 ? "house" : v < .8 ? "deep" : "boom";
+// what a knob turns: a synth's timbre, or the kick's tone (data-uid="kick")
+const KICK_KNOB = {kick:true, get timbre(){ return S.kickTone; }, set timbre(v){ S.kickTone = v; }};
+const knobObj = uid => uid==="kick" ? KICK_KNOB : S.synths.find(x => String(x.uid)===uid);
 function setKnob(k, v, tip){
-  const s = S.synths.find(x => String(x.uid)===k.dataset.uid); if(!s) return;
+  const s = knobObj(k.dataset.uid); if(!s) return;
   s.timbre = Math.round(Math.max(0, Math.min(1, v))*100)/100;
   k.setAttribute("style", knobStyle(s.timbre));
   k.setAttribute("aria-valuenow", Math.round(s.timbre*100));
-  k.setAttribute("aria-valuetext", s.is808 ? `${Math.round(s.timbre*100)}%` : `${Math.round(s.timbre*100)}% ${timbreWord(s.timbre)}`);
+  k.setAttribute("aria-valuetext", s.is808 ? `${Math.round(s.timbre*100)}%` : `${Math.round(s.timbre*100)}% ${(s.kick ? kickWord : timbreWord)(s.timbre)}`);
   if(tip){
     const r = k.getBoundingClientRect(), el = $("knobTip");
-    el.hidden = false; el.textContent = s.is808 ? `Drive ${Math.round(s.timbre*100)}%` : `Timbre ${Math.round(s.timbre*100)}% · ${timbreWord(s.timbre)}`;
+    el.hidden = false; el.textContent = s.is808 ? `Drive ${Math.round(s.timbre*100)}%` : s.kick ? `Tone ${Math.round(s.timbre*100)}% · ${kickWord(s.timbre)}` : `Timbre ${Math.round(s.timbre*100)}% · ${timbreWord(s.timbre)}`;
     el.style.left = (r.left + r.width/2) + "px"; el.style.top = (r.top - 6) + "px";
   }
   return s;
 }
 function knobPreview(s){
   if(playing) return;
+  if(s.kick){ ensureCtx(); VOICE.kick(ctx.currentTime+.005, VEL.x*Math.max(.5, S.levels.kick), drumBus, S.kickTone); return; }
   const n = s.steps.find(x => x && x!=="-") || "C3";
   ensureCtx(); playVoice(s, stepNotes(n), ctx.currentTime+.005, s.is808 ? .8 : .35, Math.max(.5, s.volume));
 }
@@ -1198,7 +1211,7 @@ const endKnob = e => {
   if(!knobDrag || (e && e.pointerId!==knobDrag.pid)) return;
   const {k, moved} = knobDrag; knobDrag = null;
   k.classList.remove("drag"); $("knobTip").hidden = true;
-  if(moved){ changed(); const s = S.synths.find(x => String(x.uid)===k.dataset.uid); if(s) knobPreview(s); }
+  if(moved){ changed(); const s = knobObj(k.dataset.uid); if(s) knobPreview(s); }
 };
 window.addEventListener("pointerup", endKnob);
 /* While dragging any slider or knob: R snaps to its default, Esc puts it back where the drag started. Both end the drag. */
@@ -1254,14 +1267,14 @@ rack.addEventListener("keydown", e => {
   const step = {ArrowUp:.05, ArrowRight:.05, ArrowDown:-.05, ArrowLeft:-.05, PageUp:.2, PageDown:-.2}[e.key];
   if(step==null) return;
   e.preventDefault();
-  const s = S.synths.find(x => String(x.uid)===k.dataset.uid);
+  const s = knobObj(k.dataset.uid);
   setKnob(k, s.timbre + step, false); changed();
 });
 rack.addEventListener("pointerdown", e => {
   const kn = e.target.closest(".knob");
   if(kn && (e.pointerType!=="mouse" || e.button===0)){
     e.preventDefault(); kn.focus({preventScroll:true});
-    const s = S.synths.find(x => String(x.uid)===kn.dataset.uid);
+    const s = knobObj(kn.dataset.uid);
     knobDrag = {k:kn, uid:kn.dataset.uid, pid:e.pointerId, y:e.clientY, v:s.timbre, v0:s.timbre, moved:false};
     kn.classList.add("drag"); setKnob(kn, s.timbre, true);
     return;
@@ -2002,6 +2015,7 @@ FORMAT (reply with only this JSON object):
   "synthTone": 0.45,         // 0-1 filter brightness for all synths (0.2 dark/warm, 0.45 neutral, 0.8 bright/buzzy)
   "sidechain": 0,            // 0-1 how hard all synths duck on every kick (0 off, 0.3 subtle glue, 0.6 house pump, 1 full EDM pump). Great with sustained synth chords.
   "drumDrive": 0,            // 0-1 saturation + bus compression on the drums (0 clean 808, 0.5 punchy, 1 fully gritty)
+  "kickTone": 0.5,           // 0-1 kick character: 0.15-0.3 short tight techno/garage punch, 0.5 classic house, 0.7 deep, 0.85+ long low hip-hop/trap boom
   "transpose": 0,            // optional, cents applied to all synths and the 808 (-1200 to 1200; 100 = one semitone). Usually 0: write the notes in the key you want.
   "warble": {"on": false, "depth": 15, "rate": 1.5},  // optional pitch LFO on the transpose: depth 0-50 cents, rate 0.1-12 Hz. Tape wobble ~18c @ 1.2Hz, vibrato ~22c @ 5.5Hz. Leave off unless the vibe is lo-fi, dreamy or seasick.
   "synthReverb": 0.15,       // 0-1 reverb on all synths (0.1 dry, 0.3 roomy, 0.5 big pads). Above 0.5 it becomes a washout: the whole mix drowns in reverb over a rising white-noise sweep. Keep it at 0.5 or below unless the request asks for a buildup or washout.
@@ -2116,7 +2130,7 @@ $("genBtn").addEventListener("click", async () => {
 });
 /* ---------- Composer view: shows the beat being written as the model streams it ---------- */
 const THINKING = ["Listening to the brief","Choosing a tempo","Finding the pocket","Picking a key","Sketching the groove","Counting it in"];
-const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", pages:"Planning the bars",
+const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", kickTone:"Shaping the kick", pages:"Planning the bars",
   kick:"Programming the kick", snare:"Placing the snare", clap:"Adding claps", hatClosed:"Laying down hats", hatOpen:"Opening the hats", tom:"Writing tom fills", bass:"Tuning the 808", levels:"Mixing levels"};
 const GROUP_COL = ["#e2472f","#ef8b2c","#eecb4c","#efe7d3"];
 let cmp = null;
