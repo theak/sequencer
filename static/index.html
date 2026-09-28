@@ -294,12 +294,13 @@ details.json[open] summary{margin-bottom:10px}
 .savepill[data-state="error"] .sstate{color:var(--danger)}
 .savepill[data-state="peek"]{border-color:var(--cream)}
 .savepill[data-state="peek"] .sdot{background:var(--cream)}
-.savepill[data-state="peek"] kbd{visibility:hidden}
+.savepill[data-state="peek"] kbd{display:inline-block;background:var(--cream);border-color:var(--cream);color:#1a1814;font-family:var(--ui);font-weight:700}
 .savepill.ok .sdot{animation:sdotOk .5s ease-out}
 @keyframes sdotPulse{to{opacity:.35}}
 @keyframes sdotOk{40%{transform:scale(1.9);box-shadow:0 0 10px var(--synth)}}
-.cmpbtn{display:inline-flex;align-items:center;gap:6px;touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
-.cmpbtn svg{width:13px;height:13px}
+.cmpbtn{display:inline-flex;align-items:center;gap:6px}
+.iconbtn{display:inline-grid;place-items:center;padding:0;width:34px;height:34px}
+.iconbtn svg,.cmpbtn svg{width:14px;height:14px}
 .cmpbtn[aria-pressed="true"]{background:var(--cream);border-color:var(--cream);color:#1a1814}
 .cmphint{font-size:12px;font-style:italic;color:var(--ink-faint);white-space:nowrap}
 .cmpbtn:disabled + .cmphint{opacity:.5}
@@ -307,17 +308,18 @@ details.json[open] summary{margin-bottom:10px}
 @media (hover:none){ .savepill kbd{display:none} .savepill{padding-right:12px} }
 /* while comparing, the page shows the last save and can't be edited */
 .rack{position:relative}
-body.peeking .wrap *:not(#cmpBtn):not(#playBtn){pointer-events:none}
+body.peeking .wrap *{pointer-events:none}
+body.peeking :is(#cmpBtn,#playBtn,#savePill,#revertBtn){pointer-events:auto}
 body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outline-offset:-1px}
 .rack[data-peek]::after{content:attr(data-peek);position:absolute;top:-10px;right:16px;background:var(--cream);color:#1a1814;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:4px;z-index:5}
 .saved li.flash{animation:liFlash 1.2s ease-out}
 @keyframes liFlash{0%,30%{background:color-mix(in srgb,var(--orange) 22%,var(--panel-2))}}
 /* narrower screens: the select already says "Load a starter…", so its label goes to make room */
-@media (max-width:900px){ .starterf .lbl{display:none} .starterf select{width:140px} .savepill{max-width:260px} }
+@media (max-width:900px){ .starterf .lbl{display:none} .starterf select{width:140px} .savepill{max-width:220px} }
 @media (max-width:640px){
   .starterf select{width:150px}
   .filebar{order:1}
-  .savepill{max-width:240px}
+  .savepill{max-width:190px}
 }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
 /* page swipes: the rack keeps sideways touch gestures for itself (vertical scroll and pinch still work) */
@@ -365,7 +367,8 @@ body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outlin
     </div>
     <div class="filebar" id="filebar">
       <button class="savepill" id="savePill" data-state="wait" aria-live="polite"><i class="sdot" aria-hidden="true"></i><span class="sname" id="saveName"></span><span class="sstate" id="saveStateTxt"></span><kbd id="saveKey" aria-hidden="true">⌘S</kbd></button>
-      <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save (hold)"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">hold to compare</span>
+      <button class="btn iconbtn" id="revertBtn" disabled aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
     </div>
     <label class="field starterf"><span class="lbl">Starter</span>
       <select id="presetSel" aria-label="Load a starter"><option value="">Load a starter…</option></select>
@@ -2661,8 +2664,8 @@ $("savedList").addEventListener("click", async e => {
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
   if(b.dataset.act==="load"){
-    const revert = id===currentDocId && saveState()==="dirty";
-    try { loadState(fromJSON(d.beat), id, revert ? {msg:"Back to the saved version"} : {name:d.name}); } catch(err){ toast("That saved beat couldn't be read."); }
+    if(id===currentDocId && saveState()==="dirty"){ revertToSaved(); return; }
+    try { loadState(fromJSON(d.beat), id, {name:d.name}); } catch(err){ toast("That saved beat couldn't be read."); }
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
     try {
@@ -2712,7 +2715,7 @@ window.addEventListener("keydown", e => {
   b.click();
 }, true);
 
-/* ---------- Save pill + hold to compare ---------- */
+/* ---------- Save pill, revert and compare ---------- */
 $("saveKey").textContent = SAVE_KEY;
 const snapOf = beat => { try { return JSON.stringify(toJSON(fromJSON(beat))); } catch { return null; } };
 // point the page at a saved beat (or none) and take its saved version as the baseline for "unsaved"
@@ -2749,27 +2752,44 @@ function updateSaveBar(){
   p.dataset.state = st;
   $("saveName").textContent = st==="new" ? "Not saved yet" : st==="wait" && !currentDocId ? "" : name;
   $("saveStateTxt").textContent = {clean:"saved", dirty:"unsaved", saving:"saving…", error:"save failed", peek:"last saved"}[st] || "";
+  $("saveKey").textContent = st==="peek" ? "↺ Revert" : SAVE_KEY; // while comparing, the chip reverts instead of saving
   p.title = {
     clean: `Saved ${relTime(baselineAt)}. Click to find it in your saved beats`,
-    dirty: `Unsaved changes. Click or press ${SAVE_KEY} to save, hold Compare to hear the last save`,
+    dirty: `Unsaved changes. Click or press ${SAVE_KEY} to save`,
     new: `Not in your saved beats yet (it's still kept in this browser). Click or press ${SAVE_KEY} to save`,
     error: `The last save didn't go through. Click or press ${SAVE_KEY} to try again`,
-    saving: "Saving…", peek: "Showing the last save. Let go to come back", wait: "",
+    saving: "Saving…", peek: "Revert: keep the last save and drop your changes (Undo brings them back)", wait: "",
   }[st];
-  p.disabled = st==="wait" || st==="saving" || st==="peek";
+  p.disabled = st==="wait" || st==="saving";
+  const r = $("revertBtn");
+  r.disabled = st!=="dirty" && st!=="peek";
+  r.title = r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
   const c = $("cmpBtn");
   c.disabled = st!=="dirty" && st!=="peek";
-  c.title = st==="dirty" || st==="peek" ? "Hold to hear and see the last save, let go to come back (or hold C)"
-    : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then hold here to compare your changes against it";
+  c.title = st==="peek" ? "Back to your edits (C or Esc)"
+    : st==="dirty" ? "Compare: flip to the last save to hear and see it, click again to come back (C)"
+    : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then you can compare your changes against it";
   const lb = $("savedList").querySelector("li.cur [data-act=load]");
   if(lb){ lb.textContent = st==="dirty" ? "Revert" : "Load"; lb.title = st==="dirty" ? "Go back to the saved version (Undo brings your changes back)" : ""; }
   const t = (currentDocId && baseline!=null ? name + " · " : "") + "AK-16 Beat Composer";
-  document.title = (st==="dirty" ? "• " : "") + t;
+  document.title = (st==="dirty" || st==="peek" ? "• " : "") + t;
 }
-setInterval(() => { if(saveState()==="clean") updateSaveBar(); }, 30000);
+setInterval(() => { const st = saveState(); if(st==="clean") updateSaveBar(); if(st==="peek") rack.dataset.peek = `Last saved · ${relTime(baselineAt)}`; }, 30000);
 function flashPill(){ const p = $("savePill"); p.classList.remove("ok"); void p.offsetWidth; p.classList.add("ok"); }
+// drop the unsaved changes and go back to the last save. It's one Undo step, so Undo brings the changes back.
+function revertToSaved(){
+  if(peek) endPeek();
+  liveSnap = snapStr();
+  if(saveState()!=="dirty") return;
+  let st; try { st = fromJSON(JSON.parse(baseline)); } catch { toast("The last save couldn't be read."); return; }
+  const keep = [baseline, baselineAt];
+  loadState(st, currentDocId, {msg:"Back to the last save"});
+  [baseline, baselineAt] = keep; loadedSnap = committed; updateSaveBar(); flashPill();
+}
+$("revertBtn").addEventListener("click", revertToSaved);
 $("savePill").addEventListener("click", () => {
   const st = saveState();
+  if(st==="peek"){ revertToSaved(); return; }
   if(st==="dirty" || st==="new" || st==="error"){ save(false); return; }
   if(st==="clean"){
     $("saveH").closest(".card").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"});
@@ -2780,7 +2800,8 @@ $("savePill").addEventListener("click", () => {
 // Enter in the name box saves
 $("nameIn").addEventListener("keydown", e => { if(e.key==="Enter" && !e.isComposing){ e.preventDefault(); S.name = e.target.value.slice(0,60); save(false); } });
 
-// Hold Compare (or C) to swap the last save in, grid, sound and all. Let go to come back to your edits.
+// Compare (or C) flips to the last save, grid, sound and all, and flips back to your edits on the next press.
+// While it's on, the page can't be edited and nothing is autosaved.
 function startPeek(){
   if(peek) return false;
   liveSnap = snapStr();
@@ -2790,7 +2811,7 @@ function startPeek(){
   const liveUser = userSynths(S); let ui = 0;
   st.synths.forEach(s => { const m = s.fixed ? S.synths.find(x => x.fixed===s.fixed) : liveUser[ui++]; if(m) s.uid = m.uid; });
   closePops();
-  peek = {live:S, page:viewPage, t:performance.now()};
+  peek = {live:S, page:viewPage};
   S = st;
   document.body.classList.add("peeking");
   rack.dataset.peek = `Last saved · ${relTime(baselineAt)}`;
@@ -2806,37 +2827,19 @@ function endPeek(){
   delete rack.dataset.peek;
   $("cmpBtn").setAttribute("aria-pressed","false");
   render(); updateSaveBar();
-  return performance.now() - p.t;
+  return true;
 }
-{
-  const b = $("cmpBtn"); let pid = null, keyHeld = null;
-  const tapHint = held => { if(held && held < 220) toast("Keep holding Compare to hear the last save"); };
-  b.addEventListener("pointerdown", e => {
-    if(e.button || b.disabled) return;
-    e.preventDefault();
-    if(startPeek()){ pid = e.pointerId; try { b.setPointerCapture(e.pointerId); } catch {} }
-  });
-  const up = e => { if(pid==null || e.pointerId!==pid) return; pid = null; tapHint(endPeek()); };
-  window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
-  b.addEventListener("contextmenu", e => e.preventDefault());
-  // keyboard: hold C anywhere, or hold Enter on the button
-  window.addEventListener("keydown", e => {
-    const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
-    const onBtn = k==="Enter" && e.target===b;
-    if(!(k==="c" && !e.metaKey && !e.ctrlKey && !e.altKey && !typingTarget(e.target)) && !onBtn) return;
-    e.preventDefault();
-    if(e.repeat || peek) return;
-    if(startPeek()) keyHeld = k;
-    else if(!onBtn) toast(currentDocId && baseline!=null ? "No changes since the last save" : "Save this beat first, then hold C to compare against it");
-  });
-  window.addEventListener("keyup", e => {
-    const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
-    if(keyHeld && k===keyHeld){ keyHeld = null; tapHint(endPeek()); }
-  });
-  const bail = () => { pid = keyHeld = null; endPeek(); };
-  window.addEventListener("blur", bail);
-  document.addEventListener("visibilitychange", () => { if(document.hidden) bail(); });
+
+function togglePeek(){
+  if(peek){ endPeek(); return; }
+  if(!startPeek()) toast(currentDocId && baseline!=null ? "No changes since the last save" : "Save this beat first, then you can compare against it");
 }
+$("cmpBtn").addEventListener("click", togglePeek);
+window.addEventListener("keydown", e => {
+  if(e.metaKey || e.ctrlKey || e.altKey || e.repeat || typingTarget(e.target)) return;
+  if(e.key==="Escape" && peek){ endPeek(); return; }
+  if(e.key.toLowerCase()==="c"){ e.preventDefault(); togglePeek(); }
+});
 
 /* ---------- Capabilities ---------- */
 function noDb(msg){
