@@ -854,10 +854,11 @@ const VOICE = {
   },
 };
 function playDrum(id,t,v){
+  if(id==="kick") sidechainHit(t); // the pump follows the kick pattern even when the kick is silent
   if(v<=0) return;
   const out = drumBus;
   switch(id){
-    case "kick": VOICE.kick(t,v,out); sidechainHit(t); break;
+    case "kick": VOICE.kick(t,v,out); break;
     case "snare": VOICE.snare(t,v,out); break;
     case "clap": VOICE.clap(t,v,out); break;
     case "hatClosed": VOICE.hat(t,v,out,false); break;
@@ -934,7 +935,9 @@ function fallbackTimer(){ if(worker){ try{ worker.terminate(); }catch{} worker =
 function scheduleStep(step,t,sd){
   for(const id of DRUM_IDS){
     const c = S.drums[id][step];
-    if(!c || !audible(id)) continue;
+    if(!c) continue;
+    // a muted kick still drives the sidechain, as long as it has hits
+    if(!audible(id)){ if(id==="kick") for(let k=0;k<c.r;k++) sidechainHit(t+k*sd/c.r); continue; }
     const v = VEL[c.v]*S.levels[id];
     for(let k=0;k<c.r;k++){
       const vk = c.r>1 ? v*(.62+.38*(k+1)/c.r) : v;
