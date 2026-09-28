@@ -448,6 +448,8 @@ const DRUMS = [
 const DRUM_IDS = DRUMS.map(d => d.id);
 const ROLLS = [1,2,3,4,6,8];
 const VEL = {g:.38, x:.78, X:1};
+const TONE_IDS = ["kick","snare","clap","hatClosed","hatOpen"]; // drums with a tone knob (0.5 is the classic sound)
+const defaultTones = () => Object.fromEntries(TONE_IDS.map(id => [id, .5]));
 const MAX_SYNTHS = 8;
 const PAGE = 16, MAX_PAGES = 4;
 const NOTE_LO = 24, NOTE_HI = 84; // C1..C6
@@ -505,7 +507,7 @@ let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, kickTone:.5, pages, drums, levels, synths:[new808(pages*PAGE)]};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:[new808(pages*PAGE)]};
 }
 /* The 808 is a locked, always-mono synth row that sits first in the synth section */
 function new808(len){ return {uid:++uid, name:"808", is808:true, poly:false, volume:.85, timbre:.5, steps:Array(len).fill(null)}; }
@@ -581,7 +583,6 @@ function fromJSON(o){
   const wb = o.warble && typeof o.warble==="object" ? o.warble : {};
   st.warble = {on: !!wb.on, depth: Math.round(clamp(wb.depth,0,50,15)), rate: +clamp(wb.rate,.1,12,1.5).toFixed(2)};
   st.drumDrive = clamp(o.drumDrive,0,1,0);
-  st.kickTone = clamp(o.kickTone,0,1,.5);
   st.sidechain = clamp(o.sidechain,0,1,0);
   const dr = o.drums && typeof o.drums==="object" ? o.drums : {};
   const alias = {bd:"kick",kick:"kick",sd:"snare",snare:"snare",cp:"clap",clap:"clap",ch:"hatClosed",hh:"hatClosed",hat:"hatClosed",hatclosed:"hatClosed",closedhat:"hatClosed",oh:"hatOpen",hatopen:"hatOpen",openhat:"hatOpen",tom:"tom",toms:"tom",lt:"tom",tomlow:"tom",lowtom:"tom",mt:"tom",tommid:"tom",midtom:"tom",ht:"tom",tomhigh:"tom",hightom:"tom"};
@@ -596,6 +597,13 @@ function fromJSON(o){
     const id = alias[k.toLowerCase().replace(/[\s_-]/g,"")];
     if(id && o.levels[k]!=null) st.levels[id] = clamp(o.levels[k],0,1,st.levels[id]);
   }
+  st.tones = defaultTones();
+  const tn = o.tones && typeof o.tones==="object" ? o.tones : {};
+  for(const k of Object.keys(tn)){
+    const id = alias[k.toLowerCase().replace(/[\s_-]/g,"")];
+    if(id && id in st.tones) st.tones[id] = clamp(tn[k],0,1,.5);
+  }
+  if(o.kickTone!=null && !Object.keys(tn).some(k => alias[k.toLowerCase().replace(/[\s_-]/g,"")]==="kick")) st.tones.kick = clamp(o.kickTone,0,1,.5); // the first version only had a kick knob
   const syn = Array.isArray(o.synths) ? o.synths.slice(0,MAX_SYNTHS) : [];
   // the 808: new format is bass808 {volume, drive, steps}; older beats had a "bass" drum row hit at bassNote
   const b8 = st.synths[0], nb = o.bass808 && typeof o.bass808==="object" ? o.bass808 : null;
@@ -636,8 +644,8 @@ function toJSON(st){
   });
   return {
     name: st.name, bpm: st.bpm, swing: +st.swing.toFixed(2),
-    synthTone: +st.synthTone.toFixed(2), synthReverb: +st.synthReverb.toFixed(2), transpose: st.transpose, warble: {...st.warble}, sidechain: +st.sidechain.toFixed(2), drumDrive: +st.drumDrive.toFixed(2), kickTone: +st.kickTone.toFixed(2), pages: st.pages,
-    drums, levels,
+    synthTone: +st.synthTone.toFixed(2), synthReverb: +st.synthReverb.toFixed(2), transpose: st.transpose, warble: {...st.warble}, sidechain: +st.sidechain.toFixed(2), drumDrive: +st.drumDrive.toFixed(2), pages: st.pages,
+    drums, levels, tones: Object.fromEntries(TONE_IDS.map(id => [id, +st.tones[id].toFixed(2)])),
     bass808: (b => ({volume:+b.volume.toFixed(2), drive:+b.timbre.toFixed(2), steps:b.steps.map(x => x ?? ".")}))(st.synths[0]),
     synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
   };
@@ -650,7 +658,7 @@ function pretty(o){
 const H = "-", R = ".";
 const EM7 = "D#3+G3+A#3+D4", AB = "D#3+G#3+C4+D#4";
 const PRESETS = [
-  {name:"Funky House Beat", bpm:119, swing:.17, synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, kickTone:.5, pages:2,
+  {name:"Funky House Beat", bpm:119, swing:.17, synthTone:.1, synthReverb:.1, transpose:300, warble:{on:true, depth:10, rate:3.99}, sidechain:.4, drumDrive:0, pages:2,
    drums:{kick:"X...x...x...x...|X...x...x...x...", snare:"....X..g....X.g.|....X..g....X..g", clap:"....x.......x...|....x.......x...",
      hatClosed:"XxgxxxgxXxgxxxxx|XxgxxxgxX.gxx.3.", hatOpen:"..x...x...x...x.|..x...x...x...x.", tom:"................|................"},
    levels:{kick:.95, snare:.85, clap:.7, hatClosed:.42, hatOpen:1, tom:.7},
@@ -660,7 +668,7 @@ const PRESETS = [
     {name:"Chords", poly:true, volume:.58, timbre:.33, steps:[EM7,H,H,R,R,R,R,EM7,H,R,EM7,H,R,R,R,R, AB,H,H,R,R,R,AB,H,R,R,R,AB,H,H,R,R]},
     {name:"Synth 6", volume:.38, timbre:.56, steps:[R,"C4","C5","C4",R,R,R,R,R,R,R,R,R,R,R,R, R,R,R,R,R,R,R,R,R,R,R,R,R,"C5","C4","C3"]},
    ]},
-  {name:"Night Drive", bpm:100, swing:.12, kickTone:.7, pages:2,
+  {name:"Night Drive", bpm:100, swing:.12, pages:2, tones:{kick:.7, snare:.3, clap:.6, hatClosed:.35, hatOpen:.5},
    drums:{kick:"x.....x.x.......|x.....x.x.......", snare:"....X.......X..g|....X.......X...", clap:"............x...|............x...",
      hatClosed:"x.xgx...x.xgx.4.|x.xgx...x.xg....", hatOpen:"......x.........|......x.........",
      tom:"................|.............xx2"},
@@ -669,13 +677,13 @@ const PRESETS = [
     {name:"Bass", volume:.8, steps:["A2",H,R,"A3",R,"A2",H,"G2","F2",H,R,"F3",R,"F2","G2",H, "D2",H,R,"D3",R,"D2",H,"C2","E2",H,R,"E3",R,"E2","G2",H]},
     {name:"Chords", poly:true, volume:.75, steps:["C4+E4+G4",H,H,H,H,H,R,R,"A3+C4+E4",H,H,H,H,H,R,R, "A3+C4+F4",H,H,H,H,H,R,R,"B3+D4+G4",H,H,H,H,H,R,R]},
    ]},
-  {name:"Warehouse Stab", bpm:124, swing:.06, kickTone:.3,
+  {name:"Warehouse Stab", bpm:124, swing:.06, tones:{kick:.3, snare:.6, clap:.8, hatClosed:.65, hatOpen:.3},
    drums:{kick:"x...x...x...x...", clap:"....x.......x...", snare:"..............g.", hatClosed:"xg.gxg.gxg.gxg.g", hatOpen:"..x...x...x...x."},
    synths:[
     {name:"Bass", volume:.85, steps:[R,R,"F2",R,R,R,"F2",R,R,R,"G#2",R,R,R,"D#2",R]},
     {name:"Stab", poly:true, volume:.7, steps:[R,R,R,"G#3+C4+D#4",H,R,R,R,R,R,"G#3+C4+D#4",H,R,R,R,R]},
    ]},
-  {name:"Cold Glide", bpm:140, swing:0, kickTone:.85,
+  {name:"Cold Glide", bpm:140, swing:0, tones:{kick:.85, snare:.8, clap:.55, hatClosed:.75, hatOpen:.5},
    drums:{kick:"x......x..x.x...", snare:"........X.......", clap:"........x.......", hatClosed:"xxx.x3x.xx4.x.6.", tom:"..............3."},
    bass808:{steps:["F1","-","-","-","-","-","-","F1","-","-","F1","-","-","-","-","-"]},
    synths:[
@@ -714,7 +722,7 @@ function persistLocal(){
 
 /* ---------- Audio ---------- */
 let ctx = null, master, comp, drumBus, synthBus, noiseBuf, shaper;
-let openHatChoke = null, bassChoke = null, kickChoke = null;
+let openHatChoke = null, bassChoke = null, kickChoke = null, clapRoom = null;
 let duck = null, duckVerb = null, verbSend = null, W = null, tposeNode = null, D = null, lfo = null, lfoAmt = null;
 // drive curve: soft clip with a little asymmetry for even harmonics (the "grit")
 function driveCurve(){
@@ -757,6 +765,11 @@ function ensureCtx(){
   drumBus.connect(drivePre).connect(driveShape).connect(driveLow).connect(driveHigh).connect(driveWet).connect(drumComp);
   drumComp.connect(drumPost);
   D = {drumClean, drivePre, driveLow, driveHigh, driveWet, drumComp, drumPost};
+  // clap room: a reverb only the clap sends into, for the big-room end of its tone knob (after the drive, so it stays clean)
+  const crPre = ctx.createDelay(.1); crPre.delayTime.value = .018;
+  const crConv = ctx.createConvolver(); crConv.buffer = makeImpulse(2.4, 2.4);
+  clapRoom = gainNode(1);
+  clapRoom.connect(crPre).connect(filt("highpass",350)).connect(crConv).connect(filt("lowpass",6500)).connect(drumPost);
   drumPost.connect(dryHP); synthBus.connect(dryHP); dryHP.connect(dryGain).connect(master);
   // Both reverbs are controlled on their OUTPUT (wet return), not the send,
   // so pulling the slider down cuts the tail immediately instead of letting it ring out.
@@ -798,10 +811,12 @@ function noise(t,dur){ const s = ctx.createBufferSource(); s.buffer = noiseBuf; 
 function osc(type,f,t,stop){ const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f,t); o.start(t); o.stop(stop); return o; }
 function filt(type,f,q=.7){ const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
 
+// blend a tone knob's value through three settings: a at 0, b at 0.5 (the classic sound), c at 1
+const morph = (x,a,b,c) => x < .5 ? a + (b-a)*x*2 : b + (c-b)*(x-.5)*2;
 const VOICE = {
   // tone 0-1 morphs tight (short, high, clicky) through classic house (0.5) to boom (long, low, soft attack)
   kick(t,v,out,tone=.5){
-    const k = (a,b,c) => tone < .5 ? a + (b-a)*tone*2 : b + (c-b)*(tone-.5)*2;
+    const k = (a,b,c) => morph(tone,a,b,c);
     const dec = k(.2,.62,1.3), o = osc("sine",k(260,160,110),t,t+dec+.08);
     o.frequency.exponentialRampToValueAtTime(k(62,52,44),t+k(.025,.08,.14)); o.frequency.exponentialRampToValueAtTime(k(56,43,36),t+k(.16,.45,.9));
     const g = gainNode(0), choke = gainNode(1); envExp(g.gain,t,v*1.1*k(1.25,1,1),dec); o.connect(g).connect(choke).connect(out);
@@ -810,25 +825,35 @@ const VOICE = {
     if(kickChoke) kickChoke.gain.setTargetAtTime(0,t,.006); // a new kick cuts the last one's tail so long kicks don't smear
     kickChoke = choke;
   },
-  snare(t,v,out){
-    const o1 = osc("triangle",190,t,t+.2), o2 = osc("sine",330,t,t+.2);
-    o1.frequency.exponentialRampToValueAtTime(170,t+.1);
-    const gt = gainNode(0); envExp(gt.gain,t,v*.55,.13); o1.connect(gt); o2.connect(gt); gt.connect(out);
-    const n = noise(t,.3), hp = filt("highpass",1600), gn = gainNode(0); envExp(gn.gain,t,v*.7,.22);
-    n.connect(hp).connect(gn).connect(out);
+  // tone 0-1: fat (low, long, dark) through classic (0.5) to crack (high, short, bright)
+  snare(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), bd = k(.2,.13,.08), f = k(150,190,250);
+    const o1 = osc("triangle",f,t,t+bd+.07), o2 = osc("sine",f*330/190,t,t+bd+.07);
+    o1.frequency.exponentialRampToValueAtTime(f*170/190,t+k(.12,.1,.06));
+    const gt = gainNode(0); envExp(gt.gain,t,v*k(.7,.55,.4),bd); o1.connect(gt); o2.connect(gt); gt.connect(out);
+    const nd = k(.32,.22,.14), n = noise(t,nd+.08), hp = filt("highpass",k(900,1600,2600)), gn = gainNode(0); envExp(gn.gain,t,v*k(.62,.7,.8),nd);
+    if(tone < .5) n.connect(filt("lowpass",k(5500,16000,16000))).connect(hp); else n.connect(hp); // fat snares get darker noise
+    hp.connect(gn).connect(out);
   },
-  clap(t,v,out){
-    const n = noise(t,.4), bp = filt("bandpass",1150,.9), hp = filt("highpass",500), g = gainNode(0);
+  // tone 0-1: tight snap through classic (0.5) to big room (wider bursts, longer tail, room reverb)
+  clap(t,v,out,tone=.5){
+    const k = (a,b,c) => morph(tone,a,b,c), sp = k(.006,.011,.015), tail = k(.16,.3,.42);
+    const n = noise(t,tail+.1), bp = filt("bandpass",k(1350,1150,1050),.9), hp = filt("highpass",500), g = gainNode(0);
     const p = g.gain; p.setValueAtTime(.0001,t);
-    for(let k=0;k<3;k++){ const tk = t+k*.011; p.setValueAtTime(v*.9,tk); p.exponentialRampToValueAtTime(v*.12,tk+.009); }
-    p.setValueAtTime(v*.85,t+.033); p.exponentialRampToValueAtTime(.0001,t+.3);
+    for(let j=0;j<3;j++){ const tk = t+j*sp; p.setValueAtTime(v*.9,tk); p.exponentialRampToValueAtTime(v*.12,tk+sp*9/11); }
+    p.setValueAtTime(v*.85,t+3*sp); p.exponentialRampToValueAtTime(.0001,t+tail);
     n.connect(bp).connect(hp).connect(g).connect(out);
+    const wet = Math.max(0, tone-.5)*2;
+    if(wet > 0 && clapRoom && clapRoom.context===ctx) g.connect(gainNode(wet*1.6)).connect(clapRoom);
   },
-  hat(t,v,out,open){
-    const dec = open ? .38 : .055, stop = t+dec+.05;
-    const sum = gainNode(1/6), bp = filt("bandpass",10000,.6), hp = filt("highpass",7000), g = gainNode(0), choke = gainNode(1);
-    [2,3,4.16,5.43,6.79,8.21].forEach(r => osc("square",40*r,t,stop).connect(sum));
-    envExp(g.gain,t,v*.55,dec,.001);
+  // bright 0-1: dark/dusty through classic (0.5) to crisp. len 0-1 (open hat only): short tss to long wash
+  hat(t,v,out,open,bright=.5,len=.5){
+    const k = (a,b,c) => morph(bright,a,b,c);
+    const dec = open ? morph(len,.15,.38,.8) : k(.07,.055,.05), stop = t+dec+.05;
+    const sum = gainNode(1/6), bp = filt("bandpass",k(6500,10000,12500),.6), hp = filt("highpass",k(4500,7000,9000)), g = gainNode(0), choke = gainNode(1);
+    const base = k(34,40,46);
+    [2,3,4.16,5.43,6.79,8.21].forEach(r => osc("square",base*r,t,stop).connect(sum));
+    envExp(g.gain,t,v*.55*k(1,1,1.2),dec,.001); // bright hats lose energy to the filters, so lift them a touch
     sum.connect(bp).connect(hp).connect(g).connect(choke).connect(out);
     if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,t,.008); openHatChoke = null; }
     if(open) openHatChoke = choke;
@@ -862,13 +887,16 @@ const VOICE = {
 function playDrum(id,t,v){
   if(id==="kick") sidechainHit(t); // the pump follows the kick pattern even when the kick is silent
   if(v<=0) return;
-  const out = drumBus;
+  drumVoice(id,t,v);
+}
+function drumVoice(id,t,v){
+  const out = drumBus, T = S.tones;
   switch(id){
-    case "kick": VOICE.kick(t,v,out,S.kickTone); break;
-    case "snare": VOICE.snare(t,v,out); break;
-    case "clap": VOICE.clap(t,v,out); break;
-    case "hatClosed": VOICE.hat(t,v,out,false); break;
-    case "hatOpen": VOICE.hat(t,v,out,true); break;
+    case "kick": VOICE.kick(t,v,out,T.kick); break;
+    case "snare": VOICE.snare(t,v,out,T.snare); break;
+    case "clap": VOICE.clap(t,v,out,T.clap); break;
+    case "hatClosed": VOICE.hat(t,v,out,false,T.hatClosed); break;
+    case "hatOpen": VOICE.hat(t,v,out,true,T.hatClosed,T.hatOpen); break; // open hat brightness follows the closed hat
     case "tom": VOICE.tom(t,v,out,184); break;
   }
 }
@@ -1038,7 +1066,7 @@ function render(){
       <div class="rh" title="Right-click for row tools"><span class="abbr">${d.abbr}</span><span class="rname">${d.name}</span>${tune}
       <button class="mute" data-act="mute" data-kind="mute" data-id="${d.id}" aria-pressed="${muted.has(d.id)}" title="Mute (drag to mute several)">M</button>
       <button class="mute solo" data-act="mute" data-kind="solo" data-id="${d.id}" aria-pressed="${soloed.has(d.id)}" title="Solo (drag to solo several)">S</button>
-      ${d.id==="kick" ? `<span class="knob" data-act="timbre" data-uid="kick" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(S.kickTone*100)}" aria-valuetext="${Math.round(S.kickTone*100)}% ${kickWord(S.kickTone)}" aria-label="Kick tone" title="Tone: tight to boom (drag up/down, double-click resets)" style="${knobStyle(S.kickTone)}"><i></i></span>` : `<span class="knob-sp" aria-hidden="true"></span>`}
+      ${TONES[d.id] ? `<span class="knob" data-act="timbre" data-uid="drum:${d.id}" data-default="50" data-fmt="%" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(S.tones[d.id]*100)}" aria-valuetext="${Math.round(S.tones[d.id]*100)}% ${toneWord(d.id, S.tones[d.id])}" aria-label="${d.name} ${TONES[d.id].label.toLowerCase()}" title="${TONES[d.id].label}: ${TONES[d.id].range} (drag up/down, double-click resets)" style="${knobStyle(S.tones[d.id])}"><i></i></span>` : `<span class="knob-sp" aria-hidden="true"></span>`}
       <input type="range" class="vol" data-act="vol" data-id="${d.id}" min="0" max="100" data-default="${Math.round(d.level*100)}" data-fmt="%" value="${Math.round(S.levels[d.id]*100)}" aria-label="${d.name} level">
       <button class="rmenu" data-act="rowmenu" title="Row tools: copy, paste, fill, shift" aria-label="${d.name} row tools" aria-haspopup="menu">⋮</button></div>`;
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.indexOf(d.id)}" data-kind="drum" data-row="${d.id}" data-step="${off+i}" aria-label="${d.name} step ${off+i+1}"></button>`;
@@ -1174,26 +1202,36 @@ document.addEventListener("keydown", e => {
 /* Timbre knobs */
 function knobStyle(v){ return `--v:${v.toFixed(3)};--h:${Math.max(0, v*2-1).toFixed(3)}`; }
 const timbreWord = v => v < .2 ? "smooth" : v < .42 ? "soft" : v <= .58 ? "classic" : v < .8 ? "edgy" : "harsh";
-const kickWord = v => v < .2 ? "tight" : v < .42 ? "punchy" : v <= .58 ? "house" : v < .8 ? "deep" : "boom";
-// what a knob turns: a synth's timbre, or the kick's tone (data-uid="kick")
-const KICK_KNOB = {kick:true, get timbre(){ return S.kickTone; }, set timbre(v){ S.kickTone = v; }};
-const knobObj = uid => uid==="kick" ? KICK_KNOB : S.synths.find(x => String(x.uid)===uid);
+const TONES = {
+  kick:      {label:"Tone",   range:"tight to boom",     words:["tight","punchy","house","deep","boom"]},
+  snare:     {label:"Tone",   range:"fat to crack",      words:["fat","warm","classic","snappy","crack"]},
+  clap:      {label:"Tone",   range:"tight to big room", words:["tight","snappy","classic","roomy","big room"]},
+  hatClosed: {label:"Tone",   range:"dark to bright (open hat follows)", words:["dark","dusty","classic","crisp","bright"]},
+  hatOpen:   {label:"Length", range:"short tss to long wash", words:["tss","short","classic","long","wash"]},
+};
+const toneWord = (id, v) => TONES[id].words[v < .2 ? 0 : v < .42 ? 1 : v <= .58 ? 2 : v < .8 ? 3 : 4];
+// what a knob turns: a synth's timbre, or a drum's tone (data-uid="drum:<id>")
+const knobObj = uid => {
+  if(!uid.startsWith("drum:")) return S.synths.find(x => String(x.uid)===uid);
+  const id = uid.slice(5);
+  return {drum:id, get timbre(){ return S.tones[id]; }, set timbre(v){ S.tones[id] = v; }};
+};
 function setKnob(k, v, tip){
   const s = knobObj(k.dataset.uid); if(!s) return;
   s.timbre = Math.round(Math.max(0, Math.min(1, v))*100)/100;
   k.setAttribute("style", knobStyle(s.timbre));
   k.setAttribute("aria-valuenow", Math.round(s.timbre*100));
-  k.setAttribute("aria-valuetext", s.is808 ? `${Math.round(s.timbre*100)}%` : `${Math.round(s.timbre*100)}% ${(s.kick ? kickWord : timbreWord)(s.timbre)}`);
+  k.setAttribute("aria-valuetext", s.is808 ? `${Math.round(s.timbre*100)}%` : `${Math.round(s.timbre*100)}% ${s.drum ? toneWord(s.drum, s.timbre) : timbreWord(s.timbre)}`);
   if(tip){
     const r = k.getBoundingClientRect(), el = $("knobTip");
-    el.hidden = false; el.textContent = s.is808 ? `Drive ${Math.round(s.timbre*100)}%` : s.kick ? `Tone ${Math.round(s.timbre*100)}% · ${kickWord(s.timbre)}` : `Timbre ${Math.round(s.timbre*100)}% · ${timbreWord(s.timbre)}`;
+    el.hidden = false; el.textContent = s.is808 ? `Drive ${Math.round(s.timbre*100)}%` : s.drum ? `${TONES[s.drum].label} ${Math.round(s.timbre*100)}% · ${toneWord(s.drum, s.timbre)}` : `Timbre ${Math.round(s.timbre*100)}% · ${timbreWord(s.timbre)}`;
     el.style.left = (r.left + r.width/2) + "px"; el.style.top = (r.top - 6) + "px";
   }
   return s;
 }
 function knobPreview(s){
   if(playing) return;
-  if(s.kick){ ensureCtx(); VOICE.kick(ctx.currentTime+.005, VEL.x*Math.max(.5, S.levels.kick), drumBus, S.kickTone); return; }
+  if(s.drum){ ensureCtx(); drumVoice(s.drum, ctx.currentTime+.005, VEL.x*Math.max(.5, S.levels[s.drum])); return; }
   const n = s.steps.find(x => x && x!=="-") || "C3";
   ensureCtx(); playVoice(s, stepNotes(n), ctx.currentTime+.005, s.is808 ? .8 : .35, Math.max(.5, s.volume));
 }
@@ -2015,7 +2053,6 @@ FORMAT (reply with only this JSON object):
   "synthTone": 0.45,         // 0-1 filter brightness for all synths (0.2 dark/warm, 0.45 neutral, 0.8 bright/buzzy)
   "sidechain": 0,            // 0-1 how hard all synths duck on every kick (0 off, 0.3 subtle glue, 0.6 house pump, 1 full EDM pump). Great with sustained synth chords.
   "drumDrive": 0,            // 0-1 saturation + bus compression on the drums (0 clean 808, 0.5 punchy, 1 fully gritty)
-  "kickTone": 0.5,           // 0-1 kick character: 0.15-0.3 short tight techno/garage punch, 0.5 classic house, 0.7 deep, 0.85+ long low hip-hop/trap boom
   "transpose": 0,            // optional, cents applied to all synths and the 808 (-1200 to 1200; 100 = one semitone). Usually 0: write the notes in the key you want.
   "warble": {"on": false, "depth": 15, "rate": 1.5},  // optional pitch LFO on the transpose: depth 0-50 cents, rate 0.1-12 Hz. Tape wobble ~18c @ 1.2Hz, vibrato ~22c @ 5.5Hz. Leave off unless the vibe is lo-fi, dreamy or seasick.
   "synthReverb": 0.15,       // 0-1 reverb on all synths (0.1 dry, 0.3 roomy, 0.5 big pads). Above 0.5 it becomes a washout: the whole mix drowns in reverb over a rising white-noise sweep. Keep it at 0.5 or below unless the request asks for a buildup or washout.
@@ -2029,6 +2066,7 @@ FORMAT (reply with only this JSON object):
     "tom":       "................"    // one tuned tom for fills
   },
   "levels": { "hatClosed": 0.5 },   // optional per-drum volume 0-1
+  "tones": { "kick": 0.5, "snare": 0.5, "clap": 0.5, "hatClosed": 0.5, "hatOpen": 0.5 },  // optional per-drum character 0-1, see DRUM TONES
   "bass808": { "volume": 0.85, "drive": 0.5, "steps": ["F1","-","-","-",".",".","F1","-","G#1","-","-",".",".",".","D#1","-"] },  // the 808 sub-bass, see 808 below
   "synths": [                       // 0-6 channels
     { "name": "Bass", "volume": 0.8, "timbre": 0.5, "steps": ["F2","-",".","F2",".",".","G#2","-",".",".","C3",".","A#2","-",".","."] },
@@ -2038,6 +2076,7 @@ FORMAT (reply with only this JSON object):
 
 PAGES: use 1 page for a simple loop. Use 2-4 pages for a chord progression, call-and-response, or variation such as a fill on the last page. Every drum string and synth steps array covers ALL pages: pages*16 steps in total. Put "|" between pages in drum strings (e.g. 2 pages: "x...x...x...x...|x...x...x.x.x..."); "|" is ignored.
 DRUM STRINGS: pages*16 characters, one per 16th note. "." rest, "x" normal hit, "X" accent, "g" ghost (quiet), "2" "3" "4" "6" or "8" = a roll of that many fast hits inside one step (hi-hat rolls, snare fills). Closed hat cuts off a ringing open hat.
+DRUM TONES: each drum has a 0-1 knob in "tones" (0.5 = the classic 808/909-style sound). Match them to the genre. kick: 0.15-0.3 short tight techno/garage punch, 0.5 house, 0.7 deep, 0.85+ long low hip-hop/trap boom. snare: 0.2-0.3 fat dusty boom-bap/lo-fi, 0.5 classic, 0.75+ high tight crack (trap, drum and bass, pop). clap: 0.2 tight snap, 0.5 classic, 0.7+ big room with reverb (house, techno, anthems). hatClosed is brightness: 0.2-0.35 dark dusty lo-fi, 0.5 classic, 0.7+ crisp bright (trap, house). hatOpen is length: 0.2-0.3 short "tss", 0.5 classic, 0.8+ long wash; its brightness follows hatClosed.
 SYNTH STEPS: exactly pages*16 strings. A note name "C1"-"C6" (sharps like "F#2"), "-" holds the previous note through this step, "." is silence. A note lasts one step unless followed by "-". Channels are monophonic unless marked "poly": true. All channels share one warm filtered-saw sound that suits basslines, leads and pads. Optional per-channel "timbre" 0-1 (default 0.5) changes the waveform: 0 smooth and round (triangle, good for soft pads and sub bass), 0.5 classic saw, 1 harsh buzzy square with grit (acid leads, aggressive stabs).
 808: "bass808" is the TR-808 sub-bass, always present and always monophonic. Its steps work exactly like SYNTH STEPS (pages*16 strings, note, "-" hold, "." silence), so it can play a melodic bassline. Notes C1-B2 sound best (F1 is the classic). A note booms and decays naturally over about 1.5 s: hold it with "-" to let it ring, or follow it with "." for a short punchy hit. It usually lands with the kick. "drive" 0-1 is its distortion (0 clean sine, 0.5 classic, 1 gritty). Leave "steps" all "." for no 808.
 CHORDS: put all chords on ONE channel with "poly": true (usually named "Chords", "Pad" or "Stabs"). A chord step is 2-6 note names joined by "+" with no spaces, written low to high, e.g. "D#3+G3+A#3+D4" (Ebmaj7). "-" holds the whole chord, "." is silence, and a single note is fine too. Don't split one chord across several channels. Keep a poly channel's volume around 0.4-0.65: its notes are already balanced so a chord is as loud as one note.
@@ -2130,7 +2169,7 @@ $("genBtn").addEventListener("click", async () => {
 });
 /* ---------- Composer view: shows the beat being written as the model streams it ---------- */
 const THINKING = ["Listening to the brief","Choosing a tempo","Finding the pocket","Picking a key","Sketching the groove","Counting it in"];
-const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", kickTone:"Shaping the kick", pages:"Planning the bars",
+const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", tones:"Shaping the drums", pages:"Planning the bars",
   kick:"Programming the kick", snare:"Placing the snare", clap:"Adding claps", hatClosed:"Laying down hats", hatOpen:"Opening the hats", tom:"Writing tom fills", bass:"Tuning the 808", levels:"Mixing levels"};
 const GROUP_COL = ["#e2472f","#ef8b2c","#eecb4c","#efe7d3"];
 let cmp = null;
