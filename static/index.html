@@ -404,6 +404,9 @@ details.json[open] summary{margin-bottom:10px}
   <hr>
   <button class="btn" role="menuitem" data-rowact="left">Shift 1 step left <kbd>←</kbd></button>
   <button class="btn" role="menuitem" data-rowact="right">Shift 1 step right <kbd>→</kbd></button>
+  <hr class="synonly">
+  <button class="btn synonly" role="menuitem" data-rowact="octup">Octave up <kbd>+12</kbd></button>
+  <button class="btn synonly" role="menuitem" data-rowact="octdown">Octave down <kbd>−12</kbd></button>
   <hr>
   <button class="btn" role="menuitem" data-rowact="clear">Clear row</button>
 </div>
@@ -1820,6 +1823,7 @@ function openRowMenu(rh, anchor){
   $("rowPaste").hidden = !clip;
   if(clip){ $("rowPaste").firstChild.textContent = `Paste${pg ? " to"+pg : ""} `; $("rowPaste").querySelector("kbd").textContent = `${clip.from}${clip.pages>1 ? " p"+(clip.page+1) : ""}`; }
   rowPop.querySelectorAll(".drumonly").forEach(el => el.hidden = kind!=="drum");
+  rowPop.querySelectorAll(".synonly").forEach(el => el.hidden = kind!=="syn");
   rack.querySelectorAll(".rmenu").forEach(x => x.setAttribute("aria-expanded", x.closest(".row")?.dataset.row===id));
   placePop(rowPop, anchor || rh.querySelector(".rname") || rh);
 }
@@ -1848,9 +1852,19 @@ rowPop.addEventListener("click", e => {
     case "left":  setRowSteps(id, row.map((_,i) => row[(i+1)%len])); break;
     case "right": setRowSteps(id, row.map((_,i) => row[(i-1+len)%len])); break;
     case "clear": setRowSteps(id, row.map(() => null)); break;
+    case "octup": case "octdown": {
+      // the whole row (every page) moves together, chords and all, so it stays in tune with itself
+      const d = b.dataset.rowact==="octup" ? 12 : -12, syn = synthByKey(id), all = row.flatMap(stepNotes);
+      if(!all.length){ toast(`Nothing on ${rowName(id)} to move`); return; }
+      if(Math.max(...all)+d > NOTE_HI || Math.min(...all)+d < NOTE_LO){ toast(d > 0 ? `${rowName(id)} already reaches the top (C6)` : `${rowName(id)} already reaches the bottom (C1)`); return; }
+      setRowSteps(id, row.map(v => v && v!=="-" ? chordStr(stepNotes(v).map(m => m+d)) : v));
+      const ln = lastNote.get(syn.uid), lm = ln && stepNotes(ln).map(m => m+d);
+      if(lm && Math.max(...lm) <= NOTE_HI && Math.min(...lm) >= NOTE_LO) lastNote.set(syn.uid, chordStr(lm)); // new clicks follow the row
+      break;
+    }
   }
   paintRow(id); changed();
-  if(b.dataset.rowact!=="left" && b.dataset.rowact!=="right") closePops();
+  if(!["left","right","octup","octdown"].includes(b.dataset.rowact)) closePops(); // these are handy to press a few times
 });
 $("copyPageBtn").addEventListener("click", () => insertPage(true));
 $("blankPageBtn").addEventListener("click", () => insertPage(false));
