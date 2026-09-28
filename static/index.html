@@ -1184,7 +1184,7 @@ function render(){
     for(let i=0;i<16;i++) h += `<button class="cell ${q(i)}" style="--i:${i};--r:${DRUM_IDS.indexOf(d.id)}" data-kind="drum" data-row="${d.id}" data-step="${off+i}" aria-label="${d.name} step ${off+i+1}"></button>`;
     h += `</div>`;
   }
-  h += `<div class="subsec"><span class="lbl">Tonal</span><span class="hint">Pitched drums: click a step to pick a note on the keyboard</span></div>`;
+  h += `<div class="subsec"><span class="lbl">Tonal</span><span class="hint">Click to add a hit at the default pitch · click a hit to change its pitch · right-click clears</span></div>`;
   for(const s of S.synths) if(s.fixed) h += synRow(s, off);
   h += `<div class="sec"><div class="sech"><h2>Synths</h2>${gm("synths")}</div><span class="hint">Click an empty step to repeat the last note (the keyboard opens to change it) · drag right from a note to hold it · right-click clears · POLY rows build chords on the keyboard</span></div>`;
   for(const s of S.synths) if(!s.fixed) h += synRow(s, off);
@@ -1484,6 +1484,12 @@ rack.addEventListener("pointerdown", e => {
     if(drag.paint) playDrum(row, ctx.currentTime+.005, VEL.x*S.levels[row]);
   } else {
     const s = synthByKey(row);
+    // tonal rows click in like drums: an empty step gets the row's default pitch, and clicking a hit opens the keyboard
+    if(s.fixed && !s.steps[step]){
+      s.steps[step] = TONAL[s.fixed].note; drag.placed = true; paintRow(row);
+      playVoice(s, stepNotes(s.steps[step]), ctx.currentTime+.005, s.is808 ? .8 : .3, Math.max(.5, s.volume));
+    }
+    if(s.perc) drag.erase = !drag.placed; // dragging along a tom, conga or cowbell row paints hits, or erases them if it started on one
     drag.orig = s.steps.slice();
   }
   if(e.pointerType!=="mouse"){
@@ -1533,8 +1539,13 @@ window.addEventListener("pointermove", e => {
     return;
   }
   if(el.dataset.row!==drag.row || s===drag.last) return;
-  if(synthByKey(drag.row)?.perc) return; // tom, conga and cowbell ring out on their own: nothing to hold
   drag.moved = true; clearTimeout(drag.lp);
+  if(synthByKey(drag.row)?.perc){ // tom, conga and cowbell ring out on their own: nothing to hold, so a drag paints or erases like a drum
+    const syn = synthByKey(drag.row), a = Math.min(drag.last, s), z = Math.max(drag.last, s);
+    for(let i=a;i<=z;i++) syn.steps[i] = drag.erase ? null : syn.steps[i] || TONAL[syn.fixed].note;
+    paintRow(drag.row); drag.last = s;
+    return;
+  }
   {
     const syn = synthByKey(drag.row);
     syn.steps = drag.orig.slice();
@@ -1554,7 +1565,7 @@ function endDrag(e){
   if(!drag || (e && e.pointerId!==drag.pid)) return;
   clearTimeout(drag.lp);
   const d = drag; drag = null;
-  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup" && !d.pickerOnIt){
+  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup" && !d.pickerOnIt && !d.placed){
     // empty step: reuse the most recent note before it in this row; otherwise pick on the piano
     const prev = d.orig[d.start]==null ? prevNote(d.orig, d.start) : null;
     if(prev){
