@@ -1282,10 +1282,12 @@ rack.addEventListener("pointerdown", e => {
   lastPT = e.pointerType;
   if(e.pointerType==="mouse" && e.button!==0) return;
   e.preventDefault();
+  // tapping the step the keyboard is already open on closes it instead of reopening it
+  const pickerOnIt = !pianoPop.hidden && popCell?.dataset.row===cell.dataset.row && popCell?.dataset.step===cell.dataset.step;
   closePops();
   ensureCtx();
   const {kind,row} = cell.dataset, step = +cell.dataset.step;
-  drag = {kind,row,start:step,last:step,lastRow:DRUM_IDS.indexOf(row),moved:false,pid:e.pointerId,cell};
+  drag = {kind,row,start:step,last:step,lastRow:DRUM_IDS.indexOf(row),moved:false,pid:e.pointerId,cell,pickerOnIt};
   if(kind==="drum"){
     const cur = S.drums[row][step];
     drag.orig = cur ? {...cur} : null;
@@ -1364,7 +1366,7 @@ function endDrag(e){
   if(!drag || (e && e.pointerId!==drag.pid)) return;
   clearTimeout(drag.lp);
   const d = drag; drag = null;
-  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup"){
+  if(d.kind==="syn" && !d.moved && e && e.type==="pointerup" && !d.pickerOnIt){
     // empty step: reuse the most recent note before it in this row; otherwise pick on the piano
     const prev = d.orig[d.start]==null ? prevNote(d.orig, d.start) : null;
     if(prev){
