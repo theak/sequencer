@@ -276,6 +276,16 @@ details.json[open] summary{margin-bottom:10px}
   #nameIn{width:140px}
 }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
+/* page swipes: the rack keeps sideways touch gestures for itself (vertical scroll and pinch still work) */
+.rack{touch-action:pan-y pinch-zoom}
+@keyframes pageInL{from{transform:translateX(22px);opacity:.35}to{transform:none;opacity:1}}
+@keyframes pageInR{from{transform:translateX(-22px);opacity:.35}to{transform:none;opacity:1}}
+@keyframes edgeL{40%{transform:translateX(-7px)}}
+@keyframes edgeR{40%{transform:translateX(7px)}}
+.rack.slide-l .cell,.rack.slide-l .steps-head .n{animation:pageInL .22s ease-out}
+.rack.slide-r .cell,.rack.slide-r .steps-head .n{animation:pageInR .22s ease-out}
+.rack.edge-l .cell{animation:edgeL .24s ease-out}
+.rack.edge-r .cell{animation:edgeR .24s ease-out}
 </style>
 </head>
 <body>
@@ -1205,7 +1215,7 @@ function render(){
     `</div><button class="btn" data-act="addpage" ${S.pages>=MAX_PAGES?"disabled":""}>+ Add page</button>` +
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
     `<div class="spacer"></div><label class="check"><input type="checkbox" data-act="follow" ${followPlay?"checked":""}> Follow playhead</label>` +
-    `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages</span></div>`;
+    `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages${S.pages>1 ? " · swipe sideways to switch" : ""}</span></div>`;
   const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupMuted[g]}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupSolo[g]}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
   h += `<div class="sec"><div class="sech"><h2>Drums</h2>${gm("drums")}</div><span class="hint">Click or drag in any direction to paint · right-click or long-press for rolls</span></div>`;
   h += `<div class="row steps-head"><div class="rh"></div>` + Array.from({length:16},(_,i) => `<div class="n ${i%4===0?"beat":""} ${i%4===0&&i>0?"gs":""}">${off+i+1}</div>`).join("") + `</div>`;
@@ -1703,6 +1713,43 @@ function removePage(p){
   render(); commit(); toast(`Deleted page ${p+1}`);
 }
 let cs = null; function changedSoon(){ clearTimeout(cs); cs = setTimeout(syncJson, 250); }
+/* Page swipes: a two-finger sideways scroll on a trackpad, or a one-finger sideways swipe on touch, flips pages.
+   Swipe left (content moves left) for the next page. Touch swipes that start on a step, knob or control keep
+   painting and turning as before; anywhere else on the rack (row names, headers, the page bar) swipes. */
+function flip(cls){
+  if(reduceMotion) return;
+  rack.classList.remove("slide-l","slide-r","edge-l","edge-r"); void rack.offsetWidth; rack.classList.add(cls);
+  clearTimeout(flip.t); flip.t = setTimeout(() => rack.classList.remove(cls), 280);
+}
+function swipePage(dir){
+  clearTimeout(rowLP);
+  const p = viewPage + dir;
+  if(p < 0 || p >= S.pages){ flip(dir > 0 ? "edge-l" : "edge-r"); return; } // a little bump at the first and last page
+  viewPage = p; closePops(); render(); flip(dir > 0 ? "slide-l" : "slide-r");
+}
+let wheelX = 0, wheelLock = false, wheelT = null;
+rack.addEventListener("wheel", e => {
+  if(S.pages < 2 || drag || knobDrag || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault(); // also keeps the browser's swipe-back gesture from firing over the rack
+  // one flick flips one page: stay locked until the scroll (and its inertia) has been quiet for a moment
+  clearTimeout(wheelT); wheelT = setTimeout(() => { wheelX = 0; wheelLock = false; }, 220);
+  if(wheelLock) return;
+  wheelX += e.deltaMode===1 ? e.deltaX*16 : e.deltaX;
+  if(Math.abs(wheelX) > 140){ wheelLock = true; const dir = Math.sign(wheelX); wheelX = 0; swipePage(dir); }
+}, {passive:false});
+let swipe = null;
+rack.addEventListener("pointerdown", e => {
+  swipe = null;
+  if(e.pointerType==="mouse" || S.pages < 2 || e.target.closest(".cell,.knob,input,select,button")) return;
+  swipe = {id:e.pointerId, x:e.clientX, y:e.clientY};
+}, true);
+window.addEventListener("pointermove", e => {
+  if(!swipe || e.pointerId!==swipe.id) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if(Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)){ swipe = null; return; } // that's a vertical scroll
+  if(Math.abs(dx) > 60 && Math.abs(dx) > 2*Math.abs(dy)){ swipe = null; swipePage(dx < 0 ? 1 : -1); }
+});
+["pointerup","pointercancel"].forEach(t => window.addEventListener(t, e => { if(swipe && e.pointerId===swipe.id) swipe = null; }));
 
 /* ---------- Popovers ---------- */
 const rollPop = $("rollPop"), pianoPop = $("pianoPop"), pagePop = $("pagePop"), rowPop = $("rowPop"), resetPop = $("resetPop");
