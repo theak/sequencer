@@ -331,6 +331,7 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .speclegend{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint)}
 .speclegend i{width:72px;height:8px;border-radius:2px;background:linear-gradient(90deg,#19181b,#4a1d2e,#e2472f,#ef8b2c,#eecb4c,#efe7d3)}
 .specbusy{opacity:.6;transition:opacity .2s}
+#genBtn{margin-left:auto} /* stays on the right when the checkboxes push it onto its own line */
 .exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
 @media (max-width:640px){ .specwrap{height:180px} }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
@@ -407,7 +408,8 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
         <label class="field"><span class="lbl">model</span>
           <select id="tierSel" class="num"></select>
         </label>
-        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat<span id="buildHear" hidden>&nbsp;(shares its spectrogram)</span></label>
+        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
+        <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
         <div class="spacer"></div>
         <button class="btn primary" id="genBtn">Generate</button>
         <button class="btn" id="stopGen" hidden>Stop</button>
@@ -1496,7 +1498,12 @@ function specPlayhead(s){
 // "Build on the current beat" sends a spectrogram of one loop (where the model can take images) and band levels per bar.
 // Rendered with every row audible, so it matches the pattern JSON the model gets, whatever is muted right now.
 let hearOK = false, hearTypes = ["image/jpeg"];
-function syncHear(){ $("buildHear").hidden = !(hearOK && OAC); }
+function syncHear(){
+  $("hearLbl").hidden = !OAC;
+  $("hearTxt").textContent = hearOK ? "Share spectrogram" : "Share sound levels";
+  $("hearLbl").title = hearOK ? "Send a spectrogram of the beat on screen, plus its levels per frequency band, so the model can hear the mix"
+    : "Send the beat's levels per frequency band so the model can judge the mix (this view can't send pictures)";
+}
 const BANDS = [["sub",30,60],["bass",60,250],["low-mid",250,800],["mid",800,2500],["presence",2500,6000],["air",6000,16000]];
 function specReport(d, st){
   const fOf = r => SPEC.lo * Math.pow(SPEC.hi/SPEC.lo, 1 - (r+.5)/d.rows);
@@ -2650,12 +2657,12 @@ function buildPrompt(req, cur, hear){
 
 Request: ${req || "Surprise me with a great-sounding beat."}
 ${cur ? `\nCurrent pattern (modify or build on it as the request asks):\n${JSON.stringify(cur)}\n` : ""}${hear ? `
-HOW IT SOUNDS NOW (rendered from the current pattern with the real audio engine, every channel on):
+${cur ? "HOW IT SOUNDS NOW (rendered from the current pattern with the real audio engine, every channel on):" : "HOW THE BEAT ON SCREEN SOUNDS (a reference, rendered with the real audio engine: you're writing a new pattern, so use it only as far as the request relates to it, e.g. to match or contrast its sound):"}
 ${hear.dropped ? "" : `The attached image is a spectrogram of one loop. Time runs left to right with bars labelled and a line on every beat. Frequency runs up on a log scale from 30 Hz to 16 kHz, labelled in Hz. Color runs from dark (quiet, about -96 dBFS) through red, orange and yellow to cream (loud, about -6 dBFS).
 `}Approximate level per band and bar, in dB (compare them with each other; higher is louder):
 ${hear.report}
-Judge the mix as well as the notes: a muddy or overloaded low end (kick, 808 and bass fighting under 250 Hz), empty or harsh highs, parts masking each other, levels, too much reverb, clipping. Fix what the request asks for plus anything that clearly sounds off, using levels, tones, timbre, volumes, drive, reverb and the notes. Keep what already works.
-` : ""}
+${cur ? `Judge the mix as well as the notes: a muddy or overloaded low end (kick, 808 and bass fighting under 250 Hz), empty or harsh highs, parts masking each other, levels, too much reverb, clipping. Fix what the request asks for plus anything that clearly sounds off, using levels, tones, timbre, volumes, drive, reverb and the notes. Keep what already works.
+` : ""}` : ""}
 FORMAT (reply with only this JSON object):
 {
   "name": "2-4 word title",
@@ -2764,7 +2771,7 @@ $("genBtn").addEventListener("click", async () => {
   $("genStatus").textContent = "";
   compStart(label);
   try {
-    if(cur && OAC){
+    if($("hearOn").checked && OAC){
       cmp.listening = true;
       hear = await listen(st0, hearOK).catch(e => { dlog("listen: "+e.message); return null; });
       if(cmp) cmp.listening = false;
