@@ -321,6 +321,18 @@ body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outlin
   .filebar{order:1}
   .savepill{max-width:190px}
 }
+/* Spectrogram panel */
+details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;font-stretch:100%;margin-left:8px}
+.specwrap{position:relative;height:240px;border-radius:6px;overflow:hidden;background:var(--body);border:1px solid var(--line);touch-action:pan-y}
+.specwrap canvas{display:block;width:100%;height:100%}
+.specph{position:absolute;top:16px;bottom:0;width:2px;margin-left:-1px;background:var(--cream);box-shadow:0 0 8px var(--cream);opacity:.8;pointer-events:none}
+.spectip{position:absolute;pointer-events:none;background:var(--panel-3);border:1px solid var(--ink-faint);border-radius:5px;padding:3px 7px;font-family:var(--mono);font-size:11px;white-space:nowrap;transform:translate(-50%,-120%);z-index:2}
+.spec-foot{margin-top:8px;gap:12px}
+.speclegend{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint)}
+.speclegend i{width:72px;height:8px;border-radius:2px;background:linear-gradient(90deg,#19181b,#4a1d2e,#e2472f,#ef8b2c,#eecb4c,#efe7d3)}
+.specbusy{opacity:.6;transition:opacity .2s}
+.exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
+@media (max-width:640px){ .specwrap{height:180px} }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
 /* page swipes: the rack keeps sideways touch gestures for itself (vertical scroll and pinch still work) */
 .rack{touch-action:pan-y pinch-zoom}
@@ -379,6 +391,12 @@ body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outlin
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
 
+  <details class="json spec" id="specDetails">
+    <summary>Spectrogram<span class="hint">what one loop sounds like, low notes at the bottom</span></summary>
+    <div class="specwrap" id="specWrap"><canvas id="specCanvas" role="img" aria-label="Spectrogram of one loop"></canvas><i class="specph" id="specPh" hidden></i><div class="spectip" id="specTip" hidden></div></div>
+    <div class="rowflex spec-foot"><span class="hint" id="specInfo">Rendering…</span><div class="spacer"></div><span class="speclegend"><i aria-hidden="true"></i>quiet to loud</span></div>
+  </details>
+
   <div class="lower">
     <section class="card" aria-labelledby="aiH">
       <h3 id="aiH">Ask AI for a beat</h3>
@@ -415,6 +433,17 @@ body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outlin
         <button class="btn" id="saveNewBtn" title="Save as new (⇧⌘S / Ctrl+Shift+S)" aria-keyshortcuts="Meta+Shift+S Control+Shift+S">Save as new</button>
       </div>
       <div class="status" id="saveStatus"></div>
+      <div class="rowflex exportrow">
+        <button class="btn" id="exportBtn" title="Render the beat to a WAV file">Export audio</button>
+        <select id="exportLen" aria-label="Export length">
+          <option value="loop">1 loop, seamless</option>
+          <option value="2">2 loops, ringing out</option>
+          <option value="4" selected>4 loops, ringing out</option>
+          <option value="8">8 loops, ringing out</option>
+        </select>
+        <span class="hint">WAV, 44.1 kHz stereo · mutes and solos apply</span>
+      </div>
+      <div class="status" id="exportStatus"></div>
       <ul class="saved" id="savedList"><li class="empty">Loading saved beats…</li></ul>
     </section>
   </div>
@@ -830,7 +859,7 @@ function persistLocal(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       beat: toJSON(S), viewPage, followPlay, docId: currentDocId,
-      master: +$("masterIn").value, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000),
+      master: +$("masterIn").value, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open,
     }));
   } catch {}
 }
@@ -862,7 +891,12 @@ function ensureCtx(){
   if(ctx){ if(ctx.state==="suspended") ctx.resume(); return ctx; }
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC({latencyHint:"interactive"});
-  master = ctx.createGain(); master.gain.value = $("masterIn").value/100;
+  buildGraph($("masterIn").value/100);
+  return ctx;
+}
+// the whole mix, built into whichever context ctx points at: the live one, or an offline one for renders
+function buildGraph(level, lean=false){ // lean: an offline render that can skip what it won't hear
+  master = ctx.createGain(); master.gain.value = level;
   comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = .003; comp.release.value = .18; comp.knee.value = 8;
   drumBus = ctx.createGain(); synthBus = ctx.createGain(); synthBus.gain.value = .9;
@@ -899,7 +933,7 @@ function ensureCtx(){
   [chorusIn, flangeIn] = makePolyFx(duck);
   // wash hall: drums + synths + noise -> long hall IR -> wet level (hallOut) -> master
   const drumSend = gainNode(0), hallIn = gainNode(0), washPre = ctx.createDelay(.1); washPre.delayTime.value = .03;
-  const hp2 = filt("highpass", 180), hall = ctx.createConvolver(); hall.buffer = makeImpulse(7, 1.6);
+  const hp2 = filt("highpass", 180), hall = ctx.createConvolver(); hall.buffer = makeImpulse(lean && !washAmt(S.synthReverb) ? .05 : 7, 1.6); // the wash hall is silent until the reverb passes 50%
   const damp2 = filt("lowpass", 6000), hallOut = gainNode(0);
   drumPost.connect(drumSend).connect(washPre); synthBus.connect(hallIn).connect(washPre);
   washPre.connect(hp2).connect(hall).connect(damp2).connect(hallOut).connect(master);
@@ -921,7 +955,6 @@ function ensureCtx(){
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
   shaper = new Float32Array(1024); for(let i=0;i<1024;i++){ const x = i/511.5-1; shaper[i] = Math.tanh(2.2*x)/Math.tanh(2.2); }
-  return ctx;
 }
 function gainNode(v=1){ const g = ctx.createGain(); g.gain.value = v; return g; }
 function envExp(param,t,peak,dec,atk=.002){ param.setValueAtTime(.0001,t); param.exponentialRampToValueAtTime(Math.max(.0002,peak),t+atk); param.exponentialRampToValueAtTime(.0001,t+dec); }
@@ -1258,6 +1291,7 @@ function setPlayhead(s){
   if(local>=0) columns[local].forEach(el => el.classList.add("ph"));
   document.querySelectorAll(".steps-head .n").forEach((el,i) => el.classList.toggle("on", i===local));
   document.querySelectorAll(".ptab").forEach((el,i) => el.classList.toggle("playing", i===pg));
+  specPlayhead(s);
 }
 function draw(){
   if(!playing) return;
@@ -1266,6 +1300,221 @@ function draw(){
   while(vq.length && vq[0].t <= now) cur = vq.shift().step;
   if(cur!=null) setPlayhead(cur);
   requestAnimationFrame(draw);
+}
+
+/* ---------- Offline render: the beat as audio, without playing it (spectrogram + export) ---------- */
+const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+// Same voices, same mix, built into an offline context. loops: times through the pattern. warm: render one extra loop
+// first and drop it, so reverb tails and notes held over the loop point already ring into the start (a seamless loop).
+// tail: seconds to let the last loop ring out. Mutes and solos apply, like what you hear.
+function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100, lean=false, st=S}={}){
+  const sd = 60/st.bpm/4, n = st.pages*PAGE, loopLen = n*sd, skip = warm ? Math.min(loopLen, warmSecs) : 0; // warmSecs: only the end of the warm-up loop
+  const total = skip + loops*loopLen + tail;
+  const live = {ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt};
+  const liveChokes = new Map(tonalChoke), liveS = S, livePlaying = playing;
+  let oc;
+  try {
+    S = st;
+    oc = ctx = new OAC(2, Math.ceil(total*rate), rate);
+    openHatChoke = bassChoke = kickChoke = null; tonalChoke.clear();
+    buildGraph($("masterIn").value/100, lean);
+    playing = true; applyVerb(); // the wash riser only runs while playing
+    for(let r=warm?-1:0; r<loops; r++)
+      for(let i=0;i<n;i++){ const t = skip + r*loopLen + i*sd + (i%2 ? S.swing*sd : 0); if(t >= 0) scheduleStep(i, t, sd); }
+  } finally {
+    ({ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt} = live);
+    tonalChoke.clear(); liveChokes.forEach((v,k) => tonalChoke.set(k,v));
+    S = liveS; playing = livePlaying;
+  }
+  return oc.startRendering().then(buf => ({buf, from: Math.round(skip*rate), loopLen}));
+}
+// 16-bit stereo WAV, lightly dithered, scaled by gain
+function wavBlob(buf, from=0, to=buf.length, gain=1){
+  const nc = buf.numberOfChannels, n = to-from, rate = buf.sampleRate, v = new DataView(new ArrayBuffer(44 + n*nc*2));
+  const w = (o, s) => [...s].forEach((c,i) => v.setUint8(o+i, c.charCodeAt(0)));
+  w(0,"RIFF"); v.setUint32(4, 36 + n*nc*2, true); w(8,"WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate*nc*2, true); v.setUint16(32, nc*2, true); v.setUint16(34, 16, true); w(36,"data"); v.setUint32(40, n*nc*2, true);
+  const ch = Array.from({length:nc}, (_,c) => buf.getChannelData(c));
+  let o = 44;
+  for(let i=from;i<to;i++) for(let c=0;c<nc;c++){
+    const x = Math.max(-1, Math.min(1, ch[c][i]*gain + (Math.random()-Math.random())/65536));
+    v.setInt16(o, x<0 ? x*32768 : x*32767, true); o += 2;
+  }
+  return new Blob([v], {type:"audio/wav"});
+}
+function levels(buf, from=0, to=buf.length){
+  let pk = 0, ss = 0;
+  for(let c=0;c<buf.numberOfChannels;c++){ const d = buf.getChannelData(c); for(let i=from;i<to;i++){ const x = d[i]; ss += x*x; if(x>pk) pk = x; else if(-x>pk) pk = -x; } }
+  const db = x => x > 1e-9 ? 20*Math.log10(x) : -Infinity;
+  return {peak: db(pk), rms: db(Math.sqrt(ss/((to-from)*buf.numberOfChannels)))};
+}
+
+/* ---------- Spectrogram ---------- */
+// log frequency (30 Hz to 16 kHz) up the side, one loop across, bar and beat lines matching the grid. Colors run
+// from the page background through the step colors to cream, so loud reads bright.
+const SPEC = {lo:30, hi:16000, floor:-96, ceil:-6, N:2048, busy:false, again:false, t:0, data:null};
+const specOpen = () => $("specDetails").open;
+function specSoon(){ if(!specOpen()) return; clearTimeout(SPEC.t); SPEC.t = setTimeout(drawSpec, 450); }
+async function drawSpec(){
+  if(!specOpen()) return;
+  if(SPEC.busy){ SPEC.again = true; return; }
+  if(!OAC){ $("specInfo").textContent = "This browser can't render audio offline, so there's no spectrogram."; return; }
+  SPEC.busy = true; $("specWrap").classList.add("specbusy");
+  try {
+    const st = S, {buf, from, loopLen} = await renderBeat({loops:1, warm:true, warmSecs:2.5, rate:32000, lean:true, st});
+    paintSpec(buf, from, from + Math.round(loopLen*buf.sampleRate), st);
+  } catch(e){ dlog("spectrogram: "+e.message); $("specInfo").textContent = "Couldn't render the spectrogram."; }
+  finally {
+    SPEC.busy = false; $("specWrap").classList.remove("specbusy");
+    if(SPEC.again){ SPEC.again = false; specSoon(); }
+  }
+}
+const SPEC_STOPS = [[0,[25,24,27]],[.22,[74,29,46]],[.45,[226,71,47]],[.65,[239,139,44]],[.83,[238,203,76]],[1,[239,231,211]]];
+const SPEC_LUT = (() => {
+  const lut = new Uint8ClampedArray(256*3);
+  for(let i=0;i<256;i++){
+    const x = i/255; let k = 1; while(k<SPEC_STOPS.length-1 && SPEC_STOPS[k][0] < x) k++;
+    const [x0,c0] = SPEC_STOPS[k-1], [x1,c1] = SPEC_STOPS[k], f = (x-x0)/(x1-x0);
+    for(let j=0;j<3;j++) lut[i*3+j] = c0[j] + (c1[j]-c0[j])*f;
+  }
+  return lut;
+})();
+// in-place radix-2 FFT
+const FFT = (() => {
+  const N = SPEC.N, rev = new Uint32Array(N), cos = new Float64Array(N/2), sin = new Float64Array(N/2), win = new Float64Array(N);
+  for(let i=0, b=Math.log2(N); i<N; i++){ let r = 0; for(let j=0;j<b;j++) r |= ((i>>j)&1) << (b-1-j); rev[i] = r; }
+  for(let i=0;i<N/2;i++){ cos[i] = Math.cos(2*Math.PI*i/N); sin[i] = -Math.sin(2*Math.PI*i/N); }
+  let wsum = 0; for(let i=0;i<N;i++){ win[i] = .5 - .5*Math.cos(2*Math.PI*i/(N-1)); wsum += win[i]; }
+  const re = new Float64Array(N), im = new Float64Array(N);
+  return {N, win, scale: 2/wsum, run(){
+    for(let i=0;i<N;i++){ const j = rev[i]; if(j>i){ let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    for(let size=2; size<=N; size<<=1){
+      const half = size>>1, step = N/size;
+      for(let s=0; s<N; s+=size) for(let k=0; k<half; k++){
+        const a = s+k, b = a+half, wr = cos[k*step], wi = sin[k*step];
+        const tr = re[b]*wr - im[b]*wi, ti = re[b]*wi + im[b]*wr;
+        re[b] = re[a]-tr; im[b] = im[a]-ti; re[a] += tr; im[a] += ti;
+      }
+    }
+  }, re, im};
+})();
+function paintSpec(buf, a, b, st){
+  const cv = $("specCanvas"), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.clientWidth, H = cv.clientHeight; if(!W || !H) return;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
+  const L = 38, T = 16, pw = W - L, ph = H - T;
+  const cols = Math.min(900, Math.round(pw*dpr)), rows = Math.min(320, Math.round(ph*dpr));
+  const rate = buf.sampleRate, len = b - a, N = FFT.N, half = N/2;
+  // mono mix of the loop; windows past either end wrap around, since it's a loop
+  const mono = new Float32Array(len), c0 = buf.getChannelData(0), c1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : c0;
+  for(let i=0;i<len;i++) mono[i] = (c0[a+i] + c1[a+i]) * .5;
+  // each pixel row covers a slice of the log frequency axis: take the loudest FFT bin in it
+  const k0 = new Uint16Array(rows), k1 = new Uint16Array(rows), kf = new Float32Array(rows);
+  const fAt = y => SPEC.lo * Math.pow(SPEC.hi/SPEC.lo, 1 - y/rows);
+  for(let r=0;r<rows;r++){
+    const fa = fAt(r+1), fb = fAt(r), fm = fAt(r+.5);
+    k0[r] = Math.max(1, Math.floor(fa/rate*N)); k1[r] = Math.min(half-1, Math.max(k0[r], Math.ceil(fb/rate*N)));
+    kf[r] = fm/rate*N;
+  }
+  const db = new Float32Array(cols*rows), mag = new Float64Array(half), {re, im, win} = FFT;
+  for(let c=0;c<cols;c++){
+    const center = Math.round((c+.5)/cols*len);
+    for(let i=0;i<N;i++){ let j = center - half + i; j = ((j % len) + len) % len; re[i] = mono[j]*win[i]; im[i] = 0; }
+    FFT.run();
+    for(let k=0;k<half;k++) mag[k] = Math.hypot(re[k], im[k]) * FFT.scale;
+    for(let r=0;r<rows;r++){
+      let m;
+      if(k1[r] - k0[r] <= 1){ const x = kf[r], i0 = Math.floor(x), f = x - i0; m = mag[i0]*(1-f) + mag[Math.min(half-1,i0+1)]*f; } // low end: between bins
+      else { m = 0; for(let k=k0[r]; k<=k1[r]; k++) if(mag[k] > m) m = mag[k]; }
+      db[r*cols + c] = m > 1e-10 ? 20*Math.log10(m) : -200;
+    }
+  }
+  const img = new ImageData(cols, rows), px = img.data, span = SPEC.ceil - SPEC.floor;
+  for(let i=0;i<cols*rows;i++){
+    const t = Math.max(0, Math.min(1, (db[i] - SPEC.floor)/span)), li = Math.round(Math.pow(t, 1.25)*255)*3;
+    px[i*4] = SPEC_LUT[li]; px[i*4+1] = SPEC_LUT[li+1]; px[i*4+2] = SPEC_LUT[li+2]; px[i*4+3] = 255;
+  }
+  const off = document.createElement("canvas"); off.width = cols; off.height = rows; off.getContext("2d").putImageData(img, 0, 0);
+  const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue("--ink-dim").trim(), faint = css.getPropertyValue("--ink-faint").trim();
+  g.fillStyle = css.getPropertyValue("--body").trim(); g.fillRect(0, 0, W, H);
+  g.imageSmoothingEnabled = true; g.drawImage(off, L, T, pw, ph);
+  // frequency lines and labels
+  g.font = `9.5px ${css.getPropertyValue("--mono")}`; g.textBaseline = "middle"; g.textAlign = "right";
+  for(const f of [50,100,200,500,1000,2000,5000,10000]){
+    const y = T + ph * (1 - Math.log(f/SPEC.lo)/Math.log(SPEC.hi/SPEC.lo));
+    g.fillStyle = "rgba(239,231,211,.12)"; g.fillRect(L, Math.round(y), pw, 1);
+    g.fillStyle = faint; g.fillText(f>=1000 ? f/1000+"k" : String(f), L-5, y);
+  }
+  // beat and bar lines, bar numbers on top
+  const steps = st.pages*PAGE;
+  g.textAlign = "left"; g.textBaseline = "alphabetic";
+  for(let s=0; s<steps; s+=4){
+    const x = Math.round(L + s/steps*pw), bar = s%PAGE===0;
+    g.fillStyle = bar ? "rgba(239,231,211,.45)" : "rgba(239,231,211,.14)";
+    g.fillRect(x, bar ? 0 : T, 1, bar ? H : ph);
+    if(bar){ g.fillStyle = ink; g.fillText(`Bar ${s/PAGE+1}`, x+5, 11); }
+  }
+  g.fillStyle = faint; g.textAlign = "right"; g.fillText("Hz", L-5, 11);
+  SPEC.data = {cols, rows, db, steps, L, T, pw, ph, bpm: st.bpm};
+  const lv = levels(buf, a, b), f1 = x => Number.isFinite(x) ? x.toFixed(1) : "−∞";
+  $("specInfo").textContent = `${st.pages} bar${st.pages>1?"s":""} at ${st.bpm} BPM · peak ${f1(lv.peak)} dBFS · RMS ${f1(lv.rms)} dBFS` + (lv.peak > 0 ? " · peaks over 0 dB, so it can clip (lower Master a touch)" : "");
+  specPlayhead(playing ? phStep : -1);
+}
+function specPlayhead(s){
+  const d = SPEC.data, el = $("specPh");
+  if(!d || s<0 || !specOpen() || s>=d.steps){ el.hidden = true; return; }
+  el.hidden = false; el.style.left = (d.L + (s+.5)/d.steps*d.pw) + "px";
+}
+{
+  const cv = $("specCanvas"), tip = $("specTip");
+  cv.addEventListener("pointermove", e => {
+    const d = SPEC.data; if(!d){ tip.hidden = true; return; }
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left - d.L, y = e.clientY - r.top - d.T;
+    if(x<0 || y<0 || x>=d.pw || y>=d.ph){ tip.hidden = true; return; }
+    const c = Math.floor(x/d.pw*d.cols), row = Math.floor(y/d.ph*d.rows);
+    const f = SPEC.lo * Math.pow(SPEC.hi/SPEC.lo, 1 - (row+.5)/d.rows), v = d.db[row*d.cols + c];
+    const s = Math.floor(x/d.pw*d.steps), bar = Math.floor(s/PAGE)+1, beat = Math.floor(s%PAGE/4)+1;
+    tip.textContent = `${f>=1000 ? (f/1000).toFixed(f>=10000?0:1)+" kHz" : Math.round(f)+" Hz"} · bar ${bar} beat ${beat} · ${v > -150 ? Math.round(v) : "−∞"} dB`;
+    tip.hidden = false; tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px";
+  });
+  cv.addEventListener("pointerleave", () => tip.hidden = true);
+  $("specDetails").addEventListener("toggle", () => { persistLocal(); if(specOpen()) drawSpec(); else $("specPh").hidden = true; });
+  let rw = 0; window.addEventListener("resize", () => { clearTimeout(rw); rw = setTimeout(specSoon, 200); });
+  $("masterIn").addEventListener("change", specSoon);
+}
+
+/* ---------- Export audio ---------- */
+$("exportBtn").addEventListener("click", async () => {
+  if(!OAC){ $("exportStatus").textContent = "This browser can't render audio offline."; return; }
+  const b = $("exportBtn"), how = $("exportLen").value, loop = how==="loop";
+  const st = S, name = (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
+  b.disabled = true; $("exportStatus").textContent = "Rendering…";
+  try {
+    const tail = loop ? 0 : st.synthReverb > .5 ? 7 : 3.5;
+    const {buf, from, loopLen} = await renderBeat({loops: loop ? 1 : +how, warm: loop, tail, st});
+    let to = buf.length;
+    if(!loop){ // trim the ring-out once it has faded below -80 dB
+      const end = from + Math.round((loop ? 1 : +how)*loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
+      let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
+      to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
+    }
+    // a hot mix can peak over 0 dBFS (speakers clip it too): turn the whole file down just enough instead of clipping it
+    const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
+    const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
+    const file = `${name} ${st.bpm}bpm${loop ? " loop" : ""}.wav`;
+    const how2 = await saveFile(file, wav);
+    if(how2) $("exportStatus").textContent = `${how2} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
+  } catch(e){ dlog("export: "+(e?.message||e)); $("exportStatus").textContent = "Couldn't render the audio. Try again."; }
+  finally { b.disabled = false; }
+});
+
+// the browser downloads it straight away
+async function saveFile(name, blob){
+  const a = document.createElement("a"), url = URL.createObjectURL(blob);
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  return `Downloaded “${name}”`;
 }
 
 /* ---------- Rendering ---------- */
@@ -1426,6 +1675,7 @@ function refreshFlags(){
   $("unmuteAll").querySelector("span").textContent = `Unmute all (${nm})`;
   $("unsoloAll").querySelector("span").textContent = `Unsolo all (${ns})`;
   $("flagbar").hidden = !nm && !ns;
+  specSoon();
 }
 $("unmuteAll").addEventListener("click", () => { muted.clear(); groupMuted.drums = groupMuted.synths = false; refreshFlags(); });
 $("unsoloAll").addEventListener("click", () => { soloed.clear(); groupSolo.drums = groupSolo.synths = false; refreshFlags(); });
@@ -2330,6 +2580,7 @@ function loadState(st, docId, src){
 
 /* ---------- JSON panel ---------- */
 function syncJson(){
+  specSoon();
   if(peek) return;
   const j = toJSON(S); liveSnap = JSON.stringify(j);
   if(document.activeElement!==$("jsonBox")) $("jsonBox").value = pretty(j);
@@ -2865,6 +3116,7 @@ if(saved0){
   if(saved0.master!=null) $("masterIn").value = saved0.master;
   if(typeof saved0.prompt==="string") $("prompt").value = saved0.prompt;
 }
+if(saved0?.spec) $("specDetails").open = true;
 render();
 committed = snapStr(); loadedSnap = committed; committedDoc = currentDocId;
 })();
