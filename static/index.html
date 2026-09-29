@@ -407,7 +407,7 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
         <label class="field"><span class="lbl">model</span>
           <select id="tierSel" class="num"></select>
         </label>
-        <label class="check"><input type="checkbox" id="buildOn"> Build on the current beat</label>
+        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat<span id="buildHear" hidden>&nbsp;(shares its spectrogram)</span></label>
         <div class="spacer"></div>
         <button class="btn primary" id="genBtn">Generate</button>
         <button class="btn" id="stopGen" hidden>Stop</button>
@@ -1307,14 +1307,16 @@ const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 // Same voices, same mix, built into an offline context. loops: times through the pattern. warm: render one extra loop
 // first and drop it, so reverb tails and notes held over the loop point already ring into the start (a seamless loop).
 // tail: seconds to let the last loop ring out. Mutes and solos apply, like what you hear.
-function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100, lean=false, st=S}={}){
+function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100, lean=false, all=false, st=S}={}){
   const sd = 60/st.bpm/4, n = st.pages*PAGE, loopLen = n*sd, skip = warm ? Math.min(loopLen, warmSecs) : 0; // warmSecs: only the end of the warm-up loop
   const total = skip + loops*loopLen + tail;
   const live = {ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt};
   const liveChokes = new Map(tonalChoke), liveS = S, livePlaying = playing;
+  const flags = all && {m:[...muted], s:[...soloed], gs:{...groupSolo}, gm:{...groupMuted}}; // all: ignore mutes and solos
   let oc;
   try {
     S = st;
+    if(flags){ muted.clear(); soloed.clear(); groupSolo.drums = groupSolo.synths = groupMuted.drums = groupMuted.synths = false; }
     oc = ctx = new OAC(2, Math.ceil(total*rate), rate);
     openHatChoke = bassChoke = kickChoke = null; tonalChoke.clear();
     buildGraph($("masterIn").value/100, lean);
@@ -1325,6 +1327,7 @@ function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100,
     ({ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt} = live);
     tonalChoke.clear(); liveChokes.forEach((v,k) => tonalChoke.set(k,v));
     S = liveS; playing = livePlaying;
+    if(flags){ flags.m.forEach(x => muted.add(x)); flags.s.forEach(x => soloed.add(x)); Object.assign(groupSolo, flags.gs); Object.assign(groupMuted, flags.gm); }
   }
   return oc.startRendering().then(buf => ({buf, from: Math.round(skip*rate), loopLen}));
 }
@@ -1399,8 +1402,16 @@ const FFT = (() => {
   }, re, im};
 })();
 function paintSpec(buf, a, b, st){
-  const cv = $("specCanvas"), dpr = Math.min(2, window.devicePixelRatio || 1);
-  const W = cv.clientWidth, H = cv.clientHeight; if(!W || !H) return;
+  const cv = $("specCanvas"), d = specDraw(buf, a, b, st, cv, cv.clientWidth, cv.clientHeight, Math.min(2, window.devicePixelRatio || 1));
+  if(!d) return;
+  SPEC.data = d;
+  const lv = d.lv, f1 = x => Number.isFinite(x) ? x.toFixed(1) : "−∞";
+  $("specInfo").textContent = `${st.pages} bar${st.pages>1?"s":""} at ${st.bpm} BPM · peak ${f1(lv.peak)} dBFS · RMS ${f1(lv.rms)} dBFS` + (lv.peak > 0 ? " · peaks over 0 dB, so it can clip (lower Master a touch)" : "");
+  specPlayhead(playing ? phStep : -1);
+}
+// one loop's spectrogram on any canvas, W x H css px: the panel, or the image the model gets
+function specDraw(buf, a, b, st, cv, W, H, dpr){
+  if(!W || !H) return null;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
   const L = 38, T = 16, pw = W - L, ph = H - T;
@@ -1456,10 +1467,7 @@ function paintSpec(buf, a, b, st){
     if(bar){ g.fillStyle = ink; g.fillText(`Bar ${s/PAGE+1}`, x+5, 11); }
   }
   g.fillStyle = faint; g.textAlign = "right"; g.fillText("Hz", L-5, 11);
-  SPEC.data = {cols, rows, db, steps, L, T, pw, ph, bpm: st.bpm};
-  const lv = levels(buf, a, b), f1 = x => Number.isFinite(x) ? x.toFixed(1) : "−∞";
-  $("specInfo").textContent = `${st.pages} bar${st.pages>1?"s":""} at ${st.bpm} BPM · peak ${f1(lv.peak)} dBFS · RMS ${f1(lv.rms)} dBFS` + (lv.peak > 0 ? " · peaks over 0 dB, so it can clip (lower Master a touch)" : "");
-  specPlayhead(playing ? phStep : -1);
+  return {cols, rows, db, steps, L, T, pw, ph, bpm: st.bpm, lv: levels(buf, a, b)};
 }
 function specPlayhead(s){
   const d = SPEC.data, el = $("specPh");
@@ -1482,6 +1490,40 @@ function specPlayhead(s){
   $("specDetails").addEventListener("toggle", () => { persistLocal(); if(specOpen()) drawSpec(); else $("specPh").hidden = true; });
   let rw = 0; window.addEventListener("resize", () => { clearTimeout(rw); rw = setTimeout(specSoon, 200); });
   $("masterIn").addEventListener("change", specSoon);
+}
+
+/* ---------- Letting the model hear the beat ---------- */
+// "Build on the current beat" sends a spectrogram of one loop (where the model can take images) and band levels per bar.
+// Rendered with every row audible, so it matches the pattern JSON the model gets, whatever is muted right now.
+let hearOK = false, hearTypes = ["image/jpeg"];
+function syncHear(){ $("buildHear").hidden = !(hearOK && OAC); }
+const BANDS = [["sub",30,60],["bass",60,250],["low-mid",250,800],["mid",800,2500],["presence",2500,6000],["air",6000,16000]];
+function specReport(d, st){
+  const fOf = r => SPEC.lo * Math.pow(SPEC.hi/SPEC.lo, 1 - (r+.5)/d.rows);
+  const rowsIn = BANDS.map(([,lo,hi]) => { const rs = []; for(let r=0;r<d.rows;r++){ const f = fOf(r); if(f>=lo && f<hi) rs.push(r); } return rs; });
+  const lines = ["bar " + BANDS.map(([n,lo,hi]) => `${n} ${lo>=1000 ? lo/1000+"k" : lo}-${hi>=1000 ? hi/1000+"k" : hi}`.padStart(19)).join("")];
+  for(let bar=0; bar<st.pages; bar++){
+    const c0 = Math.floor(bar/st.pages*d.cols), c1 = Math.floor((bar+1)/st.pages*d.cols);
+    lines.push(String(bar+1).padEnd(4) + rowsIn.map(rs => {
+      let s = 0, n = 0; for(const r of rs) for(let c=c0;c<c1;c++){ s += Math.pow(10, d.db[r*d.cols+c]/10); n++; }
+      return (n && s>0 ? (10*Math.log10(s/n)).toFixed(0) : "-").padStart(19);
+    }).join(""));
+  }
+  const f1 = x => Number.isFinite(x) ? x.toFixed(1) : "-inf";
+  lines.push(`whole loop: peak ${f1(d.lv.peak)} dBFS, RMS ${f1(d.lv.rms)} dBFS${d.lv.peak > 0 ? " (over 0 dBFS, so it clips)" : ""}`);
+  return lines.join("\n");
+}
+async function listen(st, image){
+  const {buf, from, loopLen} = await renderBeat({loops:1, warm:true, warmSecs:2.5, rate:32000, lean:true, all:true, st});
+  const cv = document.createElement("canvas");
+  const d = specDraw(buf, from, from + Math.round(loopLen*buf.sampleRate), st, cv, 1000, 400, 1.5);
+  const out = {report: specReport(d, st), dropped: !image, noPic: !image}; // noPic: this view never sends pictures
+  if(image){
+    const type = hearTypes.includes("image/jpeg") ? "image/jpeg" : hearTypes.includes("image/png") ? "image/png" : hearTypes[0];
+    out.blob = await new Promise(r => cv.toBlob(r, type, .88));
+    if(!out.blob) out.dropped = true;
+  }
+  return out;
 }
 
 /* ---------- Export audio ---------- */
@@ -2603,11 +2645,17 @@ const IDEAS = ["Dusty boom bap, swung hats, minor 9 chords","Four-on-the-floor d
 $("ideas").innerHTML = IDEAS.map(t => `<button class="chip" type="button">${t}</button>`).join("");
 $("ideas").addEventListener("click", e => { const c = e.target.closest(".chip"); if(c){ $("prompt").value = c.textContent; $("prompt").focus(); } });
 
-function buildPrompt(req, cur){
+function buildPrompt(req, cur, hear){
   return `You program a TR-808-style drum machine with synth channels. Write a pattern of 1-4 pages (each page is one bar of 16 sixteenth-note steps) that grooves and sounds musical.
 
 Request: ${req || "Surprise me with a great-sounding beat."}
-${cur ? `\nCurrent pattern (modify or build on it as the request asks):\n${JSON.stringify(cur)}\n` : ""}
+${cur ? `\nCurrent pattern (modify or build on it as the request asks):\n${JSON.stringify(cur)}\n` : ""}${hear ? `
+HOW IT SOUNDS NOW (rendered from the current pattern with the real audio engine, every channel on):
+${hear.dropped ? "" : `The attached image is a spectrogram of one loop. Time runs left to right with bars labelled and a line on every beat. Frequency runs up on a log scale from 30 Hz to 16 kHz, labelled in Hz. Color runs from dark (quiet, about -96 dBFS) through red, orange and yellow to cream (loud, about -6 dBFS).
+`}Approximate level per band and bar, in dB (compare them with each other; higher is louder):
+${hear.report}
+Judge the mix as well as the notes: a muddy or overloaded low end (kick, 808 and bass fighting under 250 Hz), empty or harsh highs, parts masking each other, levels, too much reverb, clipping. Fix what the request asks for plus anything that clearly sounds off, using levels, tones, timbre, volumes, drive, reverb and the notes. Keep what already works.
+` : ""}
 FORMAT (reply with only this JSON object):
 {
   "name": "2-4 word title",
@@ -2671,10 +2719,10 @@ const SAMPLE_ERR = {
 };
 const HIDE_CODES = ["not_configured"];
 /* POST /api/generate and read its SSE stream. Resolves {text, truncated}; rejects {code, message}. */
-async function generate(prompt, {model, signal, onText}){
+async function generate(prompt, {model, signal, onText, image}){
   let res;
   try {
-    res = await fetch("/api/generate", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({model, prompt}), signal});
+    res = await fetch("/api/generate", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(image ? {model, prompt, image} : {model, prompt}), signal});
   } catch(e){ throw {code: e?.name==="AbortError" ? "cancelled" : "upstream_error"}; }
   if(!res.ok){
     const j = await res.json().catch(() => ({}));
@@ -2709,13 +2757,27 @@ $("genBtn").addEventListener("click", async () => {
   if(!genEnabled) return;
   ensureCtx();
   const model = $("tierSel").value, label = modelLabel();
-  const prompt = buildPrompt($("prompt").value.trim(), $("buildOn").checked ? toJSON(S) : null);
+  const req = $("prompt").value.trim(), cur = $("buildOn").checked ? toJSON(S) : null, st0 = S;
+  let hear = null;
   genCtl = new AbortController();
   $("genBtn").disabled = true; $("stopGen").hidden = false;
   $("genStatus").textContent = "";
   compStart(label);
   try {
-    const res = await generate(prompt, {model, signal: genCtl.signal, onText: ({text}) => compText(text)});
+    if(cur && OAC){
+      cmp.listening = true;
+      hear = await listen(st0, hearOK).catch(e => { dlog("listen: "+e.message); return null; });
+      if(cmp) cmp.listening = false;
+      if(genCtl.signal.aborted) throw {code:"cancelled"};
+    }
+    if(hear?.blob) hear.dataUrl = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(hear.blob); });
+    const opts = {model, signal: genCtl.signal, onText: ({text}) => compText(text)};
+    let res;
+    try { res = await generate(buildPrompt(req, cur, hear), {...opts, image: hear?.dropped ? null : hear?.dataUrl}); }
+    catch(e){ // this model can't take the picture: send the numbers only
+      if(e?.code!=="image_rejected" || !hear) throw e;
+      hear.dropped = true; res = await generate(buildPrompt(req, cur, hear), opts);
+    }
     compText(res.text);
     const tierNote = label;
     if(!res.text.trim()) throw {code:"empty_completion", tierNote};
@@ -2727,6 +2789,7 @@ $("genBtn").addEventListener("click", async () => {
     compFinish(true, `“${st.name}” is in`);
     revealRack();
     $("genStatus").textContent = `${tierNote} · Loaded “${st.name}” · ${st.bpm} BPM · ${st.pages} page${st.pages===1?"":"s"} · ${userSynths(st).length} synth channel${userSynths(st).length===1?"":"s"}${tonalRow("808", st).steps.some(x => x) ? " + 808" : ""}${st.synths.some(x => x.poly) ? " (with chords)" : ""}.`;
+    if(hear) $("genStatus").textContent += hear.noPic ? " It got the band levels." : hear.dropped ? " It got the band levels but not the picture." : " It heard the spectrogram.";
     if(!playing) startPlay();
   } catch(e){
     compFinish(false);
@@ -2801,7 +2864,7 @@ function compDraw(){
   const writing = cmp.text.length>0;
   // phase + name
   if(!cmp.done){
-    if(!writing) $("compPhase").textContent = THINKING[Math.floor(secs/2.4) % THINKING.length];
+    if(!writing) $("compPhase").textContent = cmp.listening ? "Listening to the current beat" : THINKING[Math.floor(secs/2.4) % THINKING.length];
     else if(P.inTonal) $("compPhase").textContent = KEY_PHASE[P.inTonal];
     else if(P.cur==="steps" || P.cur==="synths" || P.cur==="volume" || (P.cur==="name" && P.curSynth>=0)) $("compPhase").textContent = `Voicing synth ${Math.max(1,P.curSynth+1)}`;
     else $("compPhase").textContent = KEY_PHASE[P.cur] || "Writing the pattern";
@@ -3104,6 +3167,7 @@ function noDb(msg){
   const sel = $("tierSel"), models = cfg.models || [];
   sel.innerHTML = models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
   if(models.some(m => m.id===saved0?.model)) sel.value = saved0.model;
+  hearOK = !!cfg.images; syncHear();
   if(cfg.generate){ genEnabled = true; $("genBtn").disabled = false; }
   else disableGen("AI generation is off. Set OPENROUTER_API_KEY on the server to turn it on.");
   if(!cfg.save){ noDb("Saving is off on this server."); return; }

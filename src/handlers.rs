@@ -78,6 +78,8 @@ pub async fn config(State(state): State<AppState>) -> Json<Value> {
         "save": true,
         "generate": state.cfg.openrouter_key.is_some() && !models.is_empty(),
         "models": models,
+        // generation can carry the spectrogram (every default model takes images)
+        "images": true,
     }))
 }
 

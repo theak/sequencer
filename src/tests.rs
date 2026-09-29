@@ -306,3 +306,119 @@ async fn generate_maps_upstream_errors() {
     assert_eq!(s, StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(v["code"], "rate_limited");
 }
+
+/// A spectrogram rides along as an image part, and a request that big is fine on this route
+/// (it's over the 256 kB limit the beats routes keep).
+#[tokio::test]
+async fn generate_forwards_the_image() {
+    let mock = Router::new().route(
+        "/chat/completions",
+        post(|body: String| async move {
+            let v: Value = serde_json::from_str(&body).unwrap();
+            let c = &v["messages"][0]["content"];
+            assert_eq!(c[0]["type"], "image_url");
+            assert!(c[0]["image_url"]["url"].as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+            assert_eq!(c[1], json!({"type":"text","text":"a beat"}));
+            let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            ([("content-type", "text/event-stream")], sse)
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let image = format!(
+        "data:image/jpeg;base64,{}",
+        "A".repeat(BODY_LIMIT + 100_000)
+    );
+    let resp = app
+        .oneshot(
+            Request::post("/api/generate")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({"model":"test/model","prompt":"a beat","image":image}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = resp.into_body().collect().await.unwrap().to_bytes();
+    assert!(String::from_utf8_lossy(&body).contains(r#"{"t":"ok"}"#));
+}
+
+#[tokio::test]
+async fn generate_checks_the_image() {
+    let keyed = build_router(AppState::new(cfg(
+        temp_dir(),
+        Some("k"),
+        "http://127.0.0.1:1",
+    )));
+    for bad in [
+        "https://example.com/x.jpg",
+        "data:text/html;base64,AAAA",
+        "data:image/jpeg,AAAA",
+    ] {
+        let (s, v) = call(
+            &keyed,
+            "POST",
+            "/api/generate",
+            Some(json!({"model":"test/model","prompt":"x","image":bad})),
+        )
+        .await;
+        assert_eq!(s, StatusCode::BAD_REQUEST, "{bad}");
+        assert_eq!(v["code"], "invalid_argument");
+    }
+    let huge = format!(
+        "data:image/png;base64,{}",
+        "A".repeat(crate::GENERATE_BODY_LIMIT)
+    );
+    let (s, _) = call(
+        &keyed,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":"x","image":huge})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// A model that can't take images comes back as `image_rejected`, so the browser can retry
+/// without the picture.
+#[tokio::test]
+async fn generate_reports_image_rejected() {
+    let mock = Router::new().route(
+        "/chat/completions",
+        post(|| async {
+            (
+                StatusCode::NOT_FOUND,
+                axum::Json(
+                    json!({"error":{"message":"No endpoints found that support image input"}}),
+                ),
+            )
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let (s, v) = call(
+        &app,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":"x","image":"data:image/jpeg;base64,AAAAAAAA"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    assert_eq!(v["code"], "image_rejected");
+    // without an image the same failure is an ordinary upstream error
+    let (s, v) = call(
+        &app,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":"x"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_GATEWAY);
+    assert_eq!(v["code"], "upstream_error");
+}
