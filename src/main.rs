@@ -34,6 +34,8 @@ pub const DEFAULT_MODELS: &str = "~anthropic/claude-sonnet-latest=Claude Sonnet,
 /// Largest request body we accept (a 4-page beat with several synths is ~10 kB; a
 /// generation prompt with "build on current beat" is ~20 kB).
 pub const BODY_LIMIT: usize = 256 * 1024;
+/// `/api/generate` can also carry the beat's spectrogram as a base64 image.
+pub const GENERATE_BODY_LIMIT: usize = 2 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Model {
@@ -127,7 +129,10 @@ pub fn build_router(state: AppState) -> Router {
             "/api/beats/{id}",
             put(handlers::update_beat).delete(handlers::delete_beat),
         )
-        .route("/api/generate", post(ai::generate))
+        .route(
+            "/api/generate",
+            post(ai::generate).layer(DefaultBodyLimit::max(GENERATE_BODY_LIMIT)),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .with_state(state)
 }
