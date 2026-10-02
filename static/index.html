@@ -189,6 +189,8 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .syn .cell.tie{background:color-mix(in srgb,var(--synth) 62%,var(--panel-2));border-radius:0 4px 4px 0;box-shadow:none}
 .syn .cell.tie::before{content:"";position:absolute;top:0;bottom:0;right:100%;width:calc(var(--gl,4px) + 1px);background:color-mix(in srgb,var(--synth) 62%,var(--panel-2))}
 .syn .cell.on.held{border-radius:4px 0 0 4px}
+/* staccato: a short bright blip at the start of the step */
+.syn .cell.on.stac{background:linear-gradient(90deg,var(--synth) 0 5px,color-mix(in srgb,var(--synth) 16%,var(--panel-2)) 5px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--synth) 55%,transparent);color:var(--synth)}
 .syn .cell.tie.held{border-radius:0}
 .syn .cell.gs{--gl:10px}
 .syn .cell.chord{letter-spacing:-.03em;white-space:nowrap;overflow:hidden;padding:0 2px;gap:0}
@@ -260,6 +262,8 @@ details.json[open] summary{margin-bottom:10px}
 .piano .k.sel{background:var(--synth);color:#0d2622}
 .piano .k.hov{background:var(--orange);color:#1c1006}
 .pnote{font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);max-width:190px;overflow-wrap:anywhere}
+#stacBtn{margin-left:auto}
+#stacBtn[aria-pressed="true"]{background:color-mix(in srgb,var(--synth) 18%,var(--panel-2));border-color:var(--synth);color:var(--synth)}
 .pnow{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--ink);min-width:44px;text-align:right;margin-left:auto}
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--cream);color:#1a1814;padding:9px 14px;border-radius:6px;font-weight:600;font-size:13px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -518,6 +522,7 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
       <span class="lbl" id="invLbl">Invert</span>
       <button class="btn" id="invDown" title="Move the top note down an octave">↓</button>
       <button class="btn" id="invUp" title="Move the bottom note up an octave">↑</button>
+      <button class="btn" id="stacBtn" aria-pressed="false" title="Staccato: play this note super short">Staccato</button>
     </div>
   </div>
   <div class="rowflex" style="gap:6px;max-width:190px">
@@ -562,7 +567,7 @@ const TONAL = {
 };
 const TONAL_IDS = Object.keys(TONAL);
 const PAGE = 16, MAX_PAGES = 4;
-const NOTE_LO = 24, NOTE_HI = 84; // C1..C6
+const NOTE_LO = 24, NOTE_HI = 96; // C1..C7
 const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 function midiName(m){ return NAMES[m%12] + (Math.floor(m/12)-1); }
@@ -581,7 +586,18 @@ const mtof = m => 440*Math.pow(2,(m-69)/12);
 const MAX_CHORD = 6;
 function stepNotes(v){
   if(!v || v==="-") return [];
-  return String(v).split("+").map(nameMidi).filter(m => m!=null);
+  return String(v).replace(/!$/, "").split("+").map(nameMidi).filter(m => m!=null);
+}
+/* Staccato: a mono synth note ending in "!" (e.g. "C4!") plays as a very short blip, and it can't be held */
+const STAC = "!", STAC_LEN = .025;
+const isStac = v => typeof v==="string" && v.endsWith(STAC);
+const unStac = v => isStac(v) ? v.slice(0,-1) : v;
+const stacked = (v, on) => v && v!=="-" ? unStac(v) + (on ? STAC : "") : v;
+// poly and tonal rows have no staccato, and holds after a staccato note become rests
+function tidyStac(s){
+  if(s.poly || s.fixed){ s.steps = s.steps.map(unStac); return; }
+  let short = false;
+  s.steps = s.steps.map(v => v==="-" ? (short ? null : v) : (short = isStac(v), v));
 }
 function chordStr(ms){
   const u = [...new Set(ms)].sort((a,b) => a-b).slice(0,MAX_CHORD);
@@ -606,7 +622,7 @@ function chordName(ms){
 // [root, quality] for display, e.g. ["D#","maj7"], or the bass note and how many more for shapes without a name
 function chordParts(v){
   const ms = stepNotes(v);
-  if(ms.length<2) return [v, ""];
+  if(ms.length<2) return [unStac(v), ""];
   const n = chordName(ms);
   if(n){ const r = /^[A-G]#?/.exec(n)[0]; return [r, n.slice(r.length)]; }
   return [midiName(ms[0]), "+"+(ms.length-1)];
@@ -633,7 +649,7 @@ function clickNote(s, i){
   if(!s.poly && isChord(v)) v = midiName(Math.max(...stepNotes(v))); // a row switched to mono takes the top note
   return v;
 }
-const topNotes = steps => steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v);
+const topNotes = steps => steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : unStac(v));
 function newSynth(name, len=S.pages*PAGE, poly=false){ return {uid:++uid, name, poly, volume:poly ? .55 : .7, timbre:poly ? .35 : .5, steps:Array(len).fill(null)}; }
 const stepCount = () => S.pages*PAGE;
 
@@ -675,7 +691,8 @@ function parseSteps(v, len){
     const s = Array.isArray(x) ? x.join("+") : String(x).trim(); // ["C3","E3"] is a chord too
     if(s===""||s==="."||s==="0"||/^(r|rest|x)$/i.test(s)){ out.push(null); continue; }
     if(/^[-_~=]+$/.test(s)||/^(hold|tie)$/i.test(s)){ out.push("-"); continue; }
-    out.push(chordStr(s.split("+").map(nameMidi).filter(m => m!=null)));
+    const v = chordStr(s.replace(/!$/, "").split("+").map(nameMidi).filter(m => m!=null));
+    out.push(v && s.endsWith(STAC) && !isChord(v) ? v + STAC : v);
   }
   return out;
 }
@@ -774,6 +791,7 @@ function fromJSON(o){
     n.timbre = clamp(s?.timbre,0,1,.5);
     n.steps = parseSteps(s?.steps, len);
     n.poly = !!s?.poly || n.steps.some(isChord); // chords only make sense on a poly channel
+    tidyStac(n);
     return n;
   })];
   return st;
@@ -1141,7 +1159,7 @@ function sidechainHit(t){
 // One voice: a note number, or an array for a chord. A chord is one instrument: every note's
 // oscillators feed the same filter and amp envelope, scaled by 1/sqrt(n) so chords sit level with single notes.
 // Any synth row's voice: tonal rows play their drum (mono, on the drum bus), others the synth
-function playVoice(s, ms, t, dur, vol){
+function playVoice(s, ms, t, dur, vol, short=false){
   if(s?.fixed){
     const m = [].concat(ms).filter(x => x!=null); if(!m.length || vol<=0) return;
     const top = Math.max(...m);
@@ -1153,7 +1171,7 @@ function playVoice(s, ms, t, dur, vol){
     VOICE[s.fixed](t, vol*VEL.x, ch, mtof(top), s.timbre);
     return ch;
   }
-  return playSynth(ms, t, dur, vol, s ? s.timbre : .5, !!s?.poly);
+  return playSynth(ms, t, dur, vol, s ? s.timbre : .5, !!s?.poly, short);
 }
 // poly width: the top half of a poly synth's timbre knob sends here for width and movement instead of grit.
 // No reverb here (the Synth Reverb slider does that): a stereo chorus (two slowly swept ~15 ms delays, one per side)
@@ -1176,10 +1194,10 @@ function makePolyFx(dry){
   merger.connect(dry);
   return [cIn, fIn];
 }
-function playSynth(midi,t,dur,vol,tim=.5,poly=false){
+function playSynth(midi,t,dur,vol,tim=.5,poly=false,short=false){
   const notes = (Array.isArray(midi) ? midi : [midi]).filter(m => m!=null);
   if(vol<=0 || !notes.length) return;
-  const freqs = notes.map(mtof), peak = .15*vol/Math.sqrt(notes.length), rel = .04;
+  const freqs = notes.map(mtof), peak = .15*vol/Math.sqrt(notes.length), rel = short ? .012 : .04; // staccato notes let go fast too
   const f = Math.exp(freqs.reduce((a,x) => a+Math.log(x), 0)/freqs.length); // filter tracks the chord's centre
   const g = gainNode(0);
   g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+.006);
@@ -1243,6 +1261,7 @@ function scheduleStep(step,t,sd){
   for(const s of S.synths){
     const n = s.steps[step];
     if(!n || n==="-" || !audible("s"+s.uid)) continue;
+    if(isStac(n) && !s.poly && !s.fixed){ playVoice(s, stepNotes(n), t, STAC_LEN, s.volume, true); continue; }
     const total = s.steps.length;
     let len = 1;
     while(len<total && s.steps[(step+len)%total]==="-") len++;
@@ -1677,16 +1696,17 @@ function paintCell(el){
     const tieValid = n==="-" && tieSounding(s,i);
     el.classList.toggle("on", !!n && n!=="-");
     el.classList.toggle("tie", tieValid);
-    el.classList.toggle("held", (n && n!=="-" || tieValid) && next==="-" && i%PAGE<15);
+    el.classList.toggle("held", (n && n!=="-" && !isStac(n) || tieValid) && next==="-" && i%PAGE<15);
+    el.classList.toggle("stac", isStac(n) && !s.poly && !s.fixed);
     el.classList.toggle("chord", isChord(n));
     if(isChord(n)){ const [r,qq] = chordParts(n); el.innerHTML = `<span>${r}</span>` + (qq ? `<span class="cq">${qq}</span>` : ""); }
-    else el.textContent = n && n!=="-" ? n : "";
+    else el.textContent = n && n!=="-" ? unStac(n) : "";
     el.title = isChord(n) ? n.split("+").join(" ") : "";
   }
 }
 function tieSounding(s,i){
   const t = s.steps.length;
-  for(let k=1;k<t;k++){ const v = s.steps[(i-k+t)%t]; if(v==="-") continue; return !!v; }
+  for(let k=1;k<t;k++){ const v = s.steps[(i-k+t)%t]; if(v==="-") continue; return !!v && !isStac(v); }
   return false;
 }
 function paintRow(row){ rack.querySelectorAll(`.cell[data-row="${row}"]`).forEach(paintCell); }
@@ -1989,7 +2009,7 @@ window.addEventListener("pointermove", e => {
     const syn = synthByKey(drag.row);
     syn.steps = drag.orig.slice();
     const startVal = drag.orig[drag.start];
-    if(startVal && s>drag.start) for(let i=drag.start+1;i<=s;i++) syn.steps[i] = "-";
+    if(startVal && s>drag.start){ syn.steps[drag.start] = unStac(startVal); for(let i=drag.start+1;i<=s;i++) syn.steps[i] = "-"; } // dragging out a hold makes the note long again
     paintRow(drag.row);
   }
   drag.last = s;
@@ -2057,6 +2077,7 @@ rack.addEventListener("click", e => {
     s.poly = !s.poly;
     // going mono keeps each chord's top note, which is usually the melody
     if(!s.poly) s.steps = s.steps.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v);
+    else s.steps = s.steps.map(unStac);
     closePops(); render(); commit();
     toast(s.poly ? `${s.name} is poly: steps can hold chords` : had ? `${s.name} is mono: kept the top note of each chord (Undo restores them)` : `${s.name} is mono`);
   } else if(act==="delsyn"){
@@ -2222,6 +2243,7 @@ rowPop.addEventListener("click", e => {
       let cells = rowClip.cells.map(cloneCell);
       const syn = rowKind(id)==="syn" && synthByKey(id);
       if(syn && !syn.poly) cells = cells.map(v => isChord(v) ? midiName(Math.max(...stepNotes(v))) : v); // mono rows take the top note
+      if(syn && (syn.poly || syn.fixed)) cells = cells.map(unStac);
       if(syn?.perc) cells = noHolds(cells);
       const next = row.slice(); next.splice(off, PAGE, ...cells); setRowSteps(id, next);
       toast(`Pasted ${rowClip.from} onto ${rowName(id)}${S.pages>1 ? ` page ${viewPage+1}` : ""}`);
@@ -2236,10 +2258,10 @@ rowPop.addEventListener("click", e => {
       // the whole row (every page) moves together, chords and all, so it stays in tune with itself
       const d = b.dataset.rowact==="octup" ? 12 : -12, syn = synthByKey(id), all = row.flatMap(stepNotes);
       if(!all.length){ toast(`Nothing on ${rowName(id)} to move`); return; }
-      if(Math.max(...all)+d > NOTE_HI || Math.min(...all)+d < NOTE_LO){ toast(d > 0 ? `${rowName(id)} already reaches the top (C6)` : `${rowName(id)} already reaches the bottom (C1)`); return; }
-      setRowSteps(id, row.map(v => v && v!=="-" ? chordStr(stepNotes(v).map(m => m+d)) : v));
+      if(Math.max(...all)+d > NOTE_HI || Math.min(...all)+d < NOTE_LO){ toast(d > 0 ? `${rowName(id)} already reaches the top (${midiName(NOTE_HI)})` : `${rowName(id)} already reaches the bottom (${midiName(NOTE_LO)})`); return; }
+      setRowSteps(id, row.map(v => v && v!=="-" ? stacked(chordStr(stepNotes(v).map(m => m+d)), isStac(v)) : v));
       const ln = lastNote.get(syn.uid), lm = ln && stepNotes(ln).map(m => m+d);
-      if(lm && Math.max(...lm) <= NOTE_HI && Math.min(...lm) >= NOTE_LO) lastNote.set(syn.uid, chordStr(lm)); // new clicks follow the row
+      if(lm && Math.max(...lm) <= NOTE_HI && Math.min(...lm) >= NOTE_LO) lastNote.set(syn.uid, stacked(chordStr(lm), isStac(ln))); // new clicks follow the row
       break;
     }
   }
@@ -2319,10 +2341,11 @@ function pianoLabel(s, i){
   const cur = s.steps[i], ms = stepNotes(cur);
   if(ms.length) lastNote.set(s.uid, cur); // opening a note or changing it on the keyboard makes it the row's current note
   $("pnote").textContent = `${s.name} · step ${i+1}${S.pages>1 ? ` (page ${Math.floor(i/PAGE)+1})` : ""}` +
-    (isChord(cur) ? ` · ${stepLabel(cur)} (${cur.split("+").join(" ")})` : cur && cur!=="-" ? ` · ${cur}` : cur==="-" ? " · hold" : "");
+    (isChord(cur) ? ` · ${stepLabel(cur)} (${cur.split("+").join(" ")})` : cur && cur!=="-" ? ` · ${unStac(cur)}${isStac(cur) ? " staccato" : ""}` : cur==="-" ? " · hold" : "");
   $("pnow").textContent = ms.length ? stepLabel(cur) : "";
   $("piano").querySelectorAll(".k").forEach(k => k.classList.toggle("sel", ms.includes(+k.dataset.m)));
   $("invDown").disabled = $("invUp").disabled = ms.length < (s.poly ? 2 : 1);
+  const sb = $("stacBtn"); sb.hidden = s.poly || !!s.fixed; sb.disabled = !ms.length; sb.setAttribute("aria-pressed", isStac(cur));
 }
 function openPiano(cell){
   closePops(); popCell = cell;
@@ -2350,13 +2373,13 @@ function pickNote(m){
   if(!popCell) return;
   const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step;
   // the keyboard stays open on every row, so a note or chord can keep changing
-  if(!s.poly){ s.steps[i] = midiName(m); paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); return; }
+  if(!s.poly){ s.steps[i] = stacked(midiName(m), isStac(s.steps[i])); paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); return; }
   const ms = candidate(s, m);
   if(ms.length>=MAX_CHORD && !ms.includes(m)) toast(`Chords top out at ${MAX_CHORD} notes`);
   setChord(s, i, ms, false);
 }
 function setChord(s, i, ms, hear){
-  s.steps[i] = chordStr(ms);
+  s.steps[i] = s.poly ? chordStr(ms) : stacked(chordStr(ms), isStac(s.steps[i]));
   paintRow(popCell.dataset.row); changed(); pianoLabel(s, i);
   if(hear && ms.length) previewNotes(ms);
 }
@@ -2443,7 +2466,24 @@ function invert(up){
 }
 $("invUp").addEventListener("click", () => invert(true));
 $("invDown").addEventListener("click", () => invert(false));
-$("holdBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row); s.steps[+popCell.dataset.step] = "-"; paintRow(popCell.dataset.row); changed(); closePops(); });
+$("holdBtn").addEventListener("click", () => {
+  if(!popCell) return;
+  const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step, t = s.steps.length;
+  s.steps[i] = "-";
+  for(let k=1;k<t;k++){ const j = (i-k+t)%t; if(s.steps[j]==="-") continue; s.steps[j] = unStac(s.steps[j]); break; } // holding a staccato note makes it long again
+  paintRow(popCell.dataset.row); changed(); closePops();
+});
+// Staccato toggles the note between normal and a super short blip (mono synths only); it clears any holds after it
+$("stacBtn").addEventListener("click", () => {
+  if(!popCell) return;
+  const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step, v = s.steps[i], t = s.steps.length;
+  if(!v || v==="-" || s.poly || s.fixed) return;
+  const on = !isStac(v);
+  s.steps[i] = stacked(v, on);
+  if(on) for(let k=1;k<t && s.steps[(i+k)%t]==="-";k++) s.steps[(i+k)%t] = null;
+  paintRow(popCell.dataset.row); changed(); pianoLabel(s, i);
+  ensureCtx(); playVoice(s, stepNotes(s.steps[i]), ctx.currentTime+.005, on ? STAC_LEN : .35, Math.max(.5, s.volume), on);
+});
 // Clear empties the step but keeps the keyboard open, so new notes can go straight in
 $("restBtn").addEventListener("click", () => { if(!popCell) return; const s = synthByKey(popCell.dataset.row), i = +popCell.dataset.step; s.steps[i] = null; paintRow(popCell.dataset.row); changed(); pianoLabel(s, i); });
 
@@ -2724,7 +2764,7 @@ PAGES: use 1 page for a simple loop. Use 2-4 pages for a chord progression, call
 DRUM STRINGS: pages*16 characters, one per 16th note. "." rest, "x" normal hit, "X" accent, "g" ghost (quiet), "2" "3" "4" "6" or "8" = a roll of that many fast hits inside one step (hi-hat rolls, snare fills). Closed hat cuts off a ringing open hat.
 EXTRA DRUMS: "snap" is a finger snap (R&B, pop, lo-fi; on the backbeat instead of or with the clap). "rim" is the 808 rimshot/clave, a short click for syncopated patterns (reggaeton, bossa, minimal, afro). "shaker" drives 16th-note groove (house, afro, pop, latin); use "g" ghosts and "x" accents for a push-pull feel. Leave any of them all "." if the style doesn't need it.
 DRUM TONES: each drum has a 0-1 knob in "tones" (0.5 = the classic 808/909-style sound). Match them to the genre. snap is size: 0.2 tight and dry, 0.5 classic, 0.8+ a big layered snap in a room. rim: 0.1-0.25 woody clave, 0.5 808 rimshot, 0.8+ sharp crack with some room. shaker: 0.2 tight tick, 0.5 classic, 0.8 loose and long. kick: 0.15-0.3 short tight techno/garage punch, 0.5 house, 0.7 deep, 0.85+ long low hip-hop/trap boom. snare: 0.2-0.3 fat dusty boom-bap/lo-fi, 0.5 classic, 0.75+ high tight crack (trap, drum and bass, pop). clap: 0.2 tight snap, 0.5 classic, 0.7+ big room with reverb (house, techno, anthems). hatClosed is brightness: 0.2-0.35 dark dusty lo-fi, 0.5 classic, 0.7+ crisp bright (trap, house). hatOpen is length: 0.2-0.3 short "tss", 0.5 classic, 0.8+ long wash; its brightness follows hatClosed.
-SYNTH STEPS: exactly pages*16 strings. A note name "C1"-"C6" (sharps like "F#2"), "-" holds the previous note through this step, "." is silence. A note lasts one step unless followed by "-". Channels are monophonic unless marked "poly": true. All channels share one warm filtered-saw sound that suits basslines, leads and pads. Optional per-channel "timbre" 0-1 (default 0.5) changes the waveform: 0 smooth and round (triangle, good for soft pads and sub bass), 0.5 classic saw, 1 harsh buzzy square with grit (acid leads, aggressive stabs). On "poly": true channels the top half is different: above 0.5 the tone stays classic and gains chorus, flanger swirl and stereo width instead of grit (0.7 wide chorus, 0.9-1 swirly flanged pads). It adds no reverb: use synthReverb for space.
+SYNTH STEPS: exactly pages*16 strings. A note name "C1"-"C7" (sharps like "F#2"), "-" holds the previous note through this step, "." is silence. A note lasts one step unless followed by "-". On mono channels a note ending in "!" (like "C4!") is staccato: a very short, plucky blip, good for stabs, bouncy basslines and arps. Don't follow a staccato note with "-". Channels are monophonic unless marked "poly": true. All channels share one warm filtered-saw sound that suits basslines, leads and pads. Optional per-channel "timbre" 0-1 (default 0.5) changes the waveform: 0 smooth and round (triangle, good for soft pads and sub bass), 0.5 classic saw, 1 harsh buzzy square with grit (acid leads, aggressive stabs). On "poly": true channels the top half is different: above 0.5 the tone stays classic and gains chorus, flanger swirl and stereo width instead of grit (0.7 wide chorus, 0.9-1 swirly flanged pads). It adds no reverb: use synthReverb for space.
 808: "bass808" is the TR-808 sub-bass, always present and always monophonic. Its steps work exactly like SYNTH STEPS (pages*16 strings, note, "-" hold, "." silence), so it can play a melodic bassline. Notes C1-B2 sound best (F1 is the classic). A note booms and decays naturally over about 1.5 s: hold it with "-" to let it ring, or follow it with "." for a short punchy hit. It usually lands with the kick. "drive" 0-1 is its distortion (0 clean sine, 0.5 classic, 1 gritty). Leave "steps" all "." for no 808.
 TONAL DRUMS: "tom", "conga" and "cowbell" are pitched drums, always present and monophonic. Their steps are note names like SYNTH STEPS, but "-" holds do nothing: each hit rings out on its own until the next hit on that row. Stay in the song's key. tom (default F#3, good range G2-C4): fills and tribal patterns, often falling in pitch; "size" 0-1 is tight and dry (0.2) to big and roomy (0.8+). conga (default D4, good range G3-G4): latin, afro and house percussion, usually two or three pitches a fourth or fifth apart; "tone" 0-1 is muted slap (0.2) to open ringing (0.8). cowbell (default C#5, good range C4-C6): the 808 cowbell for accents or a melodic line (phonk and Memphis rap cowbell melodies, latin); "tone" 0-1 is short clank (0.2) to long ring (0.8). Leave "steps" all "." for any you don't use.
 CHORDS: put all chords on ONE channel with "poly": true (usually named "Chords", "Pad" or "Stabs"). A chord step is 2-6 note names joined by "+" with no spaces, written low to high, e.g. "D#3+G3+A#3+D4" (Ebmaj7). "-" holds the whole chord, "." is silence, and a single note is fine too. Don't split one chord across several channels. Keep a poly channel's volume around 0.4-0.65: its notes are already balanced so a chord is as loud as one note.
