@@ -68,6 +68,23 @@ async fn index_serves_app() {
 }
 
 #[tokio::test]
+async fn serves_the_icons() {
+    for (path, kind, magic) in [
+        ("/favicon.ico", "image/x-icon", &[0u8, 0, 1, 0][..]),
+        ("/apple-touch-icon.png", "image/png", &b"\x89PNG"[..]),
+    ] {
+        let resp = app(temp_dir())
+            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "{path}");
+        assert_eq!(resp.headers()["content-type"], kind);
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        assert!(body.starts_with(magic), "{path}");
+    }
+}
+
+#[tokio::test]
 async fn config_reports_generation_off_without_key() {
     let (s, v) = call(&app(temp_dir()), "GET", "/api/config", None).await;
     assert_eq!(s, StatusCode::OK);
