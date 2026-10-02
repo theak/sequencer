@@ -332,6 +332,7 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .speclegend i{width:72px;height:8px;border-radius:2px;background:linear-gradient(90deg,#19181b,#4a1d2e,#e2472f,#ef8b2c,#eecb4c,#efe7d3)}
 .specbusy{opacity:.6;transition:opacity .2s}
 #genBtn{margin-left:auto} /* stays on the right when the checkboxes push it onto its own line */
+#exportStatus:empty,#saveStatus:empty{display:none} /* no gaps for status lines until there's something to say */
 .exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
 @media (max-width:640px){ .specwrap{height:180px} }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
@@ -436,14 +437,10 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
       </div>
       <div class="status" id="saveStatus"></div>
       <div class="rowflex exportrow">
-        <button class="btn" id="exportBtn" title="Render the beat to a WAV file">Export audio</button>
-        <select id="exportLen" aria-label="Export length">
-          <option value="loop">1 loop, seamless</option>
-          <option value="2">2 loops, ringing out</option>
-          <option value="4" selected>4 loops, ringing out</option>
-          <option value="8">8 loops, ringing out</option>
-        </select>
-        <span class="hint">WAV, 44.1 kHz stereo · mutes and solos apply</span>
+        <button class="btn" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file">Export audio</button>
+        <button class="btn" id="exportJsonBtn" title="Download this beat as a JSON file">Export JSON</button>
+        <button class="btn" id="importJsonBtn" title="Open a beat's JSON file and add it to your saved beats">Import JSON</button>
+        <input type="file" id="importJsonIn" accept=".json,application/json" hidden>
       </div>
       <div class="status" id="exportStatus"></div>
       <ul class="saved" id="savedList"><li class="empty">Loading saved beats…</li></ul>
@@ -1533,29 +1530,48 @@ async function listen(st, image){
   return out;
 }
 
-/* ---------- Export audio ---------- */
+/* ---------- Export audio and JSON, import JSON ---------- */
+const fileName = st => (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
+// one pass through the loop from silence, then it rings out until the tails fade below -80 dB
 $("exportBtn").addEventListener("click", async () => {
   if(!OAC){ $("exportStatus").textContent = "This browser can't render audio offline."; return; }
-  const b = $("exportBtn"), how = $("exportLen").value, loop = how==="loop";
-  const st = S, name = (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
+  const b = $("exportBtn"), st = S, name = fileName(st);
   b.disabled = true; $("exportStatus").textContent = "Rendering…";
   try {
-    const tail = loop ? 0 : st.synthReverb > .5 ? 7 : 3.5;
-    const {buf, from, loopLen} = await renderBeat({loops: loop ? 1 : +how, warm: loop, tail, st});
-    let to = buf.length;
-    if(!loop){ // trim the ring-out once it has faded below -80 dB
-      const end = from + Math.round((loop ? 1 : +how)*loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
-      let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
-      to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
-    }
+    const {buf, from, loopLen} = await renderBeat({loops:1, tail: st.synthReverb > .5 ? 7 : 3.5, st});
+    const end = from + Math.round(loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
+    let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
+    const to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
     // a hot mix can peak over 0 dBFS (speakers clip it too): turn the whole file down just enough instead of clipping it
     const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
     const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
-    const file = `${name} ${st.bpm}bpm${loop ? " loop" : ""}.wav`;
-    const how2 = await saveFile(file, wav);
-    if(how2) $("exportStatus").textContent = `${how2} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
+    const done = await saveFile(`${name} ${st.bpm}bpm.wav`, wav);
+    if(done) $("exportStatus").textContent = `${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
   } catch(e){ dlog("export: "+(e?.message||e)); $("exportStatus").textContent = "Couldn't render the audio. Try again."; }
   finally { b.disabled = false; }
+});
+// the same JSON as the Pattern JSON panel, so a file can go back in through Import, Apply JSON or a prompt
+$("exportJsonBtn").addEventListener("click", async () => {
+  const done = await saveFile(`${fileName(S)}.json`, new Blob([pretty(toJSON(S)) + "\n"], {type:"application/json"}));
+  if(done) $("exportStatus").textContent = done;
+});
+$("importJsonBtn").addEventListener("click", () => $("importJsonIn").click());
+$("importJsonIn").addEventListener("change", async e => {
+  const f = e.target.files?.[0]; e.target.value = "";
+  if(!f) return;
+  let st;
+  try {
+    let o = JSON.parse(await f.text());
+    if(o && typeof o==="object" && o.beat && typeof o.beat==="object" && !o.drums) o = {...o.beat, name: o.beat.name || o.name}; // a saved-beat record
+    if(!o || typeof o!=="object" || Array.isArray(o) || !["drums","synths","bass808","tom","conga","cowbell"].some(k => k in o)) throw new Error("it doesn't look like an AK-16 beat");
+    st = fromJSON(o);
+  } catch(err){ $("exportStatus").textContent = `Couldn't import “${f.name}”: ${err instanceof SyntaxError ? "it isn't valid JSON" : err.message}.`; return; }
+  if(!st.name || st.name==="Untitled beat") st.name = f.name.replace(/\.json$/i, "").slice(0,60) || "Imported beat";
+  loadState(st, null, {name: st.name});
+  $("nameIn").value = st.name;
+  if(!db){ $("exportStatus").textContent = `Loaded “${st.name}”. Saving isn't available here, so it's only on screen.`; return; }
+  await save(true);
+  $("exportStatus").textContent = saveState()==="clean" ? `Imported “${st.name}” into your saved beats.` : `Loaded “${st.name}”, but it didn't save. Press Save to try again.`;
 });
 
 // the browser downloads it straight away
