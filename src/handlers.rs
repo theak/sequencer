@@ -12,6 +12,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 const INDEX_HTML: &str = include_str!("../static/index.html");
+// 16, 32 and 48 px renders of static/icon/icon.svg
+const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
+const TOUCH_ICON: &[u8] = include_bytes!("../static/apple-touch-icon.png");
 
 /// `{code, message}` JSON error, the shape the frontend reads.
 pub fn err(status: StatusCode, code: &str, message: &str) -> Response {
@@ -57,6 +60,25 @@ pub async fn index() -> Response {
             ("cache-control", "no-cache"),
         ],
         INDEX_HTML,
+    )
+        .into_response()
+}
+
+pub async fn favicon() -> Response {
+    icon("image/x-icon", FAVICON)
+}
+
+pub async fn touch_icon() -> Response {
+    icon("image/png", TOUCH_ICON)
+}
+
+fn icon(kind: &'static str, bytes: &'static [u8]) -> Response {
+    (
+        [
+            ("content-type", kind),
+            ("cache-control", "public, max-age=86400"),
+        ],
+        bytes,
     )
         .into_response()
 }

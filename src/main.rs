@@ -119,6 +119,8 @@ impl AppState {
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(handlers::index))
+        .route("/favicon.ico", get(handlers::favicon))
+        .route("/apple-touch-icon.png", get(handlers::touch_icon))
         .route("/healthz", get(handlers::healthz))
         .route("/api/config", get(handlers::config))
         .route(
