@@ -332,6 +332,8 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .speclegend i{width:72px;height:8px;border-radius:2px;background:linear-gradient(90deg,#19181b,#4a1d2e,#e2472f,#ef8b2c,#eecb4c,#efe7d3)}
 .specbusy{opacity:.6;transition:opacity .2s}
 #genBtn{margin-left:auto} /* stays on the right when the checkboxes push it onto its own line */
+.btn.ic{display:inline-flex;align-items:center;gap:6px}
+.btn.ic svg{width:14px;height:14px;flex:none;margin-left:-2px}
 #exportStatus:empty,#saveStatus:empty{display:none} /* no gaps for status lines until there's something to say */
 .exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
 @media (max-width:640px){ .specwrap{height:180px} }
@@ -437,9 +439,9 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
       </div>
       <div class="status" id="saveStatus"></div>
       <div class="rowflex exportrow">
-        <button class="btn" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file">Export audio</button>
-        <button class="btn" id="exportJsonBtn" title="Download this beat as a JSON file">Export JSON</button>
-        <button class="btn" id="importJsonBtn" title="Open a beat's JSON file and add it to your saved beats">Import JSON</button>
+        <button class="btn ic" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg><span>Export audio</span></button>
+        <button class="btn ic" id="exportJsonBtn" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Export JSON</span></button>
+        <button class="btn ic" id="importJsonBtn" title="Open a beat's JSON file and add it to your saved beats"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6 8 3l3 3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Import JSON</span></button>
         <input type="file" id="importJsonIn" accept=".json,application/json" hidden>
       </div>
       <div class="status" id="exportStatus"></div>
