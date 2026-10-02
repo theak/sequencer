@@ -331,6 +331,10 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .speclegend{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint)}
 .speclegend i{width:72px;height:8px;border-radius:2px;background:linear-gradient(90deg,#19181b,#4a1d2e,#e2472f,#ef8b2c,#eecb4c,#efe7d3)}
 .specbusy{opacity:.6;transition:opacity .2s}
+#genBtn{margin-left:auto} /* stays on the right when the checkboxes push it onto its own line */
+.btn.ic{display:inline-flex;align-items:center;gap:6px}
+.btn.ic svg{width:14px;height:14px;flex:none;margin-left:-2px}
+#exportStatus:empty,#saveStatus:empty{display:none} /* no gaps for status lines until there's something to say */
 .exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
 @media (max-width:640px){ .specwrap{height:180px} }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
@@ -407,7 +411,8 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
         <label class="field"><span class="lbl">model</span>
           <select id="tierSel" class="num"></select>
         </label>
-        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat<span id="buildHear" hidden>&nbsp;(shares its spectrogram)</span></label>
+        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
+        <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
         <div class="spacer"></div>
         <button class="btn primary" id="genBtn">Generate</button>
         <button class="btn" id="stopGen" hidden>Stop</button>
@@ -434,14 +439,10 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
       </div>
       <div class="status" id="saveStatus"></div>
       <div class="rowflex exportrow">
-        <button class="btn" id="exportBtn" title="Render the beat to a WAV file">Export audio</button>
-        <select id="exportLen" aria-label="Export length">
-          <option value="loop">1 loop, seamless</option>
-          <option value="2">2 loops, ringing out</option>
-          <option value="4" selected>4 loops, ringing out</option>
-          <option value="8">8 loops, ringing out</option>
-        </select>
-        <span class="hint">WAV, 44.1 kHz stereo · mutes and solos apply</span>
+        <button class="btn ic" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg><span>Export audio</span></button>
+        <button class="btn ic" id="exportJsonBtn" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Export JSON</span></button>
+        <button class="btn ic" id="importJsonBtn" title="Open a beat's JSON file and add it to your saved beats"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6 8 3l3 3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Import JSON</span></button>
+        <input type="file" id="importJsonIn" accept=".json,application/json" hidden>
       </div>
       <div class="status" id="exportStatus"></div>
       <ul class="saved" id="savedList"><li class="empty">Loading saved beats…</li></ul>
@@ -1496,7 +1497,12 @@ function specPlayhead(s){
 // "Build on the current beat" sends a spectrogram of one loop (where the model can take images) and band levels per bar.
 // Rendered with every row audible, so it matches the pattern JSON the model gets, whatever is muted right now.
 let hearOK = false, hearTypes = ["image/jpeg"];
-function syncHear(){ $("buildHear").hidden = !(hearOK && OAC); }
+function syncHear(){
+  $("hearLbl").hidden = !OAC;
+  $("hearTxt").textContent = hearOK ? "Share spectrogram" : "Share sound levels";
+  $("hearLbl").title = hearOK ? "Send a spectrogram of the beat on screen, plus its levels per frequency band, so the model can hear the mix"
+    : "Send the beat's levels per frequency band so the model can judge the mix (this view can't send pictures)";
+}
 const BANDS = [["sub",30,60],["bass",60,250],["low-mid",250,800],["mid",800,2500],["presence",2500,6000],["air",6000,16000]];
 function specReport(d, st){
   const fOf = r => SPEC.lo * Math.pow(SPEC.hi/SPEC.lo, 1 - (r+.5)/d.rows);
@@ -1526,29 +1532,48 @@ async function listen(st, image){
   return out;
 }
 
-/* ---------- Export audio ---------- */
+/* ---------- Export audio and JSON, import JSON ---------- */
+const fileName = st => (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
+// one pass through the loop from silence, then it rings out until the tails fade below -80 dB
 $("exportBtn").addEventListener("click", async () => {
   if(!OAC){ $("exportStatus").textContent = "This browser can't render audio offline."; return; }
-  const b = $("exportBtn"), how = $("exportLen").value, loop = how==="loop";
-  const st = S, name = (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
+  const b = $("exportBtn"), st = S, name = fileName(st);
   b.disabled = true; $("exportStatus").textContent = "Rendering…";
   try {
-    const tail = loop ? 0 : st.synthReverb > .5 ? 7 : 3.5;
-    const {buf, from, loopLen} = await renderBeat({loops: loop ? 1 : +how, warm: loop, tail, st});
-    let to = buf.length;
-    if(!loop){ // trim the ring-out once it has faded below -80 dB
-      const end = from + Math.round((loop ? 1 : +how)*loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
-      let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
-      to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
-    }
+    const {buf, from, loopLen} = await renderBeat({loops:1, tail: st.synthReverb > .5 ? 7 : 3.5, st});
+    const end = from + Math.round(loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
+    let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
+    const to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
     // a hot mix can peak over 0 dBFS (speakers clip it too): turn the whole file down just enough instead of clipping it
     const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
     const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
-    const file = `${name} ${st.bpm}bpm${loop ? " loop" : ""}.wav`;
-    const how2 = await saveFile(file, wav);
-    if(how2) $("exportStatus").textContent = `${how2} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
+    const done = await saveFile(`${name} ${st.bpm}bpm.wav`, wav);
+    if(done) $("exportStatus").textContent = `${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
   } catch(e){ dlog("export: "+(e?.message||e)); $("exportStatus").textContent = "Couldn't render the audio. Try again."; }
   finally { b.disabled = false; }
+});
+// the same JSON as the Pattern JSON panel, so a file can go back in through Import, Apply JSON or a prompt
+$("exportJsonBtn").addEventListener("click", async () => {
+  const done = await saveFile(`${fileName(S)}.json`, new Blob([pretty(toJSON(S)) + "\n"], {type:"application/json"}));
+  if(done) $("exportStatus").textContent = done;
+});
+$("importJsonBtn").addEventListener("click", () => $("importJsonIn").click());
+$("importJsonIn").addEventListener("change", async e => {
+  const f = e.target.files?.[0]; e.target.value = "";
+  if(!f) return;
+  let st;
+  try {
+    let o = JSON.parse(await f.text());
+    if(o && typeof o==="object" && o.beat && typeof o.beat==="object" && !o.drums) o = {...o.beat, name: o.beat.name || o.name}; // a saved-beat record
+    if(!o || typeof o!=="object" || Array.isArray(o) || !["drums","synths","bass808","tom","conga","cowbell"].some(k => k in o)) throw new Error("it doesn't look like an AK-16 beat");
+    st = fromJSON(o);
+  } catch(err){ $("exportStatus").textContent = `Couldn't import “${f.name}”: ${err instanceof SyntaxError ? "it isn't valid JSON" : err.message}.`; return; }
+  if(!st.name || st.name==="Untitled beat") st.name = f.name.replace(/\.json$/i, "").slice(0,60) || "Imported beat";
+  loadState(st, null, {name: st.name});
+  $("nameIn").value = st.name;
+  if(!db){ $("exportStatus").textContent = `Loaded “${st.name}”. Saving isn't available here, so it's only on screen.`; return; }
+  await save(true);
+  $("exportStatus").textContent = saveState()==="clean" ? `Imported “${st.name}” into your saved beats.` : `Loaded “${st.name}”, but it didn't save. Press Save to try again.`;
 });
 
 // the browser downloads it straight away
@@ -2650,12 +2675,12 @@ function buildPrompt(req, cur, hear){
 
 Request: ${req || "Surprise me with a great-sounding beat."}
 ${cur ? `\nCurrent pattern (modify or build on it as the request asks):\n${JSON.stringify(cur)}\n` : ""}${hear ? `
-HOW IT SOUNDS NOW (rendered from the current pattern with the real audio engine, every channel on):
+${cur ? "HOW IT SOUNDS NOW (rendered from the current pattern with the real audio engine, every channel on):" : "HOW THE BEAT ON SCREEN SOUNDS (a reference, rendered with the real audio engine: you're writing a new pattern, so use it only as far as the request relates to it, e.g. to match or contrast its sound):"}
 ${hear.dropped ? "" : `The attached image is a spectrogram of one loop. Time runs left to right with bars labelled and a line on every beat. Frequency runs up on a log scale from 30 Hz to 16 kHz, labelled in Hz. Color runs from dark (quiet, about -96 dBFS) through red, orange and yellow to cream (loud, about -6 dBFS).
 `}Approximate level per band and bar, in dB (compare them with each other; higher is louder):
 ${hear.report}
-Judge the mix as well as the notes: a muddy or overloaded low end (kick, 808 and bass fighting under 250 Hz), empty or harsh highs, parts masking each other, levels, too much reverb, clipping. Fix what the request asks for plus anything that clearly sounds off, using levels, tones, timbre, volumes, drive, reverb and the notes. Keep what already works.
-` : ""}
+${cur ? `Judge the mix as well as the notes: a muddy or overloaded low end (kick, 808 and bass fighting under 250 Hz), empty or harsh highs, parts masking each other, levels, too much reverb, clipping. Fix what the request asks for plus anything that clearly sounds off, using levels, tones, timbre, volumes, drive, reverb and the notes. Keep what already works.
+` : ""}` : ""}
 FORMAT (reply with only this JSON object):
 {
   "name": "2-4 word title",
@@ -2764,7 +2789,7 @@ $("genBtn").addEventListener("click", async () => {
   $("genStatus").textContent = "";
   compStart(label);
   try {
-    if(cur && OAC){
+    if($("hearOn").checked && OAC){
       cmp.listening = true;
       hear = await listen(st0, hearOK).catch(e => { dlog("listen: "+e.message); return null; });
       if(cmp) cmp.listening = false;
