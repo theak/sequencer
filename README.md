@@ -43,6 +43,16 @@ OPENROUTER_API_KEY=sk-or-...
 
 Then run `docker compose up -d`.
 
+## Updating
+
+Every merge to `main` publishes a new `akshaykannan/sequencer:latest`. Pull it and recreate the container:
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+To check which build you're running, open `/api/version`. Its `commit` should match the latest commit on `main`. The startup log prints it too.
+
 ## Environment variables
 
 | Variable | Default | What it does |

@@ -68,6 +68,19 @@ async fn index_serves_app() {
 }
 
 #[tokio::test]
+async fn version_reports_the_commit() {
+    let resp = app(temp_dir())
+        .oneshot(Request::get("/api/version").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = resp.into_body().collect().await.unwrap().to_bytes();
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["commit"], crate::handlers::COMMIT);
+    assert_eq!(v["version"], env!("CARGO_PKG_VERSION"));
+}
+
+#[tokio::test]
 async fn serves_the_icons() {
     for (path, kind, magic) in [
         ("/favicon.ico", "image/x-icon", &[0u8, 0, 1, 0][..]),

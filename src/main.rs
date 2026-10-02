@@ -122,6 +122,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/favicon.ico", get(handlers::favicon))
         .route("/apple-touch-icon.png", get(handlers::touch_icon))
         .route("/healthz", get(handlers::healthz))
+        .route("/api/version", get(handlers::version))
         .route("/api/config", get(handlers::config))
         .route(
             "/api/beats",
@@ -195,7 +196,10 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .unwrap_or_else(|e| panic!("failed to bind {addr}: {e}"));
-    eprintln!("sequencer: listening on http://{addr}");
+    eprintln!(
+        "sequencer: listening on http://{addr} (commit {})",
+        handlers::COMMIT
+    );
 
     axum::serve(listener, build_router(AppState::new(cfg)))
         .with_graceful_shutdown(shutdown_signal())

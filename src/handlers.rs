@@ -83,6 +83,20 @@ fn icon(kind: &'static str, bytes: &'static [u8]) -> Response {
         .into_response()
 }
 
+/// The commit this binary was built from ("dev" outside CI), to check a deploy is running the latest code.
+pub const COMMIT: &str = match option_env!("GIT_SHA") {
+    Some(s) if !s.is_empty() => s,
+    _ => "dev",
+};
+
+pub async fn version() -> Response {
+    (
+        [("cache-control", "no-store")],
+        Json(json!({ "version": env!("CARGO_PKG_VERSION"), "commit": COMMIT })),
+    )
+        .into_response()
+}
+
 pub async fn healthz() -> &'static str {
     "ok"
 }

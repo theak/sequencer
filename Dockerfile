@@ -6,6 +6,8 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY static ./static
+# the commit this image is built from, reported by /api/version (CI passes it in)
+ARG GIT_SHA=dev
 RUN cargo build --release --locked
 
 # ---- runtime: nothing but the binary (the frontend is baked into it) ----
