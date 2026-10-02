@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 const INDEX_HTML: &str = include_str!("../static/index.html");
-// 16, 32 and 48 px, drawn from static/icon/
+// 16, 32 and 48 px renders of static/icon/icon.svg
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const TOUCH_ICON: &[u8] = include_bytes!("../static/apple-touch-icon.png");
 
