@@ -840,11 +840,13 @@ const saved0 = readLocal();
 let S;
 try { S = fromJSON(saved0?.beat ?? PRESETS[0]); } catch { S = fromJSON(PRESETS[0]); }
 const muted = new Set(), soloed = new Set();
-// soloing a group counts every row in it as soloed
-const groupSolo = {drums:false, synths:false}, groupMuted = {drums:false, synths:false};
 const groupOf = id => DRUM_IDS.includes(id) || S.synths.find(s => "s"+s.uid===id)?.fixed ? "drums" : "synths"; // tonal rows mute with the drums
-const anySolo = () => soloed.size>0 || groupSolo.drums || groupSolo.synths;
-const audible = id => !muted.has(id) && !groupMuted[groupOf(id)] && (!anySolo() || soloed.has(id) || groupSolo[groupOf(id)]);
+const anySolo = () => soloed.size>0;
+const audible = id => !muted.has(id) && (!anySolo() || soloed.has(id));
+// the group M / S buttons flip every row in the group, and they're lit only while every row in it is flagged
+const groupIds = g => [...DRUM_IDS, ...S.synths.map(s => "s"+s.uid)].filter(id => groupOf(id)===g);
+const groupAll = (set, g) => { const ids = groupIds(g); return ids.length>0 && ids.every(id => set.has(id)); };
+const toggleGroup = (set, g) => { const on = !groupAll(set, g); groupIds(g).forEach(id => on ? set.add(id) : set.delete(id)); refreshFlags(); };
 let currentDocId = null;
 // save tracking: baseline is the last saved version of the open beat (as a JSON string), liveSnap is what's on screen now
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
@@ -1313,11 +1315,11 @@ function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100,
   const total = skip + loops*loopLen + tail;
   const live = {ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt};
   const liveChokes = new Map(tonalChoke), liveS = S, livePlaying = playing;
-  const flags = all && {m:[...muted], s:[...soloed], gs:{...groupSolo}, gm:{...groupMuted}}; // all: ignore mutes and solos
+  const flags = all && {m:[...muted], s:[...soloed]}; // all: ignore mutes and solos
   let oc;
   try {
     S = st;
-    if(flags){ muted.clear(); soloed.clear(); groupSolo.drums = groupSolo.synths = groupMuted.drums = groupMuted.synths = false; }
+    if(flags){ muted.clear(); soloed.clear(); }
     oc = ctx = new OAC(2, Math.ceil(total*rate), rate);
     openHatChoke = bassChoke = kickChoke = null; tonalChoke.clear();
     buildGraph($("masterIn").value/100, lean);
@@ -1328,7 +1330,7 @@ function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100,
     ({ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt} = live);
     tonalChoke.clear(); liveChokes.forEach((v,k) => tonalChoke.set(k,v));
     S = liveS; playing = livePlaying;
-    if(flags){ flags.m.forEach(x => muted.add(x)); flags.s.forEach(x => soloed.add(x)); Object.assign(groupSolo, flags.gs); Object.assign(groupMuted, flags.gm); }
+    if(flags){ flags.m.forEach(x => muted.add(x)); flags.s.forEach(x => soloed.add(x)); }
   }
   return oc.startRendering().then(buf => ({buf, from: Math.round(skip*rate), loopLen}));
 }
@@ -1597,7 +1599,7 @@ function render(){
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
     `<div class="spacer"></div><label class="check"><input type="checkbox" data-act="follow" ${followPlay?"checked":""}> Follow playhead</label>` +
     `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages${S.pages>1 ? " · swipe sideways to switch" : ""}</span></div>`;
-  const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupMuted[g]}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupSolo[g]}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
+  const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupAll(muted, g)}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupAll(soloed, g)}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
   h += `<div class="sec"><div class="sech"><h2>Drums</h2>${gm("drums")}</div><span class="hint">Click or drag in any direction to paint · right-click or long-press for rolls</span></div>`;
   h += `<div class="row steps-head"><div class="rh"></div>` + Array.from({length:16},(_,i) => `<div class="n ${i%4===0?"beat":""} ${i%4===0&&i>0?"gs":""}">${off+i+1}</div>`).join("") + `</div>`;
   for(const d of DRUMS){
@@ -1735,17 +1737,17 @@ function setFlag(kind, id, on){
 function refreshFlags(){
   rack.querySelectorAll(".row[data-row]").forEach(r => r.classList.toggle("muted", !audible(r.dataset.row)));
   rack.querySelectorAll(".mute[data-kind]").forEach(b => b.setAttribute("aria-pressed", flagSet(b.dataset.kind).has(b.dataset.id)));
-  rack.querySelectorAll(".gsolo").forEach(b => b.setAttribute("aria-pressed", groupSolo[b.dataset.g]));
-  rack.querySelectorAll(".gmute").forEach(b => b.setAttribute("aria-pressed", groupMuted[b.dataset.g]));
-  const nm = muted.size + (groupMuted.drums?1:0) + (groupMuted.synths?1:0), ns = soloed.size + (groupSolo.drums?1:0) + (groupSolo.synths?1:0);
+  rack.querySelectorAll(".gsolo").forEach(b => b.setAttribute("aria-pressed", groupAll(soloed, b.dataset.g)));
+  rack.querySelectorAll(".gmute").forEach(b => b.setAttribute("aria-pressed", groupAll(muted, b.dataset.g)));
+  const nm = muted.size, ns = soloed.size;
   $("unmuteAll").hidden = !nm; $("unsoloAll").hidden = !ns;
   $("unmuteAll").querySelector("span").textContent = `Unmute all (${nm})`;
   $("unsoloAll").querySelector("span").textContent = `Unsolo all (${ns})`;
   $("flagbar").hidden = !nm && !ns;
   specSoon();
 }
-$("unmuteAll").addEventListener("click", () => { muted.clear(); groupMuted.drums = groupMuted.synths = false; refreshFlags(); });
-$("unsoloAll").addEventListener("click", () => { soloed.clear(); groupSolo.drums = groupSolo.synths = false; refreshFlags(); });
+$("unmuteAll").addEventListener("click", () => { muted.clear(); refreshFlags(); });
+$("unsoloAll").addEventListener("click", () => { soloed.clear(); refreshFlags(); });
 // M / S clear all mutes / solos, but only while that button is showing
 document.addEventListener("keydown", e => {
   if(e.metaKey || e.ctrlKey || e.altKey || e.repeat || typingTarget(e.target)) return;
@@ -2026,9 +2028,9 @@ rack.addEventListener("click", e => {
   } else if(act==="mute"){
     if(e.detail===0) setFlag(b.dataset.kind, b.dataset.id, !flagSet(b.dataset.kind).has(b.dataset.id)); // keyboard; pointer handled on pointerdown
   } else if(act==="gmute"){
-    groupMuted[b.dataset.g] = !groupMuted[b.dataset.g]; refreshFlags();
+    toggleGroup(muted, b.dataset.g);
   } else if(act==="gsolo"){
-    groupSolo[b.dataset.g] = !groupSolo[b.dataset.g]; refreshFlags();
+    toggleGroup(soloed, b.dataset.g);
   } else if(act==="page"){
     viewPage = +b.dataset.p; closePops(); render();
   } else if(act==="addpage"){
@@ -2640,7 +2642,7 @@ function loadState(st, docId, src){
   const lost = src && unsavedWork();
   S = st;
   if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; }
-  muted.clear(); soloed.clear(); groupSolo.drums = groupSolo.synths = false; groupMuted.drums = groupMuted.synths = false; viewPage = 0;
+  muted.clear(); soloed.clear(); viewPage = 0;
   render(); renderSaved(); commit();
   if(src){ loadedSnap = committed; toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
 }
