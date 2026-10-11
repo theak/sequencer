@@ -1,8 +1,12 @@
-# AK-16 Sequencer
+# 16.AKS.ZONE
 
-An 808-style drum machine and synth sequencer that runs in your browser. It has 16-step patterns with up to 4 pages, eight drums with a tone knob each, pitched drums (808, tom, conga, cowbell) played from a keyboard, mono and polyphonic (chord) synth channels, YouTube samples that play along with the beat, swing, sidechain and tape warble. You can save beats (⌘S), see at a glance whether you have unsaved changes, flip Compare to hear the last save before you overwrite it, and revert to it in one click. There's a live spectrogram of the loop, and you can export the beat as a WAV. When you generate, the AI can get that spectrogram too (a separate checkbox, on by default), so it can hear the mix and not just read the notes. You can also describe a groove and have an AI model write it for you.
+An 808-style drum machine and synth sequencer that runs in your browser, live at [16.aks.zone](https://16.aks.zone). It has 16-step patterns with up to 4 pages, eight drums with a tone knob each, pitched drums (808, tom, conga, cowbell) played from a keyboard, mono and polyphonic (chord) synth channels, YouTube samples that play along with the beat, swing, sidechain and tape warble.
 
-It's one small Rust binary in a `scratch` container, with the whole frontend baked in. Beats are saved as JSON files on a volume. AI generation goes through [OpenRouter](https://openrouter.ai), so the API key stays on the server.
+The File menu has New, Open, Save (⌘S), Save as, Rename, Download JSON and Export audio (WAV). The save pill shows at a glance whether you have unsaved changes. Flip Compare to hear the last save before you overwrite it, and revert to it in one click. Share gives you a link to the beat. There's a live spectrogram of the loop. You can also describe a groove and have an AI model write it for you, and the AI can get that spectrogram too, so it can hear the mix and not just read the notes.
+
+Everything works signed out, with beats saved in your browser. Signing in with Google keeps them in an account, gives each one a link like `16.aks.zone/you/1`, and turns on AI beats (10 a day by default).
+
+It's one small Rust binary in a `scratch` container, with the whole frontend baked in. Accounts and beats live in one SQLite file on a volume. AI generation goes through [OpenRouter](https://openrouter.ai), so the API key stays on the server.
 
 ## Quick start with Docker
 
@@ -27,6 +31,8 @@ services:
       - "42716:42716"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - AI_DAILY_LIMIT=${AI_DAILY_LIMIT:-10}
     volumes:
       - sequencer-data:/data
     restart: unless-stopped
@@ -39,6 +45,8 @@ volumes:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
+# leave this out to run without sign-in (see below)
+GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com
 ```
 
 Then run `docker compose up -d`.
@@ -59,7 +67,9 @@ To check which build you're running, open `/api/version`. Its `commit` should ma
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | unset | Turns on AI beat generation. Without it, everything else still works. |
 | `OPENROUTER_MODELS` | Sonnet, Haiku, GPT Luna, Gemini Flash | The models offered in the picker, as comma-separated `slug=Label` pairs. Only these can be requested. |
-| `DATA_DIR` | `/data` | Where saved beats live. |
+| `GOOGLE_CLIENT_ID` | unset | Turns on Google sign-in. Without it, there's no sign-in and everyone shares one `local` account (see below). |
+| `AI_DAILY_LIMIT` | `10` | AI generations per account per day (UTC). Only applies with sign-in on. |
+| `DATA_DIR` | `/data` | Where the database (`sequencer.db`) lives. |
 | `PORT` | `42716` | Port to listen on. |
 
 The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically.
@@ -76,45 +86,62 @@ Samples play in YouTube's own embedded player, not through the audio engine. So:
 - **Visible player.** The video stays visible, as YouTube requires.
 - **Some videos won't load.** Videos whose owners block embedding don't load, and the card says so.
 - **Needs the internet.** The rest of the app runs offline. Samples don't.
-- **Use the page's web address.** Open the app from its address (like `http://localhost:42716`), not a saved file, or YouTube refuses to play.
+- **Use the page's web address.** Open the app from its address (like `https://16.aks.zone`), not a saved file, or YouTube refuses to play.
+
+## Accounts
+
+With `GOOGLE_CLIENT_ID` set (how 16.aks.zone runs):
+
+- **Signed out**, the whole app works. Save and Open use your browser's storage. Open says so, and that clearing the browser loses them.
+- **Signing in** with Google the first time asks for a username, which can't change later. Any beats saved in the browser move into the account, after the ones already there. That happens on every sign-in, so a new browser's beats get added too.
+- **Signed in**, beats save to the account. Each one gets the next number, and its own link at `/<username>/<n>`. Numbers are never reused, so an old link never opens a different beat.
+- **Share** gives that link (saving first if needed). Signed out, it packs the whole beat into a long link instead, and suggests signing up.
+- **Links are public.** Anyone with a link can open the beat, play it and save their own copy. The numbers count up, so treat beats as public.
+- **AI** needs an account, with `AI_DAILY_LIMIT` generations per day. A generation that fails before the model writes anything doesn't count.
+
+To give one account its own AI limit:
+
+```sh
+docker compose exec sequencer /sequencer set-ai-limit akshay 1000
+docker compose exec sequencer /sequencer set-ai-limit akshay default
+```
+
+Without `GOOGLE_CLIENT_ID`, there's no sign-in. Everyone is one built-in `local` account that saves to the server, with unmetered AI. That's fine on your own network, but don't expose it to the internet like that.
+
+### Setting up Google sign-in
+
+1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials), set up the OAuth consent screen (External, app name, support email).
+2. Create credentials, then OAuth client ID, then **Web application**.
+3. Under **Authorized JavaScript origins**, add `https://16.aks.zone` (and `http://localhost:42716` to try it locally). No redirect URIs are needed.
+4. Put the client ID in `GOOGLE_CLIENT_ID`. It isn't a secret, and there's no client secret to keep.
+
+The browser gets an ID token from Google. The server checks its signature against Google's public keys, its issuer, audience and expiry, then sets a 60-day HttpOnly session cookie. The cookie is `Secure`, so outside `localhost` sign-in needs HTTPS.
 
 ## Storage
 
-Each saved beat is one JSON file at `$DATA_DIR/<owner>/beats/<id>.json`. There's no database. To back up, copy the volume. Everything is under the `local` owner until sign-in exists (see Roadmap).
+Everything lives in one SQLite file, `$DATA_DIR/sequencer.db`: accounts, sessions, beats and AI usage. To back it up, copy the volume while the container is stopped, or take a live copy with `sqlite3 sequencer.db ".backup backup.db"`.
 
-Your working beat also autosaves in the browser, so a refresh never loses it, even without the server's saved list.
+Your working beat also autosaves in the browser, so a refresh never loses it.
 
-There's no sign-in yet, so anyone who can reach the server can save and delete beats. Keep it on your LAN or put it behind a reverse proxy with auth if you expose it.
+## Deploying publicly
 
-## Deploy to Google Cloud Run
+Run it on any machine with a disk (a small VM is plenty) behind a reverse proxy that handles HTTPS. With [Caddy](https://caddyserver.com), add a service to the compose file:
 
-Cloud Run can run the Docker Hub image directly. Mount a Cloud Storage bucket at `/data` so beats persist:
-
-```bash
-gcloud storage buckets create gs://YOUR-BUCKET --location=us-central1
-printf 'sk-or-...' | gcloud secrets create openrouter-key --data-file=-
-
-gcloud run deploy sequencer \
-  --image=docker.io/akshaykannan/sequencer:latest \
-  --region=us-central1 \
-  --allow-unauthenticated \
-  --execution-environment=gen2 \
-  --max-instances=1 \
-  --add-volume=name=data,type=cloud-storage,bucket=YOUR-BUCKET \
-  --add-volume-mount=volume=data,mount-path=/data \
-  --set-secrets=OPENROUTER_API_KEY=openrouter-key:latest
+```yaml
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from 16.aks.zone --to sequencer:42716
+    volumes:
+      - caddy-data:/data
+    restart: unless-stopped
 ```
 
-The service account needs `roles/storage.objectUser` on the bucket and `roles/secretmanager.secretAccessor` on the secret. `--max-instances=1` keeps a single writer on the bucket, which is plenty for personal use. Cloud Run sets `PORT` itself, and the app follows it.
+Add `caddy-data:` under `volumes:`, point the domain's DNS at the machine, and Caddy gets the certificate itself. You can drop the `ports:` on `sequencer` so it's only reachable through Caddy.
 
-## Roadmap: sign-in
-
-The app stays fully usable signed out. Sign-in will only gate saving and AI generation. The server is already shaped for it:
-
-- Every saved-beat call is scoped to an `Owner` (`src/store.rs`). Today it's always `local`. With sign-in, it becomes the Google account id from a session cookie, and beats land in `$DATA_DIR/<google-sub>/beats/`. There's no storage migration.
-- The planned flow is Google Identity Services in the browser, then the server verifies the ID token and sets a signed HttpOnly cookie. An `AUTH_MODE=none|google` switch keeps today's behavior as the self-host default.
-- `/api/generate` will take the same `Owner` and keep per-user usage counts for metering.
-- `/api/config` already reports `auth`, `save` and `generate`, so the UI can adapt.
+SQLite needs a real disk, so a network-mounted bucket (like Cloud Run with Cloud Storage) isn't a safe place for `DATA_DIR`. Stick to one instance with a persistent disk.
 
 ## Development
 

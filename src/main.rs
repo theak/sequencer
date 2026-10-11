@@ -1,20 +1,21 @@
-//! AK-16 Sequencer: an 808-style drum machine + synth sequencer.
+//! 16.AKS.ZONE: an 808-style drum machine + synth sequencer.
 //!
-//! The whole frontend is one HTML file baked into the binary. The server adds two
-//! things a static page can't do on its own: saved beats (JSON files under `DATA_DIR`)
-//! and AI beat generation (a streaming proxy to OpenRouter, so the API key stays
-//! server side).
+//! The whole frontend is one HTML file baked into the binary. The server adds what a
+//! static page can't do on its own: Google sign-in, saved beats with a public address
+//! each (`/<username>/<n>`, in SQLite under `DATA_DIR`), and AI beat generation (a
+//! streaming proxy to OpenRouter, so the API key stays server side, metered per account).
 
 mod ai;
+mod auth;
+mod db;
 mod handlers;
-mod store;
 #[cfg(test)]
 mod tests;
 
 use axum::{
     Router,
     extract::DefaultBodyLimit,
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -36,6 +37,9 @@ pub const DEFAULT_MODELS: &str = "~anthropic/claude-sonnet-latest=Claude Sonnet,
 pub const BODY_LIMIT: usize = 256 * 1024;
 /// `/api/generate` can also carry the beat's spectrogram as a base64 image.
 pub const GENERATE_BODY_LIMIT: usize = 2 * 1024 * 1024;
+/// Moving a browser's saved beats into an account sends them all at once.
+pub const IMPORT_BODY_LIMIT: usize = 16 * 1024 * 1024;
+pub const DEFAULT_AI_DAILY_LIMIT: i64 = 10;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Model {
@@ -52,6 +56,11 @@ pub struct Config {
     pub openrouter_key: Option<String>,
     pub openrouter_base: String,
     pub models: Vec<Model>,
+    /// Turns on Google sign-in. Without it, there's one built-in `local` account.
+    pub google_client_id: Option<String>,
+    pub google_certs_url: String,
+    /// AI generations per account per day (UTC), unless the account has its own limit.
+    pub ai_daily_limit: i64,
 }
 
 /// `slug=Label,slug2=Label2` → models. A missing label falls back to the slug.
@@ -90,6 +99,12 @@ pub fn load_config() -> Config {
             .trim_end_matches('/')
             .to_string(),
         models: parse_models(&var("OPENROUTER_MODELS").unwrap_or_else(|| DEFAULT_MODELS.into())),
+        google_client_id: var("GOOGLE_CLIENT_ID"),
+        google_certs_url: var("GOOGLE_CERTS_URL").unwrap_or_else(|| auth::DEFAULT_CERTS_URL.into()),
+        ai_daily_limit: var("AI_DAILY_LIMIT")
+            .and_then(|s| s.parse().ok())
+            .filter(|&n: &i64| n >= 0)
+            .unwrap_or(DEFAULT_AI_DAILY_LIMIT),
     }
 }
 
@@ -97,21 +112,47 @@ pub fn load_config() -> Config {
 #[derive(Clone)]
 pub struct AppState {
     pub cfg: Arc<Config>,
-    pub store: Arc<store::Store>,
+    pub db: db::Db,
     pub client: reqwest::Client,
+    /// Set when sign-in is on.
+    pub google: Option<Arc<auth::Google>>,
+    /// The built-in account everyone acts as when sign-in is off.
+    pub local_user: Option<db::User>,
 }
 
 impl AppState {
-    pub fn new(cfg: Config) -> Self {
+    /// Opens (or creates) `$DATA_DIR/sequencer.db`.
+    pub async fn new(cfg: Config) -> Result<Self, String> {
+        std::fs::create_dir_all(&cfg.data_dir)
+            .map_err(|e| format!("couldn't create DATA_DIR {}: {e}", cfg.data_dir.display()))?;
+        let path = cfg.data_dir.join("sequencer.db");
+        let db =
+            db::Db::open(&path).map_err(|e| format!("couldn't open {}: {e}", path.display()))?;
         let client = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .build()
             .expect("failed to build HTTP client");
-        AppState {
-            store: Arc::new(store::Store::new(cfg.data_dir.clone())),
+        let google = cfg
+            .google_client_id
+            .clone()
+            .map(|id| Arc::new(auth::Google::new(id, cfg.google_certs_url.clone())));
+        let local_user = match google {
+            Some(_) => None,
+            None => Some(db.local_user().await.map_err(|e| format!("{e:?}"))?),
+        };
+        Ok(AppState {
             cfg: Arc::new(cfg),
+            db,
             client,
-        }
+            google,
+            local_user,
+        })
+    }
+
+    /// Today's AI allowance for an account. Unmetered without sign-in.
+    pub fn ai_limit(&self, u: &db::User) -> Option<i64> {
+        self.google.as_ref()?;
+        Some(u.ai_limit.unwrap_or(self.cfg.ai_daily_limit))
     }
 }
 
@@ -124,14 +165,27 @@ pub fn build_router(state: AppState) -> Router {
         .route("/healthz", get(handlers::healthz))
         .route("/api/version", get(handlers::version))
         .route("/api/config", get(handlers::config))
+        .route("/api/me", get(auth::me))
+        .route("/api/auth/google", post(auth::google_sign_in))
+        .route("/api/auth/signout", post(auth::sign_out))
+        .route("/api/auth/username", post(auth::set_username))
+        .route("/api/usernames/{name}", get(auth::username_check))
         .route(
             "/api/beats",
             get(handlers::list_beats).post(handlers::create_beat),
         )
         .route(
-            "/api/beats/{id}",
-            put(handlers::update_beat).delete(handlers::delete_beat),
+            "/api/beats/import",
+            post(handlers::import_beats).layer(DefaultBodyLimit::max(IMPORT_BODY_LIMIT)),
         )
+        .route(
+            "/api/beats/{id}",
+            get(handlers::get_beat)
+                .put(handlers::update_beat)
+                .delete(handlers::delete_beat),
+        )
+        .route("/api/u/{username}/{id}", get(handlers::public_beat))
+        .route("/{username}/{id}", get(handlers::beat_page))
         .route(
             "/api/generate",
             post(ai::generate).layer(DefaultBodyLimit::max(GENERATE_BODY_LIMIT)),
@@ -178,13 +232,23 @@ async fn main() {
     }
 
     let cfg = load_config();
-    if let Err(e) = std::fs::create_dir_all(&cfg.data_dir) {
-        eprintln!(
-            "sequencer: WARNING could not create DATA_DIR {}: {e}; saving will fail",
-            cfg.data_dir.display()
-        );
+    // `set-ai-limit <username> <n|default>`: give one account its own daily AI limit
+    if std::env::args().nth(1).as_deref() == Some("set-ai-limit") {
+        std::process::exit(set_ai_limit(cfg).await);
     }
-    eprintln!("sequencer: saving beats under {}", cfg.data_dir.display());
+    eprintln!(
+        "sequencer: saving to {}",
+        cfg.data_dir.join("sequencer.db").display()
+    );
+    match &cfg.google_client_id {
+        Some(_) => eprintln!(
+            "sequencer: Google sign-in on, {} AI generations per account per day",
+            cfg.ai_daily_limit
+        ),
+        None => eprintln!(
+            "sequencer: GOOGLE_CLIENT_ID not set; no sign-in, everyone shares one local account"
+        ),
+    }
     if cfg.openrouter_key.is_none() {
         eprintln!("sequencer: OPENROUTER_API_KEY not set; AI generation is disabled");
     } else {
@@ -201,8 +265,58 @@ async fn main() {
         handlers::COMMIT
     );
 
-    axum::serve(listener, build_router(AppState::new(cfg)))
+    let state = AppState::new(cfg).await.unwrap_or_else(|e| {
+        eprintln!("sequencer: {e}");
+        std::process::exit(1)
+    });
+    axum::serve(listener, build_router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("server error");
+}
+
+async fn set_ai_limit(cfg: Config) -> i32 {
+    let args: Vec<String> = std::env::args().skip(2).collect();
+    let limit = match args.get(1).map(String::as_str) {
+        Some("default") => None,
+        Some(n) => match n.parse::<i64>() {
+            Ok(n) if n >= 0 => Some(n),
+            _ => {
+                eprintln!("usage: sequencer set-ai-limit <username> <n|default>");
+                return 2;
+            }
+        },
+        None => {
+            eprintln!("usage: sequencer set-ai-limit <username> <n|default>");
+            return 2;
+        }
+    };
+    let path = cfg.data_dir.join("sequencer.db");
+    let db = match db::Db::open(&path) {
+        Ok(db) => db,
+        Err(e) => {
+            eprintln!("couldn't open {}: {e}", path.display());
+            return 1;
+        }
+    };
+    match db.set_ai_limit(args[0].clone(), limit).await {
+        Ok(true) => {
+            match limit {
+                Some(n) => println!("{} now gets {n} AI generations a day", args[0]),
+                None => println!(
+                    "{} is back to the default ({} a day)",
+                    args[0], cfg.ai_daily_limit
+                ),
+            }
+            0
+        }
+        Ok(false) => {
+            eprintln!("no account named {}", args[0]);
+            1
+        }
+        Err(e) => {
+            eprintln!("{e:?}");
+            1
+        }
+    }
 }

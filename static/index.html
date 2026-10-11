@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AK-16 Beat Composer</title>
+<title>16.AKS.ZONE</title>
+<meta name="description" content="An 808-style drum machine and synth sequencer in your browser.">
+<meta property="og:site_name" content="16.AKS.ZONE">
+<meta property="og:title" content="16.AKS.ZONE">
+<meta property="og:description" content="An 808-style drum machine and synth sequencer in your browser.">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#19181b">
@@ -56,7 +61,6 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .btn.primary{background:var(--orange);border-color:var(--orange);color:#1c1006}
 .btn.warn{border-color:var(--danger);color:var(--danger)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-#nameIn{width:180px}
 .status{font-size:12px;color:var(--ink-dim);min-height:1.2em}
 
 /* Rack */
@@ -260,7 +264,6 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .rmenu:hover,.rmenu[aria-expanded="true"]{color:var(--ink);border-color:var(--line);background:var(--panel-2)}
 
 /* Lower panels */
-.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .card h3{margin:0;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-stretch:118%;font-weight:700}
 .card p{margin:0;color:var(--ink-dim);font-size:12.5px;max-width:62ch}
@@ -305,7 +308,6 @@ details.json[open] summary{margin-bottom:10px}
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--cream);color:#1a1814;padding:9px 14px;border-radius:6px;font-weight:600;font-size:13px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 
-@media (max-width:860px){ .lower{grid-template-columns:1fr} }
 @media (max-width:640px){
   .row{grid-template-columns:repeat(16,minmax(0,1fr));column-gap:3px;row-gap:4px}
   .row .rh{grid-column:1 / -1;padding:4px 0 0}
@@ -317,7 +319,6 @@ details.json[open] summary{margin-bottom:10px}
   .syn .cell.chord{font-size:7.5px;flex-direction:column;line-height:1.1}
   .syn .cell.chord::after{display:none}
   .brand h1{font-size:21px}
-  #nameIn{width:140px}
 }
 /* Save pill + hold-to-compare, tucked in the transport left of the starter picker */
 .filebar{display:flex;align-items:center;gap:8px;min-width:0}
@@ -357,14 +358,10 @@ body.peeking :is(#cmpBtn,#playBtn,#savePill,#revertBtn){pointer-events:auto}
 body.peeking .rack,body.peeking .transport{outline:2px solid var(--cream);outline-offset:-1px}
 .rack[data-peek]::after{content:attr(data-peek);position:absolute;top:-10px;right:16px;background:var(--cream);color:#1a1814;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:4px;z-index:5}
 .saved li.flash{animation:liFlash 1.2s ease-out}
+.saved li.cur .t::after{content:"open now";margin-left:8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);font-weight:700}
 @keyframes liFlash{0%,30%{background:color-mix(in srgb,var(--orange) 22%,var(--panel-2))}}
-/* narrower screens: the select already says "Load a starter…", so its label goes to make room */
-@media (max-width:900px){ .starterf .lbl{display:none} .starterf select{width:140px} .savepill{max-width:220px} }
-@media (max-width:640px){
-  .starterf select{width:150px}
-  .filebar{order:1}
-  .savepill{max-width:190px}
-}
+@media (max-width:900px){ .savepill{max-width:220px} }
+@media (max-width:640px){ .savepill{max-width:170px} }
 /* Spectrogram panel */
 details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;font-stretch:100%;margin-left:8px}
 .specwrap{position:relative;height:240px;border-radius:6px;overflow:hidden;background:var(--body);border:1px solid var(--line);touch-action:pan-y}
@@ -378,8 +375,75 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 #genBtn{margin-left:auto} /* stays on the right when the checkboxes push it onto its own line */
 .btn.ic{display:inline-flex;align-items:center;gap:6px}
 .btn.ic svg{width:14px;height:14px;flex:none;margin-left:-2px}
-#exportStatus:empty,#saveStatus:empty{display:none} /* no gaps for status lines until there's something to say */
-.exportrow{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line)}
+/* Toolbar: File, Undo, New, then the save pill; Share and the account on the right */
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-basis:100%;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.toolbar .filebar{margin-left:6px}
+.filebtn{display:inline-flex;align-items:center;gap:6px}
+.filebtn svg{width:10px;height:10px;transition:transform .15s}
+.filebtn[aria-expanded="true"]{border-color:var(--orange);color:var(--orange)}
+.filebtn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.filepop{min-width:236px;padding:6px;gap:2px}
+.mi{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:5px;padding:8px 10px;font-size:13px;font-weight:600;text-align:left;color:var(--ink)}
+.mi:hover,.mi:focus-visible{background:var(--panel-2)}
+.mi:disabled{opacity:.45;cursor:not-allowed}
+.mi svg{width:15px;height:15px;flex:none;color:var(--ink-dim)}
+.mi kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+.msep{height:1px;background:var(--line);margin:4px 2px}
+.mlbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;padding:6px 10px 2px}
+.mi.dl{border:1px solid color-mix(in srgb,var(--synth) 55%,var(--line));background:color-mix(in srgb,var(--synth) 9%,transparent);margin:2px 0}
+.mi.dl svg{color:var(--synth)}
+.mi.dl:hover{background:color-mix(in srgb,var(--synth) 18%,transparent)}
+.mi.dl kbd{color:var(--synth)}
+.mnote{font-size:11.5px;color:var(--ink-faint);padding:6px 10px 4px;max-width:236px;line-height:1.35}
+.sharebtn svg{width:14px;height:14px}
+.acct{display:flex;align-items:center;min-height:34px}
+.acct:empty{display:none}
+.acctbtn{display:inline-flex;align-items:center;gap:8px;height:34px;border-radius:17px;padding:0 12px 0 4px}
+.acctbtn .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:#1c1006;font-weight:800;font-size:12px;text-transform:uppercase}
+.acctbtn.pending .av{background:var(--panel-2);color:var(--ink-dim);border:1px dashed var(--ink-faint)}
+.acctpop{min-width:240px}
+.acctpop .who{font-weight:700}
+.acctpop .em{font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere}
+.acctpop .quota{font-size:12px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:8px}
+.gsi{min-height:32px;display:flex;align-items:center}
+.gsi .gfb{display:inline-flex;align-items:center;gap:8px;border-radius:17px;background:#fff;color:#1f1f1f;border:0;font-weight:600}
+.gsi .gfb svg{width:16px;height:16px}
+/* Dialogs */
+.dlg{width:min(560px,calc(100vw - 32px));max-height:min(720px,calc(100dvh - 32px));background:var(--panel);color:var(--ink);border:1px solid var(--ink-faint);border-radius:10px;padding:0;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.dlg.small{width:min(440px,calc(100vw - 32px))}
+.dlg::backdrop{background:rgba(10,9,12,.62)}
+.dlg[open]{display:flex;flex-direction:column}
+.dlg-head{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+.dlg-head h3{margin:0;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-stretch:118%;font-weight:700}
+.dlg-x{margin-left:auto;background:none;border:0;color:var(--ink-dim);font-size:22px;line-height:1;width:32px;height:32px;border-radius:6px}
+.dlg-x:hover{background:var(--panel-2);color:var(--ink)}
+.dlg-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0}
+.dlg-body p{margin:0;color:var(--ink-dim);font-size:13px}
+.dlg h4{margin:4px 0 0;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);font-weight:700}
+.dlg input[type=text]{width:100%;font-size:15px;padding:9px 11px}
+.dlg .saved{max-height:300px}
+.note{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:color-mix(in srgb,var(--orange) 9%,var(--panel-2));border:1px solid color-mix(in srgb,var(--orange) 40%,var(--line));border-radius:7px;padding:10px 12px;font-size:12.5px;color:var(--ink)}
+.note.calm{background:var(--panel-2);border-color:var(--line);color:var(--ink-dim)}
+.note > span{flex:1 1 220px}
+.starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.starter{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px}
+.starter b{font-size:13px}
+.starter span{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:500}
+.sharebox{display:flex;gap:8px}
+.sharebox input{flex:1;min-width:0;font-family:var(--mono);font-size:13px!important}
+.uprev{font-family:var(--mono);color:var(--ink)}
+.uprev b{color:var(--orange);font-weight:600}
+#userStatus.bad{color:var(--danger)}
+#userStatus.ok{color:var(--synth)}
+/* Ask AI, folded away until you open it */
+details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:500;font-stretch:100%;margin-left:8px}
+.aibody{display:flex;flex-direction:column;gap:10px}
+.aibody > p{margin:0;color:var(--ink-dim);font-size:12.5px;max-width:62ch}
+.quota{font-size:12px;color:var(--ink-faint)}
+@media (max-width:640px){
+  .toolbar .filebar{margin-left:0;order:5;flex-basis:100%}
+  .starters{grid-template-columns:1fr}
+}
 @media (max-width:640px){ .specwrap{height:180px} }
 @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
 /* page swipes: the rack keeps sideways touch gestures for itself (vertical scroll and pinch still work) */
@@ -399,13 +463,26 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 <div class="wrap">
   <header class="mast">
     <div class="brand">
-      <h1>AK<b>-</b>16</h1>
+      <h1>16<b>.</b>AKS<b>.</b>ZONE</h1>
       <span>Beat Composer · 16 step</span>
     </div>
     <div class="stripes" aria-hidden="true"><i style="background:var(--red)"></i><i style="background:var(--orange)"></i><i style="background:var(--yellow)"></i><i style="background:var(--cream)"></i></div>
   </header>
 
   <section class="transport" aria-label="Transport">
+    <div class="toolbar" id="toolbar">
+      <button class="btn filebtn" id="fileBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="filePop">File<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn" id="undoBtn" disabled title="Undo your last edit (Ctrl/Cmd+Z)">Undo</button>
+      <button class="btn" id="newBtn">New</button>
+      <div class="filebar" id="filebar">
+        <button class="savepill" id="savePill" data-state="wait" aria-live="polite"><i class="sdot" aria-hidden="true"></i><span class="sname" id="saveName"></span><span class="sstate" id="saveStateTxt"></span><kbd id="saveKey" aria-hidden="true">⌘S</kbd></button>
+        <button class="btn iconbtn" id="revertBtn" disabled aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn ic sharebtn" id="shareBtn" title="Get a link to this beat"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.4 4.6 8.6 3.4a2.6 2.6 0 0 1 3.7 3.7L11.1 8.3"/><path d="M8.6 11.4 7.4 12.6a2.6 2.6 0 0 1-3.7-3.7L4.9 7.7"/></svg><span>Share</span></button>
+      <div class="acct" id="acct"></div>
+    </div>
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
     <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="1"><span class="lbl">BPM</span></label>
     <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
@@ -425,16 +502,6 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
       <button class="flagbtn" id="unmuteAll" hidden title="Shortcut: M" aria-keyshortcuts="M"><b>M</b><span></span></button>
       <button class="flagbtn" id="unsoloAll" hidden title="Shortcut: S" aria-keyshortcuts="S"><b>S</b><span></span></button>
     </div>
-    <div class="filebar" id="filebar">
-      <button class="savepill" id="savePill" data-state="wait" aria-live="polite"><i class="sdot" aria-hidden="true"></i><span class="sname" id="saveName"></span><span class="sstate" id="saveStateTxt"></span><kbd id="saveKey" aria-hidden="true">⌘S</kbd></button>
-      <button class="btn iconbtn" id="revertBtn" disabled aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
-    </div>
-    <label class="field starterf"><span class="lbl">Starter</span>
-      <select id="presetSel" aria-label="Load a starter"><option value="">Load a starter…</option></select>
-    </label>
-    <button class="btn" id="undoBtn" disabled title="Undo your last edit (Ctrl/Cmd+Z)">Undo</button>
-    <button class="btn" id="newBtn">New</button>
   </section>
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
@@ -449,53 +516,37 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
     <div class="rowflex spec-foot"><span class="hint" id="specInfo">Rendering…</span><div class="spacer"></div><span class="speclegend"><i aria-hidden="true"></i>quiet to loud</span></div>
   </details>
 
-  <div class="lower">
-    <section class="card" aria-labelledby="aiH">
-      <h3 id="aiH">Ask AI for a beat</h3>
-      <p>Describe a groove. The model writes the pattern in the AK-16 format and it loads straight into the grid.</p>
-      <textarea id="prompt" placeholder="Dusty boom bap at 90 BPM with a lazy swung hat, a walking bassline and Rhodes-style minor 9 chords"></textarea>
-      <div class="chips" id="ideas"></div>
-      <div class="rowflex">
-        <label class="field"><span class="lbl">model</span>
-          <select id="tierSel" class="num"></select>
-        </label>
-        <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
-        <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
-        <div class="spacer"></div>
-        <button class="btn primary" id="genBtn">Generate</button>
-        <button class="btn" id="stopGen" hidden>Stop</button>
+  <details class="json aicard" id="aiDetails">
+    <summary>Ask AI for a beat<span class="hint">describe a groove and a model writes it</span></summary>
+    <div class="note" id="aiPromo" hidden><span id="aiPromoTxt"></span><div class="gsi" data-gsi="large"></div><button class="btn primary" id="aiFinish" hidden>Pick a username</button></div>
+    <div class="aibody" id="aiForm">
+    <p>Describe a groove. The model writes the pattern and it loads straight into the grid.</p>
+    <textarea id="prompt" placeholder="Dusty boom bap at 90 BPM with a lazy swung hat, a walking bassline and Rhodes-style minor 9 chords"></textarea>
+    <div class="chips" id="ideas"></div>
+    <div class="rowflex">
+      <label class="field"><span class="lbl">model</span>
+        <select id="tierSel" class="num"></select>
+      </label>
+      <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
+      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
+      <div class="spacer"></div>
+      <span class="quota" id="aiQuota"></span>
+      <button class="btn primary" id="genBtn">Generate</button>
+      <button class="btn" id="stopGen" hidden>Stop</button>
+    </div>
+    <div class="composer" id="composer" hidden aria-live="polite">
+      <div class="comp-top">
+        <span class="comp-led" aria-hidden="true"></span>
+        <span class="comp-phase" id="compPhase">Listening to the brief</span>
+        <span class="comp-time num" id="compTime">0.0s</span>
       </div>
-      <div class="composer" id="composer" hidden aria-live="polite">
-        <div class="comp-top">
-          <span class="comp-led" aria-hidden="true"></span>
-          <span class="comp-phase" id="compPhase">Listening to the brief</span>
-          <span class="comp-time num" id="compTime">0.0s</span>
-        </div>
-        <div class="comp-name" id="compName"></div>
-        <canvas id="compCanvas" aria-label="Pattern being written"></canvas>
-        <div class="comp-stats num" id="compStats"></div>
-      </div>
-      <div class="status" id="genStatus"></div>
-    </section>
-
-    <section class="card" aria-labelledby="saveH">
-      <h3 id="saveH">Saved beats</h3>
-      <div class="rowflex">
-        <input type="text" id="nameIn" maxlength="60" aria-label="Beat name">
-        <button class="btn primary" id="saveBtn" title="Save (⌘S / Ctrl+S)" aria-keyshortcuts="Meta+S Control+S">Save</button>
-        <button class="btn" id="saveNewBtn" title="Save as new (⇧⌘S / Ctrl+Shift+S)" aria-keyshortcuts="Meta+Shift+S Control+Shift+S">Save as new</button>
-      </div>
-      <div class="status" id="saveStatus"></div>
-      <div class="rowflex exportrow">
-        <button class="btn ic" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg><span>Export audio</span></button>
-        <button class="btn ic" id="exportJsonBtn" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Export JSON</span></button>
-        <button class="btn ic" id="importJsonBtn" title="Open a beat's JSON file and add it to your saved beats"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6 8 3l3 3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Import JSON</span></button>
-        <input type="file" id="importJsonIn" accept=".json,application/json" hidden>
-      </div>
-      <div class="status" id="exportStatus"></div>
-      <ul class="saved" id="savedList"><li class="empty">Loading saved beats…</li></ul>
-    </section>
-  </div>
+      <div class="comp-name" id="compName"></div>
+      <canvas id="compCanvas" aria-label="Pattern being written"></canvas>
+      <div class="comp-stats num" id="compStats"></div>
+    </div>
+    <div class="status" id="genStatus"></div>
+    </div>
+  </details>
 
   <details class="json" id="jsonDetails">
     <summary>Pattern JSON</summary>
@@ -508,6 +559,69 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
     </div>
   </details>
 </div>
+
+<div class="pop filepop" id="filePop" hidden role="menu" aria-label="File">
+  <button class="mi" role="menuitem" data-file="new"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4.5C3.7 2 3 2.7 3 3.5v9c0 .8.7 1.5 1.5 1.5h7c.8 0 1.5-.7 1.5-1.5V6z"/><path d="M9 2v4h4M8 8.5v3.5M6.25 10.25h3.5"/></svg>New</button>
+  <button class="mi" role="menuitem" data-file="open"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5v-8C2 3.7 2.7 3 3.5 3h3l1.5 1.5h4.5c.8 0 1.5.7 1.5 1.5v1"/><path d="M2 12.5 4 8h10.5l-2 4.5z"/></svg>Open…<kbd class="k-open"></kbd></button>
+  <button class="mi" role="menuitem" data-file="save"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.5h8l2.5 2.5v8c0 .3-.2.5-.5.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5z"/><path d="M5 2.5v3h5v-3M5 13.5V9.5h6v4"/></svg>Save<kbd class="k-save"></kbd></button>
+  <button class="mi" role="menuitem" data-file="saveas"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5h8l2.5 2.5v3"/><path d="M5 2.5v3h5v-3M10.5 10.5h4M12.5 8.5v4"/></svg>Save as…<kbd class="k-saveas"></kbd></button>
+  <button class="mi" role="menuitem" data-file="rename"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3z"/></svg>Rename…</button>
+  <div class="msep" role="separator"></div>
+  <span class="mlbl">Export</span>
+  <button class="mi dl" role="menuitem" data-file="json" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg>Download JSON<kbd>.json</kbd></button>
+  <button class="mi" role="menuitem" data-file="wav" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg>Export audio<kbd>.wav</kbd></button>
+  <div class="mnote" id="fileNote"></div>
+</div>
+
+<div class="pop acctpop" id="acctPop" hidden role="dialog" aria-label="Your account">
+  <span class="who" id="acctWho"></span>
+  <span class="em" id="acctEmail"></span>
+  <span class="quota" id="acctQuota"></span>
+  <button class="btn" id="signOutBtn">Sign out</button>
+</div>
+
+<dialog class="dlg" id="openDlg" aria-labelledby="openH">
+  <div class="dlg-head"><h3 id="openH">Open a beat</h3><button class="dlg-x" data-close aria-label="Close">×</button></div>
+  <div class="dlg-body">
+    <div class="note" id="openNote"><span id="openNoteTxt"></span><div class="gsi" data-gsi="medium"></div></div>
+    <ul class="saved" id="savedList"><li class="empty">Loading…</li></ul>
+    <div class="rowflex"><button class="btn ic" id="openFileBtn" title="Open a beat from a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6 8 3l3 3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg><span>Open a JSON file…</span></button><input type="file" id="importJsonIn" accept=".json,application/json" hidden></div>
+    <h4>Starters</h4>
+    <div class="starters" id="starters"></div>
+  </div>
+</dialog>
+
+<dialog class="dlg small" id="nameDlg" aria-labelledby="nameH">
+  <form id="nameForm">
+    <div class="dlg-head"><h3 id="nameH">Save as</h3><button type="button" class="dlg-x" data-close aria-label="Close">×</button></div>
+    <div class="dlg-body">
+      <input type="text" id="nameIn" maxlength="60" aria-label="Beat name" autocomplete="off">
+      <p id="nameHint"></p>
+      <div class="rowflex"><div class="spacer"></div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="nameOk">Save</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dlg small" id="userDlg" aria-labelledby="userH">
+  <form id="userForm">
+    <div class="dlg-head"><h3 id="userH">Pick a username</h3></div>
+    <div class="dlg-body">
+      <p>Your beats get their own links at <span class="uprev">16.aks.zone/<b id="userPrev">you</b>/1</span>. You can't change it later, so pick one you like.</p>
+      <input type="text" id="userIn" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" aria-label="Username" aria-describedby="userStatus">
+      <div class="status" id="userStatus">3 to 20 characters: lowercase letters, numbers, - and _</div>
+      <div class="rowflex"><button type="button" class="btn" id="userCancel">Cancel and sign out</button><div class="spacer"></div><button type="submit" class="btn primary" id="userOk">Create account</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dlg small" id="shareDlg" aria-labelledby="shareH">
+  <div class="dlg-head"><h3 id="shareH">Share this beat</h3><button class="dlg-x" data-close aria-label="Close">×</button></div>
+  <div class="dlg-body">
+    <div class="sharebox"><input type="text" id="shareUrl" readonly aria-label="Link to this beat"><button class="btn primary" id="shareCopy">Copy</button><button class="btn" id="shareNative" hidden>Share…</button></div>
+    <p id="shareHint"></p>
+    <div class="note" id="sharePromo" hidden><span>Sign up free with Google to get a short link like <span class="num">16.aks.zone/you/1</span> and keep your beats in your account.</span><div class="gsi" data-gsi="medium" data-text="signup_with"></div></div>
+  </div>
+</dialog>
 
 <div class="pop" id="rollPop" hidden role="dialog" aria-label="Step options">
   <span class="lbl">Roll (hits per step)</span>
@@ -961,6 +1075,13 @@ const groupIds = g => [...DRUM_IDS, ...S.synths.map(s => "s"+s.uid), ...S.sample
 const groupAll = (set, g) => { const ids = groupIds(g); return ids.length>0 && ids.every(id => set.has(id)); };
 const toggleGroup = (set, g) => { const on = !groupAll(set, g); groupIds(g).forEach(id => on ? set.add(id) : set.delete(id)); refreshFlags(); };
 let currentDocId = null;
+// who's signed in (from /api/me), what the server can do, and a beat opened from someone else's link
+let me = null, cfg = null, booted = false;
+let viewing = saved0?.viewing?.user && saved0?.viewing?.id ? {user:String(saved0.viewing.user), id:String(saved0.viewing.id)} : null;
+const HOST = location.host;
+// beats saved in this browser have ids like "l…"; beats on the server are numbered 1, 2, 3…
+function isLocalId(id){ return typeof id==="string" && id[0]==="l"; }
+function docOwner(){ return isLocalId(currentDocId) ? null : me ? me.username : (saved0?.docOwner ?? null); }
 // save tracking: baseline is the last saved version of the open beat (as a JSON string), liveSnap is what's on screen now
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
 const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘S" : "Ctrl+S";
@@ -974,8 +1095,8 @@ function persistLocal(){
   if(peek) return; // never autosave the version you're only comparing against
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
-      beat: toJSON(S), viewPage, followPlay, docId: currentDocId,
-      master: +$("masterIn").value, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open,
+      beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
+      master: +$("masterIn").value, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
 }
@@ -1545,7 +1666,7 @@ const YT_ERR = {
   100:"That video is private or was taken down.",
   101:"The owner doesn't let this video play on other sites. Try another upload of it.",
   150:"The owner doesn't let this video play on other sites. Try another upload of it.",
-  153:"YouTube wants to know which site is playing it. Open the AK-16 from its web address, not a saved file.",
+  153:"YouTube wants to know which site is playing it. Open 16.AKS.ZONE from its web address, not a saved file.",
 };
 function smpMsg(d, html, bad=false){
   const m = d.card.querySelector(".ytmsg");
@@ -1955,10 +2076,11 @@ async function listen(st, image){
 /* ---------- Export audio and JSON, import JSON ---------- */
 const fileName = st => (st.name || "Beat").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "").trim().slice(0,60) || "Beat";
 // one pass through the loop from silence, then it rings out until the tails fade below -80 dB
-$("exportBtn").addEventListener("click", async () => {
-  if(!OAC){ $("exportStatus").textContent = "This browser can't render audio offline."; return; }
+async function exportWav(){
+  if(!OAC){ toast("This browser can't render audio offline."); return; }
   const b = $("exportBtn"), st = S, name = fileName(st);
-  b.disabled = true; $("exportStatus").textContent = "Rendering…";
+  if(b.disabled) return;
+  b.disabled = true; toast("Rendering the audio…", 60000);
   try {
     const {buf, from, loopLen} = await renderBeat({loops:1, tail: st.synthReverb > .5 ? 7 : 3.5, st});
     const end = from + Math.round(loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
@@ -1968,16 +2090,16 @@ $("exportBtn").addEventListener("click", async () => {
     const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
     const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
     const done = await saveFile(`${name} ${st.bpm}bpm.wav`, wav);
-    if(done) $("exportStatus").textContent = `${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "") + (st.samples.some(s => s.vid) ? " · YouTube samples aren't in it" : "");
-  } catch(e){ dlog("export: "+(e?.message||e)); $("exportStatus").textContent = "Couldn't render the audio. Try again."; }
+    if(done) toast(`${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "") + (st.samples.some(s => s.vid) ? " · YouTube samples aren't in it" : ""), 5000);
+  } catch(e){ dlog("export: "+(e?.message||e)); toast("Couldn't render the audio. Try again.", 4000); }
   finally { b.disabled = false; }
-});
+}
 // the same JSON as the Pattern JSON panel, so a file can go back in through Import, Apply JSON or a prompt
-$("exportJsonBtn").addEventListener("click", async () => {
+async function downloadJson(){
   const done = await saveFile(`${fileName(S)}.json`, new Blob([pretty(toJSON(S)) + "\n"], {type:"application/json"}));
-  if(done) $("exportStatus").textContent = done;
-});
-$("importJsonBtn").addEventListener("click", () => $("importJsonIn").click());
+  if(done) toast(done);
+}
+$("openFileBtn").addEventListener("click", () => $("importJsonIn").click());
 $("importJsonIn").addEventListener("change", async e => {
   const f = e.target.files?.[0]; e.target.value = "";
   if(!f) return;
@@ -1985,15 +2107,12 @@ $("importJsonIn").addEventListener("change", async e => {
   try {
     let o = JSON.parse(await f.text());
     if(o && typeof o==="object" && o.beat && typeof o.beat==="object" && !o.drums) o = {...o.beat, name: o.beat.name || o.name}; // a saved-beat record
-    if(!o || typeof o!=="object" || Array.isArray(o) || !["drums","synths","bass808","tom","conga","cowbell"].some(k => k in o)) throw new Error("it doesn't look like an AK-16 beat");
+    if(!o || typeof o!=="object" || Array.isArray(o) || !["drums","synths","bass808","tom","conga","cowbell"].some(k => k in o)) throw new Error("it doesn't look like a beat from here");
     st = fromJSON(o);
-  } catch(err){ $("exportStatus").textContent = `Couldn't import “${f.name}”: ${err instanceof SyntaxError ? "it isn't valid JSON" : err.message}.`; return; }
+  } catch(err){ toast(`Couldn't open “${f.name}”: ${err instanceof SyntaxError ? "it isn't valid JSON" : err.message}.`, 4000); return; }
   if(!st.name || st.name==="Untitled beat") st.name = f.name.replace(/\.json$/i, "").slice(0,60) || "Imported beat";
-  loadState(st, null, {name: st.name});
-  $("nameIn").value = st.name;
-  if(!db){ $("exportStatus").textContent = `Loaded “${st.name}”. Saving isn't available here, so it's only on screen.`; return; }
-  await save(true);
-  $("exportStatus").textContent = saveState()==="clean" ? `Imported “${st.name}” into your saved beats.` : `Loaded “${st.name}”, but it didn't save. Press Save to try again.`;
+  closeDlg("openDlg");
+  loadState(st, null, {msg:`Opened “${st.name}”. Save it to keep it`});
 });
 
 // the browser downloads it straight away
@@ -2732,7 +2851,7 @@ document.addEventListener("pointerdown", e => {
   if(!pagePop.hidden && !pagePop.contains(e.target) && !e.target.closest('[data-act="addpage"]')) closePops();
 });
 // Space plays/stops from anywhere on the page, except while typing in a text box
-const typingTarget = el => !!el && (el.tagName==="TEXTAREA" || el.isContentEditable || (el.tagName==="INPUT" && /^(text|search|email|url|number|password|tel)$/i.test(el.type)));
+const typingTarget = el => !!el && (!!el.closest?.("dialog[open]") || el.tagName==="TEXTAREA" || el.isContentEditable || (el.tagName==="INPUT" && /^(text|search|email|url|number|password|tel)$/i.test(el.type)));
 window.addEventListener("keydown", e => {
   if(e.code!=="Space" || typingTarget(e.target)) return;
   e.preventDefault(); e.stopPropagation();
@@ -3106,20 +3225,20 @@ valueTip("toneIn", "Synth tone");
 valueTip("masterIn", "Master");
 $("tierSel").addEventListener("change", persistLocal);
 $("prompt").addEventListener("input", () => { clearTimeout(persistLocal.t); persistLocal.t = setTimeout(persistLocal, 400); });
-$("nameIn").addEventListener("input", e => { S.name = e.target.value.slice(0,60); changedSoon(); });
-$("nameIn").addEventListener("change", changed);
-PRESETS.forEach((p,i) => $("presetSel").insertAdjacentHTML("beforeend", `<option value="${i}">${p.name} · ${p.bpm}</option>`));
-$("presetSel").addEventListener("change", e => {
-  if(e.target.value==="") return;
-  const p = PRESETS[+e.target.value]; loadState(fromJSON(p), null, {name:p.name});
-  e.target.value = "";
+$("starters").innerHTML = PRESETS.map((p,i) => `<button class="btn starter" data-preset="${i}"><b>${esc(p.name)}</b><span>${p.bpm} BPM · ${p.pages||1} page${(p.pages||1)>1?"s":""}</span></button>`).join("");
+$("starters").addEventListener("click", e => {
+  const b = e.target.closest("[data-preset]"); if(!b) return;
+  const p = PRESETS[+b.dataset.preset]; closeDlg("openDlg"); loadState(fromJSON(p), null, {name:p.name});
 });
+function newBeat(){
+  const st = blankState(1); st.synths.push(newSynth("Synth 1", PAGE));
+  loadState(st, null, {msg:"Started a new beat"});
+}
 $("newBtn").addEventListener("click", e => {
   const b = e.currentTarget;
   if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Clear everything?"; b.classList.add("warn"); setTimeout(() => { delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn"); }, 2500); return; }
   delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn");
-  const st = blankState(1); st.synths.push(newSynth("Synth 1", PAGE));
-  loadState(st, null, {msg:"Started a new beat"});
+  newBeat();
 });
 function syncTransport(){
   $("bpmIn").value = S.bpm;
@@ -3131,13 +3250,12 @@ function syncTransport(){
   $("scIn").value = Math.round(S.sidechain*100); $("scOut").textContent = Math.round(S.sidechain*100) + "%";
   applyVerb();
   $("swingIn").value = Math.round(S.swing*100); $("swingOut").textContent = Math.round(S.swing*100)+"%";
-  if(document.activeElement!==$("nameIn")) $("nameIn").value = S.name;
 }
 function loadState(st, docId, src){
   if(peek) endPeek();
   const lost = src && unsavedWork();
   S = st;
-  if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; }
+  if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; viewing = src?.viewing || null; }
   muted.clear(); soloed.clear(); viewPage = 0;
   render(); renderSaved(); commit();
   if(src){ loadedSnap = committed; toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
@@ -3161,7 +3279,7 @@ $("copyJson").addEventListener("click", async () => {
   catch { $("jsonBox").focus(); $("jsonBox").select(); $("jsonStatus").textContent = "Selected. Press Ctrl/Cmd+C to copy."; }
 });
 
-function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.tm); toast.tm = setTimeout(() => t.hidden = true, 2200); }
+function toast(msg, ms=2200){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.tm); toast.tm = setTimeout(() => t.hidden = true, ms); }
 
 /* ---------- AI generation (OpenRouter via /api/generate) ---------- */
 const IDEAS = ["Dusty boom bap, swung hats, minor 9 chords","Four-on-the-floor deep house with offbeat bass","Trap at 140 with triplet hat rolls and 808 slides","Funky breakbeat with ghost-note snares","Synthwave drive with arpeggiated bass","Reggaeton dembow with a plucky lead"];
@@ -3239,6 +3357,9 @@ const SAMPLE_ERR = {
   upstream_rejected:"The model rejected the request. Shorten it or turn off “Build on the current beat”.",
   too_large:"The request is too long. Shorten it or turn off “Build on the current beat”.",
   upstream_error:"Couldn't reach the model. Try again.",
+  daily_limit:"That's all your AI beats for today. More tomorrow.",
+  signed_out:"You've been signed out. Sign in again to use AI.",
+  needs_username:"Pick a username first.",
 };
 const HIDE_CODES = ["not_configured"];
 /* POST /api/generate and read its SSE stream. Resolves {text, truncated}; rejects {code, message}. */
@@ -3278,6 +3399,7 @@ async function generate(prompt, {model, signal, onText, image}){
 const modelLabel = () => $("tierSel").selectedOptions[0]?.textContent || $("tierSel").value;
 $("genBtn").addEventListener("click", async () => {
   if(!genEnabled) return;
+  if(!me?.username){ renderAuth(); return; }
   ensureCtx();
   const model = $("tierSel").value, label = modelLabel();
   const req = $("prompt").value.trim(), cur = $("buildOn").checked ? toJSON(S) : null, st0 = S;
@@ -3318,11 +3440,13 @@ $("genBtn").addEventListener("click", async () => {
     if(!playing) startPlay();
   } catch(e){
     compFinish(false);
+    if(e?.code==="signed_out" || e?.code==="needs_username") refreshMe();
     if(e?.code==="cancelled") $("genStatus").textContent = "Stopped.";
     else if(HIDE_CODES.includes(e?.code)){ disableGen(e.message || "AI generation is off on this server."); }
     else $("genStatus").textContent = (e?.tierNote ? e.tierNote+" · " : "") + (SAMPLE_ERR[e?.code] || e?.message && (e.code ? e.message : "That reply couldn't be loaded: "+e.message) || SAMPLE_ERR.upstream_error);
   } finally {
     $("genBtn").disabled = !genEnabled; $("stopGen").hidden = true; genCtl = null;
+    if(me?.ai?.limit!=null) refreshMe();
   }
 });
 /* ---------- Composer view: shows the beat being written as the model streams it ---------- */
@@ -3461,26 +3585,66 @@ function parseReply(t){
 $("stopGen").addEventListener("click", () => genCtl?.abort());
 function disableGen(msg){ genEnabled = false; $("genBtn").disabled = true; $("genStatus").textContent = msg; }
 
-/* ---------- Saved beats (/api/beats on this server) ---------- */
+/* ---------- Saved beats: in this browser, or in your account ---------- */
 const api = {
   async req(method, path, body){
     const r = await fetch(path, {method, headers: body ? {"content-type":"application/json"} : {}, body: body ? JSON.stringify(body) : undefined});
     if(!r.ok){ const j = await r.json().catch(() => ({})); throw {code: j.code || "http_"+r.status, status: r.status, message: j.message}; }
     return r.status===204 ? null : r.json();
   },
+};
+const withMeta = d => ({...d, bpm: d.beat?.bpm || 0, pages: d.beat?.pages || 1, synths: (d.beat?.synths || []).length});
+const cleanName = n => String(n||"").trim().slice(0,60) || "Untitled beat";
+// signed out, beats are kept in this browser (localStorage) until you sign in
+const LS_BEATS = "ak16:beats:v1";
+const localDb = {
+  read(){ try { const a = JSON.parse(localStorage.getItem(LS_BEATS) || "[]"); return Array.isArray(a) ? a.filter(d => d && isLocalId(d.id) && d.beat && typeof d.beat==="object") : []; } catch { return []; } },
+  write(a){ try { localStorage.setItem(LS_BEATS, JSON.stringify(a)); } catch { throw {code:"local_full"}; } },
+  async list(){ return this.read().map(withMeta).sort((x,y) => (y.updatedAt||0)-(x.updatedAt||0)); },
+  async get(id){ const d = this.read().find(x => x.id===id); if(!d) throw {code:"not_found", status:404}; return withMeta(d); },
+  async create({name, beat}){
+    const now = Date.now(), d = {id: "l" + now.toString(36) + Math.random().toString(36).slice(2,6), name: cleanName(name), beat, createdAt: now, updatedAt: now};
+    this.write([...this.read(), d]); return withMeta(d);
+  },
+  async update(id, {name, beat}){
+    const a = this.read(), d = a.find(x => x.id===id);
+    if(!d) throw {code:"not_found", status:404};
+    Object.assign(d, {name: cleanName(name), beat, updatedAt: Math.max(Date.now(), (d.updatedAt||0)+1)});
+    this.write(a); return withMeta(d);
+  },
+  async remove(id){ const a = this.read(), b = a.filter(x => x.id!==id); if(b.length===a.length) throw {code:"not_found", status:404}; this.write(b); return null; },
+};
+// signed in (or on a server without sign-in), they're on the server, each at /<username>/<n>
+const cloudDb = {
   list: () => api.req("GET", "/api/beats").then(j => j.beats),
+  get: id => api.req("GET", "/api/beats/"+encodeURIComponent(id)),
   create: body => api.req("POST", "/api/beats", body),
   update: (id, body) => api.req("PUT", "/api/beats/"+encodeURIComponent(id), body),
   remove: id => api.req("DELETE", "/api/beats/"+encodeURIComponent(id)),
+  import: beats => api.req("POST", "/api/beats/import", {beats}).then(j => j.beats),
 };
-let db = null, savedDocs = [], canWrite = true;
+let db = null, savedDocs = [], listErr = false;
+const where = () => db===cloudDb ? (me?.local ? "this server" : "your account") : "this browser";
 async function refreshSaved(){
   if(!db) return;
-  try { savedDocs = await db.list(); renderSaved(); syncBaseline(); }
-  catch(err){ $("savedList").innerHTML = `<li class="empty">Saved beats couldn't load. Reload the page to try again.</li>`; }
+  const from = db;
+  try {
+    const docs = await from.list();
+    if(db!==from) return; // signed in or out while it loaded
+    // the list has no beat JSON: keep what we already fetched, and fetch the open beat's if it's missing
+    docs.forEach(d => { const c = savedDocs.find(x => x.id===d.id); if(!d.beat && c?.beat && c.updatedAt===d.updatedAt) d.beat = c.beat; });
+    const cur = currentDocId && docs.find(d => d.id===currentDocId);
+    if(cur && !cur.beat) try { Object.assign(cur, await from.get(cur.id)); } catch {}
+    if(db!==from) return;
+    savedDocs = docs; listErr = false; renderSaved(); syncBaseline();
+  } catch(err){
+    if(err?.status===401 || err?.status===403){ refreshMe(); return; }
+    listErr = true; renderSaved();
+  }
 }
 // pick up saves made in another tab
 document.addEventListener("visibilitychange", () => { if(!document.hidden) refreshSaved(); });
+window.addEventListener("storage", e => { if(e.key===LS_BEATS && db===localDb) refreshSaved(); });
 function relTime(ms){
   const s = (Date.now()-ms)/1000;
   if(s<60) return "just now"; if(s<3600) return Math.floor(s/60)+"m ago"; if(s<86400) return Math.floor(s/3600)+"h ago";
@@ -3488,23 +3652,28 @@ function relTime(ms){
 }
 function renderSaved(){
   const ul = $("savedList");
-  if(!db){ return; }
-  if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Name this one and press Save.</li>`; return; }
-  ul.innerHTML = savedDocs.map(d => {
-    const b = d.beat || {};
-    return `<li class="${d.id===currentDocId?"cur":""}" data-id="${esc(d.id)}">
-      <div class="meta"><div class="t">${esc(d.name||"Untitled")}</div><div class="s">${Math.round(b.bpm||0)} BPM · ${b.pages||1} pg · ${(b.synths||[]).length} synth · ${relTime(d.updatedAt||0)}</div></div>
-      <button class="btn" data-act="load">Load</button>
-      ${canWrite ? `<button class="btn" data-act="del" aria-label="Delete ${esc(d.name||"beat")}">Delete</button>` : ""}
-    </li>`;
-  }).join("");
+  if(!db) return;
+  if(listErr){ ul.innerHTML = `<li class="empty">Your saved beats couldn't load. Close this and try again.</li>`; return; }
+  if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Press ${SAVE_KEY} to save the one you're on.</li>`; return; }
+  const link = db===cloudDb && me?.username;
+  ul.innerHTML = savedDocs.map(d => `<li class="${d.id===currentDocId?"cur":""}" data-id="${esc(d.id)}">
+      <div class="meta"><div class="t">${esc(d.name||"Untitled")}</div><div class="s">${Math.round(d.bpm||0)} BPM · ${d.pages||1} pg · ${d.synths||0} synth · ${relTime(d.updatedAt||0)}${link ? ` · /${esc(me.username)}/${esc(d.id)}` : ""}</div></div>
+      <button class="btn" data-act="load">Open</button>
+      <button class="btn" data-act="del" aria-label="Delete ${esc(d.name||"beat")}">Delete</button>
+    </li>`).join("");
+  updateSaveBar();
 }
 $("savedList").addEventListener("click", async e => {
-  const b = e.target.closest("[data-act]"); if(!b) return;
+  const b = e.target.closest("[data-act]") || (e.target.closest(".meta") && e.target.closest("li")?.querySelector("[data-act=load]"));
+  if(!b) return;
   const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
   if(b.dataset.act==="load"){
-    if(id===currentDocId && saveState()==="dirty"){ revertToSaved(); return; }
-    try { loadState(fromJSON(d.beat), id, {name:d.name}); } catch(err){ toast("That saved beat couldn't be read."); }
+    if(id===currentDocId){ closeDlg("openDlg"); if(saveState()==="dirty") revertToSaved(); return; }
+    try {
+      if(!d.beat) Object.assign(d, await db.get(id));
+      const st = fromJSON(d.beat);
+      closeDlg("openDlg"); loadState(st, id, {name:d.name});
+    } catch(err){ toast("That beat couldn't be opened. Try again."); }
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
     try {
@@ -3512,47 +3681,382 @@ $("savedList").addEventListener("click", async e => {
       if(currentDocId===id) setDoc(null);
       savedDocs = savedDocs.filter(x => x.id!==id); renderSaved(); updateSaveBar(); toast("Deleted");
     }
-    catch(err){ $("saveStatus").textContent = "Couldn't delete that beat. Try again."; }
+    catch(err){ toast("Couldn't delete that beat. Try again."); }
   }
 });
+const saveErrMsg = err => err?.code==="local_full" ? "This browser is out of room for beats. Delete a few, or sign in to save them to your account."
+  : err?.code==="quota_exceeded" ? "You're at the limit for saved beats. Delete a few, then save again."
+  : err?.code==="too_large" ? "That beat is too big to save."
+  : err?.code==="signed_out" ? "You've been signed out. Sign in again to save to your account."
+  : "Couldn't save. Try again.";
+// write the beat on screen: over the open one, or (asNew) as a new beat. Resolves whether it saved.
 async function save(asNew){
   if(peek) endPeek();
-  if(!db || saving) return;
-  liveSnap = snapStr(); // a name typed a moment ago may not have synced yet
-  if(!asNew && saveState()==="clean"){ flashPill(); toast("No changes since the last save"); return; }
+  if(!db || saving) return false;
+  liveSnap = snapStr();
+  if(!asNew && saveState()==="clean"){ flashPill(); toast("No changes since the last save"); return true; }
   saving = true; saveErr = false; updateSaveBar();
-  S.name = ($("nameIn").value.trim() || "Untitled beat").slice(0,60);
-  const existing = !asNew && currentDocId ? savedDocs.find(d => d.id===currentDocId) : null;
+  S.name = cleanName(S.name);
+  const target = db, existing = !asNew && currentDocId ? savedDocs.find(d => d.id===currentDocId) : null;
   const body = {name:S.name, beat:toJSON(S)};
-  $("saveBtn").disabled = $("saveNewBtn").disabled = true;
   try {
-    const doc = existing ? await db.update(currentDocId, body) : await db.create(body);
-    currentDocId = doc.id; baseline = JSON.stringify(body.beat); baselineAt = doc.updatedAt || Date.now();
-    savedDocs = [doc, ...savedDocs.filter(x => x.id!==doc.id)];
-    $("saveStatus").textContent = `Saved “${S.name}”.`; flashPill();
+    let doc;
+    if(existing){
+      try { doc = await target.update(currentDocId, body); }
+      catch(err){ if(err?.status!==404) throw err; doc = await target.create(body); } // deleted somewhere else: save it again as new
+    } else doc = await target.create(body);
+    currentDocId = doc.id; viewing = null; baseline = JSON.stringify(body.beat); baselineAt = doc.updatedAt || Date.now();
+    savedDocs = [{...doc, beat: body.beat}, ...savedDocs.filter(x => x.id!==doc.id)];
+    flashPill(); toast(`Saved “${S.name}” to ${where()}`);
     commit(); loadedSnap = baseline; renderSaved(); syncJson();
+    return true;
   } catch(err){
-    saveErr = true;
-    if(err?.code==="quota_exceeded") $("saveStatus").textContent = "Storage is full. Delete a few beats, then save again.";
-    else if(err?.code==="too_large") $("saveStatus").textContent = "That beat is too big to save.";
-    else $("saveStatus").textContent = "Couldn't save. Try again.";
-  } finally {
-    saving = false; updateSaveBar();
-    $("saveBtn").disabled = $("saveNewBtn").disabled = !canWrite;
+    saveErr = true; toast(saveErrMsg(err), 4500);
+    if(err?.status===401 || err?.status===403) refreshMe();
+    return false;
+  } finally { saving = false; updateSaveBar(); }
+}
+// File > Save and ⌘S: straight over the open beat, or ask for a name the first time
+function saveCmd(){
+  if(peek) endPeek();
+  if(saving) return;
+  liveSnap = snapStr();
+  const st = saveState();
+  if(st==="wait"){ toast("Still loading your saved beats. Try again in a second."); return; }
+  if(currentDocId && st!=="new") save(false); else askName("save");
+}
+let nameMode = "save";
+function askName(mode){
+  if(peek) endPeek();
+  nameMode = mode;
+  $("nameH").textContent = mode==="rename" ? "Rename" : mode==="saveas" ? "Save as" : "Save";
+  $("nameOk").textContent = mode==="rename" ? "Rename" : "Save";
+  $("nameIn").value = S.name && S.name!=="Untitled beat" ? S.name : "";
+  const acct = db===cloudDb && me?.username && !me.local;
+  $("nameHint").textContent = mode==="rename" ? (currentDocId ? `Renames it in ${where()}. Your other changes stay unsaved.` : "It's not saved yet. Save it to keep the name.")
+    : `Saves ${mode==="saveas" && currentDocId ? "a copy" : "it"} to ${where()}` + (acct ? `, with its own link at ${HOST}/${me.username}/…` : db===localDb && cfg?.auth==="google" ? ". Sign in to keep your beats in an account instead." : ".");
+  openDlg("nameDlg"); $("nameIn").focus(); $("nameIn").select();
+}
+$("nameForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = cleanName($("nameIn").value);
+  closeDlg("nameDlg");
+  if(nameMode!=="rename"){ S.name = name; save(true); return; }
+  if(name===S.name) return;
+  S.name = name;
+  // rename the saved copy too, without saving your other edits
+  if(currentDocId && baseline!=null && db){
+    try {
+      const b = JSON.parse(baseline); b.name = name;
+      const doc = await db.update(currentDocId, {name, beat:b});
+      baseline = JSON.stringify(b); baselineAt = doc.updatedAt || Date.now();
+      const d = savedDocs.find(x => x.id===currentDocId); if(d) Object.assign(d, {name, beat:b, updatedAt:baselineAt});
+      flashPill(); toast(`Renamed to “${name}”`);
+    } catch(err){ toast(saveErrMsg(err), 4500); }
+  }
+  changed(); renderSaved();
+});
+// ⌘S saves, ⇧⌘S saves as, ⌘O opens. Works even while typing, just not inside a dialog.
+window.addEventListener("keydown", e => {
+  if(!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if(k!=="s" && k!=="o") return;
+  e.preventDefault(); e.stopPropagation();
+  if(e.repeat || document.querySelector("dialog[open]")) return;
+  fileMenu(false);
+  if(k==="o") openOpen(); else if(e.shiftKey) askName("saveas"); else saveCmd();
+}, true);
+
+/* ---------- File menu and dialogs ---------- */
+const MOD = SAVE_KEY.startsWith("⌘") ? "⌘" : "Ctrl+";
+filePopKeys();
+function filePopKeys(){
+  const f = $("filePop");
+  f.querySelector(".k-open").textContent = MOD + "O";
+  f.querySelector(".k-save").textContent = SAVE_KEY;
+  f.querySelector(".k-saveas").textContent = MOD==="⌘" ? "⇧⌘S" : "Ctrl+Shift+S";
+}
+function fileMenu(open){
+  const f = $("filePop"), b = $("fileBtn");
+  if(open===!f.hidden) return;
+  f.hidden = !open; b.setAttribute("aria-expanded", String(open));
+  if(!open) return;
+  $("acctPop").hidden = true;
+  f.querySelector('[data-file="save"]').disabled = saving;
+  placeMenus();
+  f.querySelector(".mi")?.focus();
+}
+// the menus hang off their buttons, and follow them when the page scrolls
+function placeMenus(){
+  const f = $("filePop"), p = $("acctPop");
+  if(!f.hidden){ const r = $("fileBtn").getBoundingClientRect(); f.style.left = Math.max(8, Math.min(r.left, innerWidth - f.offsetWidth - 8)) + "px"; f.style.top = (r.bottom + 6) + "px"; }
+  if(!p.hidden && $("acctBtn")){ const r = $("acctBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.right - p.offsetWidth, innerWidth - p.offsetWidth - 8)) + "px"; p.style.top = (r.bottom + 6) + "px"; }
+}
+$("fileBtn").addEventListener("click", () => fileMenu($("filePop").hidden));
+$("filePop").addEventListener("click", e => {
+  const b = e.target.closest("[data-file]"); if(!b || b.disabled) return;
+  fileMenu(false);
+  ({new: newBeat, open: () => openOpen(), save: saveCmd, saveas: () => askName("saveas"), rename: () => askName("rename"), json: downloadJson, wav: exportWav})[b.dataset.file]();
+});
+$("filePop").addEventListener("keydown", e => {
+  const items = [...$("filePop").querySelectorAll(".mi:not(:disabled)")], i = items.indexOf(document.activeElement);
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  else if(e.key==="Escape" || e.key==="Tab"){ fileMenu(false); if(e.key==="Escape") $("fileBtn").focus(); }
+});
+document.addEventListener("pointerdown", e => {
+  if(!$("filePop").hidden && !e.target.closest("#filePop, #fileBtn")) fileMenu(false);
+  if(!$("acctPop").hidden && !e.target.closest("#acctPop, #acctBtn")) $("acctPop").hidden = true;
+});
+addEventListener("resize", () => { fileMenu(false); $("acctPop").hidden = true; });
+addEventListener("scroll", placeMenus, {passive:true});
+document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("acctPop").hidden) $("acctPop").hidden = true; });
+function openDlg(id){ fileMenu(false); $("acctPop").hidden = true; const d = $(id); if(!d.open) d.showModal(); gsiButtons(); }
+function closeDlg(id){ const d = $(id); if(d.open) d.close(); }
+document.querySelectorAll("dialog.dlg").forEach(d => d.addEventListener("click", e => {
+  if(e.target===d || e.target.closest("[data-close]")) d.close(); // the backdrop, or a close button
+}));
+// File > Open. `flash` points out the beat that's open now.
+async function openOpen(flash){
+  if(peek) endPeek();
+  renderAuth(); renderSaved(); openDlg("openDlg");
+  $("savedList").querySelector("li.cur")?.scrollIntoView({block:"nearest"});
+  await refreshSaved();
+  const li = $("savedList").querySelector("li.cur");
+  if(li){ li.scrollIntoView({block:"nearest"}); if(flash){ li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash"); } }
+}
+
+/* ---------- Share ---------- */
+const b64u = bytes => { let t = ""; bytes.forEach(c => t += String.fromCharCode(c)); return btoa(t).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); };
+const unb64u = t => Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")), c => c.charCodeAt(0));
+// a whole beat in a link (for sharing while signed out): "z" + deflated JSON, or "j" + plain JSON where there's no CompressionStream
+async function packBeat(o){
+  const bytes = new TextEncoder().encode(JSON.stringify(o));
+  try { return "z" + b64u(new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer())); }
+  catch { return "j" + b64u(bytes); }
+}
+async function unpackBeat(t){
+  const bytes = unb64u(t.slice(1));
+  if(t[0]==="z") return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text());
+  if(t[0]==="j") return JSON.parse(new TextDecoder().decode(bytes));
+  throw new Error("unknown link");
+}
+async function shareBeat(){
+  if(peek) endPeek();
+  liveSnap = snapStr();
+  let url, short = true;
+  if(viewing && liveSnap===loadedSnap) url = `${location.origin}/${viewing.user}/${viewing.id}`; // someone else's beat, unchanged: pass their link on
+  else if(db===cloudDb && me?.username){
+    const st = saveState();
+    if(st==="wait"){ toast("Still loading your saved beats. Try again in a second."); return; }
+    if(st!=="clean" && !(await save(false))) return; // the link always opens the last save, so save first
+    url = `${location.origin}/${me.username}/${currentDocId}`;
+  } else { url = `${location.origin}/#b=${await packBeat(toJSON(S))}`; short = false; }
+  $("shareUrl").value = url;
+  $("shareHint").textContent = !short ? "The whole beat is packed into the link, so it's a long one. Anyone with it can play the beat as it is right now and save their own copy."
+    : viewing ? `It's “${S.name}” by ${viewing.user}. Anyone with the link can play it and save their own copy.`
+    : "Anyone with the link can play it and save their own copy. It always opens your latest save.";
+  $("sharePromo").hidden = short || cfg?.auth!=="google" || !!me;
+  $("shareNative").hidden = !navigator.share;
+  $("shareCopy").textContent = "Copy";
+  openDlg("shareDlg"); $("shareUrl").focus(); $("shareUrl").select();
+  copyShare(true);
+}
+async function copyShare(auto){
+  try { await navigator.clipboard.writeText($("shareUrl").value); $("shareCopy").textContent = "Copied"; }
+  catch { if(!auto){ $("shareUrl").select(); toast(`Press ${MOD}C to copy`); } }
+}
+$("shareBtn").addEventListener("click", shareBeat);
+$("shareCopy").addEventListener("click", () => copyShare(false));
+$("shareNative").addEventListener("click", () => navigator.share?.({title: S.name, url: $("shareUrl").value}).catch(() => {}));
+async function openPacked(t){
+  try { const st = fromJSON(await unpackBeat(t)); loadState(st, null, {msg:`Opened “${st.name}” from a link`}); }
+  catch { toast("The beat in that link couldn't be read.", 4000); }
+}
+// /<username>/<n>: your own beat opens as itself; anyone else's opens for you to play and save a copy of
+async function openLink(user, id, pending){
+  const mine = db===cloudDb && me?.username===user;
+  if(mine ? currentDocId===id : viewing?.user===user && viewing?.id===id) return; // already open (maybe with unsaved edits)
+  const b = await pending;
+  if(!b){ toast("That beat isn't there anymore. It may have been deleted.", 4500); return; }
+  let st; try { st = fromJSON(b.beat); } catch { toast("That beat couldn't be read."); return; }
+  if(mine){
+    const d = savedDocs.find(x => x.id===id);
+    if(d) Object.assign(d, b); else savedDocs.unshift(b);
+    loadState(st, id, {name:b.name});
+  } else loadState(st, null, {viewing:{user, id}, msg:`Opened “${b.name}” by ${user}`});
+}
+// the address bar follows the open beat, so it can be copied or bookmarked
+function syncUrl(){
+  if(!booted || peek) return;
+  const want = viewing ? `/${viewing.user}/${viewing.id}` : currentDocId && !isLocalId(currentDocId) && db===cloudDb && me?.username ? `/${me.username}/${currentDocId}` : "/";
+  if(location.pathname!==want || location.hash) history.replaceState(null, "", want);
+}
+
+/* ---------- Sign in with Google ---------- */
+const GLOGO = '<svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.7H9v3.3h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z"/></svg>';
+let gsiP = null;
+function gsiLoad(){
+  if(!cfg?.googleClientId) return Promise.reject(new Error("no client id"));
+  return gsiP ||= new Promise((res, rej) => {
+    const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true;
+    sc.onload = () => { try { google.accounts.id.initialize({client_id: cfg.googleClientId, callback: onCredential, auto_select: false, cancel_on_tap_outside: true}); res(); } catch(e){ rej(e); } };
+    sc.onerror = () => { gsiP = null; sc.remove(); rej(new Error("couldn't load")); };
+    document.head.appendChild(sc);
+  });
+}
+// Google's button goes into each visible [data-gsi] slot, or our own if Google's script won't load
+function gsiButtons(){
+  if(cfg?.auth!=="google" || me) return;
+  const els = [...document.querySelectorAll("[data-gsi]")].filter(el => !el.dataset.done && el.offsetParent!==null);
+  if(!els.length) return;
+  gsiLoad().then(() => els.forEach(el => {
+    if(el.dataset.done) return;
+    el.dataset.done = "1"; el.innerHTML = "";
+    google.accounts.id.renderButton(el, {type:"standard", theme:"filled_black", shape:"pill", size:el.dataset.gsi, text: el.dataset.text || (el.dataset.gsi==="small" ? "signin" : "signin_with"), logo_alignment:"left"});
+  })).catch(() => els.forEach(el => { if(!el.querySelector(".gfb")) el.innerHTML = `<button class="btn gfb" type="button">${GLOGO}${{signin:"Sign in", signup_with:"Sign up with Google"}[el.dataset.text] || "Sign in with Google"}</button>`; }));
+}
+document.addEventListener("click", e => {
+  if(!e.target.closest(".gfb")) return;
+  toast("Couldn't reach Google sign-in. Check your connection or any ad blocker, then try again.", 4500);
+  document.querySelectorAll(".gsi").forEach(el => { if(el.querySelector(".gfb")) el.innerHTML = ""; });
+  gsiButtons();
+});
+async function onCredential(resp){
+  try {
+    const j = await api.req("POST", "/api/auth/google", {credential: resp.credential});
+    me = j.user;
+    ["shareDlg"].forEach(closeDlg);
+    await afterSignIn();
+  } catch(e){ toast("Google sign-in didn't go through. Try again.", 4000); }
+}
+async function afterSignIn(){
+  if(!me?.username){ renderAuth(); openUserDlg(); return; }
+  db = cloudDb; savedDocs = []; claimViewing(); renderAuth();
+  const moved = await moveLocalBeats();
+  if(isLocalId(currentDocId)) setDoc(null);
+  await refreshSaved();
+  updateSaveBar(); persistLocal(); renderAuth();
+  toast(`Signed in as ${me.username}` + (moved ? `. Moved ${moved} beat${moved===1?"":"s"} from this browser into your account` : ""), 4000);
+}
+// a beat of yours you were looking at signed out is yours to save again once you're back
+function claimViewing(){
+  if(viewing && db===cloudDb && viewing.user===me?.username){ const id = viewing.id; viewing = null; setDoc(id); }
+}
+// beats saved in this browser while signed out join the account (after its own), then leave the browser
+async function moveLocalBeats(){
+  const docs = localDb.read().sort((x,y) => (x.updatedAt||0)-(y.updatedAt||0));
+  if(!docs.length) return 0;
+  try {
+    const made = await cloudDb.import(docs.map(d => ({name:d.name, beat:d.beat, createdAt:d.createdAt, updatedAt:d.updatedAt})));
+    const ids = new Set(docs.map(d => d.id));
+    try { localDb.write(localDb.read().filter(d => !ids.has(d.id))); } catch {}
+    const i = docs.findIndex(d => d.id===currentDocId);
+    if(i>=0 && made[i]){ currentDocId = made[i].id; savedDocs = [made[i]]; }
+    return made.length;
+  } catch(e){
+    toast(e?.code==="quota_exceeded" ? "Your account is too full to take this browser's beats. They're still saved here." : "Couldn't move this browser's beats into your account. They're still saved here.", 5000);
+    return 0;
   }
 }
-$("saveBtn").addEventListener("click", () => save(false));
-$("saveNewBtn").addEventListener("click", () => save(true));
-// Cmd+S (Ctrl+S elsewhere) saves, add Shift to save as new. Works even while typing.
-window.addEventListener("keydown", e => {
-  if(!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase()!=="s") return;
-  e.preventDefault(); e.stopPropagation();
-  if(e.repeat) return;
-  const b = $(e.shiftKey ? "saveNewBtn" : "saveBtn");
-  if(saving) return;
-  if(b.disabled){ toast("Saving isn't available right now"); return; }
-  b.click();
-}, true);
+async function refreshMe(){
+  try {
+    const was = me?.username, j = await api.req("GET", "/api/me");
+    me = j.user;
+    if(was && !me?.username && cfg?.auth==="google") toLocal(was);
+    renderAuth(); updateSaveBar();
+  } catch {}
+}
+// signed out (or the session ran out): saves go back to this browser
+function toLocal(was){
+  db = localDb; savedDocs = [];
+  if(currentDocId && !isLocalId(currentDocId)){ const v = {user:was, id:currentDocId}; setDoc(null); viewing = v; }
+  refreshSaved(); persistLocal();
+}
+async function signOut(){
+  $("acctPop").hidden = true; closeDlg("userDlg");
+  const was = me?.username;
+  try { await api.req("POST", "/api/auth/signout"); } catch {}
+  try { google.accounts.id.disableAutoSelect(); } catch {}
+  me = null; toLocal(was); renderAuth(); updateSaveBar();
+  toast("Signed out. Saves go to this browser now", 3000);
+}
+$("signOutBtn").addEventListener("click", signOut);
+$("acct").addEventListener("click", e => {
+  const b = e.target.closest("#acctBtn"); if(!b) return;
+  if(!me?.username){ openUserDlg(); return; }
+  const p = $("acctPop");
+  if(!p.hidden){ p.hidden = true; return; }
+  fileMenu(false);
+  $("acctWho").textContent = `${HOST}/${me.username}`;
+  $("acctEmail").textContent = me.email ? `Signed in as ${me.email}` : "";
+  $("acctQuota").textContent = me.ai?.limit!=null ? `AI beats: ${Math.max(0, me.ai.limit - me.ai.used)} of ${me.ai.limit} left today` : "";
+  p.hidden = false; placeMenus();
+});
+// what the page says and offers depends on who's signed in
+function renderAuth(){
+  const google = cfg?.auth==="google", member = !!me?.username, pending = !!me && !me.username;
+  const a = $("acct");
+  if(!google) a.innerHTML = "";
+  else if(me) a.innerHTML = `<button class="btn acctbtn${pending?" pending":""}" id="acctBtn" aria-haspopup="dialog"><span class="av" aria-hidden="true">${esc((me.username || me.email || "?")[0])}</span><span>${pending ? "Finish signing up" : esc(me.username)}</span></button>`;
+  else if(!a.querySelector(".gsi")) a.innerHTML = `<div class="gsi" data-gsi="medium" data-text="signin"></div>`;
+  const aiOk = !google || member;
+  $("aiForm").hidden = !aiOk; $("aiPromo").hidden = aiOk;
+  $("aiPromoTxt").textContent = pending ? "Pick a username to finish signing up, then you can ask AI for beats."
+    : `Sign in with Google to have AI write beats for you. It's free, up to ${cfg?.aiDailyLimit ?? 10} a day.`;
+  $("aiPromo").querySelector(".gsi").hidden = pending; $("aiFinish").hidden = !pending;
+  $("aiQuota").textContent = me?.ai?.limit!=null ? `${Math.max(0, me.ai.limit - me.ai.used)} of ${me.ai.limit} left today` : "";
+  const n = $("openNote");
+  n.hidden = !google; n.classList.toggle("calm", member || pending);
+  $("openNoteTxt").innerHTML = member ? `These are in your account. Each one has its own link at <span class="num">${esc(HOST)}/${esc(me.username)}/…</span>`
+    : pending ? "Pick a username to finish signing up. Until then, beats save in this browser."
+    : "These beats are saved in this browser, so clearing its data or switching devices loses them. Sign in with Google to keep them in your account. The ones here come along.";
+  n.querySelector(".gsi").hidden = !!me;
+  $("fileNote").textContent = !cfg ? "Saves to this browser" : !google ? "Saves to this server" : member ? `Saves to ${HOST}/${me.username}` : "Saves to this browser. Sign in to keep beats in your account.";
+  $("userPrev").parentElement.firstChild.textContent = HOST + "/";
+  gsiButtons();
+}
+$("aiFinish").addEventListener("click", () => openUserDlg());
+$("aiDetails").addEventListener("toggle", () => { persistLocal(); if($("aiDetails").open) gsiButtons(); });
+
+/* ---------- Picking a username, once, after the first sign-in ---------- */
+const userProblem = u => u.length<3 || u.length>20 ? "Use 3 to 20 characters."
+  : !/^[a-z0-9_-]+$/.test(u) ? "Use lowercase letters, numbers, - and _ only."
+  : !/^[a-z0-9]/.test(u) ? "Start with a letter or a number." : null;
+function openUserDlg(){
+  if(!me || me.username) return;
+  if(!$("userIn").value) $("userIn").value = (me.email || "").split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "").replace(/^[^a-z0-9]+/, "").slice(0,20);
+  openDlg("userDlg"); checkUser(); $("userIn").focus();
+}
+function userStatus(t, cls){ const el = $("userStatus"); el.textContent = t; el.className = "status" + (cls ? " "+cls : ""); }
+function checkUser(){
+  const v = $("userIn").value;
+  $("userPrev").textContent = v || "you";
+  clearTimeout(checkUser.t);
+  if(!v){ userStatus("3 to 20 characters: lowercase letters, numbers, - and _"); return; }
+  const bad = userProblem(v); if(bad){ userStatus(bad, "bad"); return; }
+  userStatus("Checking…");
+  checkUser.t = setTimeout(async () => {
+    try {
+      const j = await api.req("GET", "/api/usernames/" + encodeURIComponent(v));
+      if($("userIn").value===v) j.available ? userStatus("Nice, that one's free.", "ok") : userStatus(j.reason || "That one's taken.", "bad");
+    } catch { userStatus(""); }
+  }, 250);
+}
+$("userIn").addEventListener("input", e => { const v = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""); if(v!==e.target.value) e.target.value = v; checkUser(); });
+$("userForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = $("userIn").value, bad = userProblem(v);
+  if(bad){ userStatus(bad, "bad"); return; }
+  $("userOk").disabled = true;
+  try {
+    const j = await api.req("POST", "/api/auth/username", {username: v});
+    me = j.user; closeDlg("userDlg"); await afterSignIn();
+  } catch(err){
+    userStatus(err?.status===401 ? "You've been signed out. Sign in again." : err?.message || "Couldn't create your account. Try again.", "bad");
+    if(err?.status===401){ closeDlg("userDlg"); refreshMe(); }
+  } finally { $("userOk").disabled = false; }
+});
+$("userCancel").addEventListener("click", signOut);
 
 /* ---------- Save pill, revert and compare ---------- */
 $("saveKey").textContent = SAVE_KEY;
@@ -3589,13 +4093,13 @@ function updateSaveBar(){
   const st = saveState(), p = $("savePill"), name = S.name || "Untitled beat";
   $("filebar").hidden = st==="off";
   p.dataset.state = st;
-  $("saveName").textContent = st==="new" ? "Not saved yet" : st==="wait" && !currentDocId ? "" : name;
-  $("saveStateTxt").textContent = {clean:"saved", dirty:"unsaved", saving:"saving…", error:"save failed", peek:"last saved"}[st] || "";
+  $("saveName").textContent = st==="new" ? (viewing ? name : "Not saved yet") : st==="wait" && !currentDocId ? "" : name;
+  $("saveStateTxt").textContent = st==="new" && viewing ? `by ${viewing.user}` : {clean:"saved", dirty:"unsaved", saving:"saving…", error:"save failed", peek:"last saved"}[st] || "";
   $("saveKey").textContent = st==="peek" ? "↺ Revert" : SAVE_KEY; // while comparing, the chip reverts instead of saving
   p.title = {
-    clean: `Saved ${relTime(baselineAt)}. Click to find it in your saved beats`,
+    clean: `Saved to ${where()} ${relTime(baselineAt)}. Click to see your saved beats`,
     dirty: `Unsaved changes. Click or press ${SAVE_KEY} to save`,
-    new: `Not in your saved beats yet (it's still kept in this browser). Click or press ${SAVE_KEY} to save`,
+    new: viewing ? `${viewing.user}'s beat. Click or press ${SAVE_KEY} to save your own copy` : `Not saved yet (a draft is kept in this browser). Click or press ${SAVE_KEY} to save`,
     error: `The last save didn't go through. Click or press ${SAVE_KEY} to try again`,
     saving: "Saving…", peek: "Revert: keep the last save and drop your changes (Undo brings them back)", wait: "",
   }[st];
@@ -3609,9 +4113,10 @@ function updateSaveBar(){
     : st==="dirty" ? "Compare: flip to the last save to hear and see it, click again to come back (C)"
     : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then you can compare your changes against it";
   const lb = $("savedList").querySelector("li.cur [data-act=load]");
-  if(lb){ lb.textContent = st==="dirty" ? "Revert" : "Load"; lb.title = st==="dirty" ? "Go back to the saved version (Undo brings your changes back)" : ""; }
-  const t = (currentDocId && baseline!=null ? name + " · " : "") + "AK-16 Beat Composer";
+  if(lb){ lb.textContent = st==="dirty" ? "Revert" : "Open"; lb.title = st==="dirty" ? "Go back to the saved version (Undo brings your changes back)" : ""; }
+  const t = (currentDocId && baseline!=null ? name + " · " : viewing ? `${name} by ${viewing.user} · ` : "") + "16.AKS.ZONE";
   document.title = (st==="dirty" || st==="peek" ? "• " : "") + t;
+  syncUrl();
 }
 setInterval(() => { const st = saveState(); if(st==="clean") updateSaveBar(); if(st==="peek") rack.dataset.peek = `Last saved · ${relTime(baselineAt)}`; }, 30000);
 function flashPill(){ const p = $("savePill"); p.classList.remove("ok"); void p.offsetWidth; p.classList.add("ok"); }
@@ -3629,15 +4134,9 @@ $("revertBtn").addEventListener("click", revertToSaved);
 $("savePill").addEventListener("click", () => {
   const st = saveState();
   if(st==="peek"){ revertToSaved(); return; }
-  if(st==="dirty" || st==="new" || st==="error"){ save(false); return; }
-  if(st==="clean"){
-    $("saveH").closest(".card").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"});
-    const li = $("savedList").querySelector("li.cur");
-    if(li){ li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash"); li.scrollIntoView({block:"nearest"}); }
-  }
+  if(st==="dirty" || st==="new" || st==="error"){ saveCmd(); return; }
+  if(st==="clean") openOpen(true);
 });
-// Enter in the name box saves
-$("nameIn").addEventListener("keydown", e => { if(e.key==="Enter" && !e.isComposing){ e.preventDefault(); S.name = e.target.value.slice(0,60); save(false); } });
 
 // Compare (or C) flips to the last save, grid, sound and all, and flips back to your edits on the next press.
 // While it's on, the page can't be edited and nothing is autosaved.
@@ -3681,24 +4180,33 @@ window.addEventListener("keydown", e => {
   if(e.key.toLowerCase()==="c"){ e.preventDefault(); togglePeek(); }
 });
 
-/* ---------- Capabilities ---------- */
-function noDb(msg){
-  db = null; saveOff = true; updateSaveBar(); $("saveBtn").disabled = $("saveNewBtn").disabled = true;
-  $("savedList").innerHTML = `<li class="empty">${msg}</li>`;
-}
+/* ---------- Boot: what the server can do, who's signed in, and any beat in the link ---------- */
 (async () => {
-  let cfg;
+  const path = /^\/([a-z0-9][a-z0-9_-]{2,19})\/([1-9][0-9]{0,8})\/?$/.exec(location.pathname);
+  const packed = /^#b=([zj][A-Za-z0-9_-]+)$/.exec(location.hash);
+  const shared = path ? fetch(`/api/u/${path[1]}/${path[2]}`).then(r => r.ok ? r.json() : null).catch(() => null) : null;
   try { const r = await fetch("/api/config"); if(!r.ok) throw 0; cfg = await r.json(); }
-  catch { noDb("Couldn't reach the server. Reload the page to try again."); disableGen("Couldn't reach the server."); return; }
-  const sel = $("tierSel"), models = cfg.models || [];
-  sel.innerHTML = models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
-  if(models.some(m => m.id===saved0?.model)) sel.value = saved0.model;
-  hearOK = !!cfg.images; syncHear();
-  if(cfg.generate){ genEnabled = true; $("genBtn").disabled = false; }
-  else disableGen("AI generation is off. Set OPENROUTER_API_KEY on the server to turn it on.");
-  if(!cfg.save){ noDb("Saving is off on this server."); return; }
-  db = api;
+  catch { cfg = null; }
+  if(cfg){
+    const sel = $("tierSel"), models = cfg.models || [];
+    sel.innerHTML = models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+    if(models.some(m => m.id===saved0?.model)) sel.value = saved0.model;
+    hearOK = !!cfg.images; syncHear();
+    if(cfg.generate){ genEnabled = true; $("genBtn").disabled = false; }
+    else disableGen("AI generation is off. Set OPENROUTER_API_KEY on the server to turn it on.");
+    try { me = (await api.req("GET", "/api/me")).user; } catch {}
+  } else disableGen("Couldn't reach the server.");
+  db = me?.username ? cloudDb : localDb;
+  // a draft pointing at a beat in another account (or from before you signed out) is just a draft now
+  if(currentDocId && !isLocalId(currentDocId) && (db!==cloudDb || saved0?.docOwner!==me.username)) setDoc(null);
+  claimViewing(); renderAuth();
+  if(db===cloudDb){ const n = await moveLocalBeats(); if(n) toast(`Moved ${n} beat${n===1?"":"s"} from this browser into your account`, 4000); }
+  if(db===cloudDb && isLocalId(currentDocId)) setDoc(null);
   await refreshSaved();
+  if(path) await openLink(path[1], path[2], shared);
+  else if(packed) await openPacked(packed[1]);
+  booted = true; updateSaveBar();
+  if(me && !me.username) openUserDlg();
 })();
 
 $("genBtn").disabled = true;
@@ -3707,6 +4215,7 @@ if(saved0){
   if(typeof saved0.prompt==="string") $("prompt").value = saved0.prompt;
 }
 if(saved0?.spec) $("specDetails").open = true;
+if(saved0?.ai) $("aiDetails").open = true;
 render();
 committed = snapStr(); loadedSnap = committed; committedDoc = currentDocId;
 })();
