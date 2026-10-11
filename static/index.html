@@ -388,6 +388,15 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .mi:disabled{opacity:.45;cursor:not-allowed}
 .mi svg{width:15px;height:15px;flex:none;color:var(--ink-dim)}
 .mi kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+.mi .chev{width:10px;height:10px;margin-left:auto;color:var(--ink-faint)}
+.mi[aria-expanded="true"]{background:var(--panel-2)}
+.recentpop{max-width:min(320px,calc(100vw - 16px))}
+#recentList{display:flex;flex-direction:column;gap:2px}
+.mi.ri{flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px}
+.mi.ri .t{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mi.ri .s{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--ink-faint)}
+.mi.ri.cur .t::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-left:7px;vertical-align:middle}
+.mempty{font-size:12px;color:var(--ink-faint);padding:8px 10px}
 .msep{height:1px;background:var(--line);margin:4px 2px}
 .mlbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;padding:6px 10px 2px}
 .mi.dl{border:1px solid color-mix(in srgb,var(--synth) 55%,var(--line));background:color-mix(in srgb,var(--synth) 9%,transparent);margin:2px 0}
@@ -566,6 +575,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
 <div class="pop filepop" id="filePop" hidden role="menu" aria-label="File">
   <button class="mi" role="menuitem" data-file="new"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4.5C3.7 2 3 2.7 3 3.5v9c0 .8.7 1.5 1.5 1.5h7c.8 0 1.5-.7 1.5-1.5V6z"/><path d="M9 2v4h4M8 8.5v3.5M6.25 10.25h3.5"/></svg>New</button>
   <button class="mi" role="menuitem" data-file="open"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5v-8C2 3.7 2.7 3 3.5 3h3l1.5 1.5h4.5c.8 0 1.5.7 1.5 1.5v1"/><path d="M2 12.5 4 8h10.5l-2 4.5z"/></svg>Open…<kbd class="k-open"></kbd></button>
+  <button class="mi" role="menuitem" data-file="recent" id="recentBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="recentPop"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/></svg>Open recent<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <button class="mi" role="menuitem" data-file="save"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.5h8l2.5 2.5v8c0 .3-.2.5-.5.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5z"/><path d="M5 2.5v3h5v-3M5 13.5V9.5h6v4"/></svg>Save<kbd class="k-save"></kbd></button>
   <button class="mi" role="menuitem" data-file="saveas"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5h8l2.5 2.5v3"/><path d="M5 2.5v3h5v-3M10.5 10.5h4M12.5 8.5v4"/></svg>Save as…<kbd class="k-saveas"></kbd></button>
   <button class="mi" role="menuitem" data-file="rename"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3z"/></svg>Rename…</button>
@@ -574,6 +584,12 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
   <button class="mi dl" role="menuitem" data-file="json" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg>Download JSON<kbd>.json</kbd></button>
   <button class="mi" role="menuitem" data-file="wav" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg>Export audio<kbd>.wav</kbd></button>
   <div class="mnote" id="fileNote"></div>
+</div>
+
+<div class="pop filepop recentpop" id="recentPop" hidden role="menu" aria-label="Open recent">
+  <div id="recentList"></div>
+  <div class="msep" role="separator"></div>
+  <button class="mi" role="menuitem" data-all>All beats…<kbd class="k-open"></kbd></button>
 </div>
 
 <div class="pop acctpop" id="acctPop" hidden role="dialog" aria-label="Your account">
@@ -3656,6 +3672,7 @@ function relTime(ms){
 function renderSaved(){
   const ul = $("savedList");
   if(!db) return;
+  renderRecent();
   if(listErr){ ul.innerHTML = `<li class="empty">Your saved beats couldn't load. Close this and try again.</li>`; return; }
   if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Press ${SAVE_KEY} to save the one you're on.</li>`; return; }
   const link = db===cloudDb && me?.username;
@@ -3672,11 +3689,7 @@ $("savedList").addEventListener("click", async e => {
   const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
   if(b.dataset.act==="load"){
     if(id===currentDocId){ closeDlg("openDlg"); if(saveState()==="dirty") revertToSaved(); return; }
-    try {
-      if(!d.beat) Object.assign(d, await db.get(id));
-      const st = fromJSON(d.beat);
-      closeDlg("openDlg"); loadState(st, id, {name:d.name});
-    } catch(err){ toast("That beat couldn't be opened. Try again."); }
+    openSaved(d);
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
     try {
@@ -3687,6 +3700,39 @@ $("savedList").addEventListener("click", async e => {
     catch(err){ toast("Couldn't delete that beat. Try again."); }
   }
 });
+async function openSaved(d){
+  const from = db;
+  try {
+    if(!d.beat) Object.assign(d, await from.get(d.id));
+    const st = fromJSON(d.beat);
+    if(db!==from) return;
+    closeDlg("openDlg"); loadState(st, d.id, {name:d.name}); markOpened(d.id);
+  } catch(err){ toast("That beat couldn't be opened. Try again."); }
+}
+// File > Open recent: the 5 beats you last opened or saved. When you opened them is kept in this browser.
+const LS_OPENED = "ak16:opened:v1";
+const openedScope = () => db===cloudDb ? "u:" + (me?.username || "") : "local";
+function openedMap(){ try { const o = JSON.parse(localStorage.getItem(LS_OPENED) || "{}"); return o && typeof o==="object" ? o : {}; } catch { return {}; } }
+function markOpened(id){
+  const all = openedMap(), k = openedScope(), m = all[k] && typeof all[k]==="object" ? all[k] : {};
+  m[id] = Date.now();
+  all[k] = Object.fromEntries(Object.entries(m).sort((a,b) => b[1]-a[1]).slice(0,50));
+  try { localStorage.setItem(LS_OPENED, JSON.stringify(all)); } catch {}
+}
+function recentDocs(){
+  const m = openedMap()[openedScope()] || {}, at = d => Math.max(+m[d.id] || 0, d.updatedAt || 0);
+  return savedDocs.map(d => ({d, at: at(d)})).sort((a,b) => b.at-a.at).slice(0,5);
+}
+function renderRecent(){
+  const el = $("recentList");
+  if(listErr){ el.innerHTML = `<div class="mempty">Your saved beats couldn't load.</div>`; return; }
+  if(!docsLoaded){ el.innerHTML = `<div class="mempty">Loading…</div>`; return; }
+  const r = recentDocs();
+  if(!r.length){ el.innerHTML = `<div class="mempty">No saved beats yet.</div>`; return; }
+  const focused = document.activeElement?.closest?.("#recentList [data-id]")?.dataset.id;
+  el.innerHTML = r.map(({d, at}) => `<button class="mi ri${d.id===currentDocId?" cur":""}" role="menuitem" data-id="${esc(d.id)}" title="${esc(d.name||"Untitled")}${d.id===currentDocId?" (open now)":""}"><span class="t">${esc(d.name||"Untitled")}</span><span class="s">${Math.round(d.bpm||0)} BPM · ${relTime(at)}</span></button>`).join("");
+  if(focused) el.querySelector(`[data-id="${CSS.escape(focused)}"]`)?.focus();
+}
 const saveErrMsg = err => err?.code==="local_full" ? "This browser is out of room for beats. Delete a few, or sign in to save them to your account."
   : err?.code==="quota_exceeded" ? "You're at the limit for saved beats. Delete a few, then save again."
   : err?.code==="too_large" ? "That beat is too big to save."
@@ -3775,7 +3821,7 @@ const MOD = SAVE_KEY.startsWith("⌘") ? "⌘" : "Ctrl+";
 filePopKeys();
 function filePopKeys(){
   const f = $("filePop");
-  f.querySelector(".k-open").textContent = MOD + "O";
+  document.querySelectorAll(".k-open").forEach(k => k.textContent = MOD + "O");
   f.querySelector(".k-save").textContent = SAVE_KEY;
   f.querySelector(".k-saveas").textContent = MOD==="⌘" ? "⇧⌘S" : "Ctrl+Shift+S";
 }
@@ -3783,31 +3829,70 @@ function fileMenu(open){
   const f = $("filePop"), b = $("fileBtn");
   if(open===!f.hidden) return;
   f.hidden = !open; b.setAttribute("aria-expanded", String(open));
-  if(!open) return;
+  if(!open){ recentMenu(false); return; }
   $("acctPop").hidden = true;
   f.querySelector('[data-file="save"]').disabled = saving;
   placeMenus();
   f.querySelector(".mi")?.focus();
 }
+// Open recent flies out beside the File menu (or drops over it where there's no room)
+function recentMenu(open, focus){
+  const p = $("recentPop"), b = $("recentBtn");
+  if(open!==!p.hidden){
+    p.hidden = !open; b.setAttribute("aria-expanded", String(open));
+    if(open){ renderRecent(); refreshSaved(); placeMenus(); }
+  }
+  if(open && focus) p.querySelector(".mi")?.focus();
+}
 // the menus hang off their buttons, and follow them when the page scrolls
 function placeMenus(){
-  const f = $("filePop"), p = $("acctPop");
+  const f = $("filePop"), p = $("acctPop"), rp = $("recentPop");
   if(!f.hidden){ const r = $("fileBtn").getBoundingClientRect(); f.style.left = Math.max(8, Math.min(r.left, innerWidth - f.offsetWidth - 8)) + "px"; f.style.top = (r.bottom + 6) + "px"; }
+  if(!f.hidden && !rp.hidden){
+    const m = f.getBoundingClientRect(), r = $("recentBtn").getBoundingClientRect(), w = rp.offsetWidth, h = rp.offsetHeight;
+    let left = m.right + 4, top = r.top - 6;
+    if(left + w > innerWidth - 8) left = m.left - w - 4;
+    if(left < 8){ left = Math.max(8, Math.min(m.left + 28, innerWidth - w - 8)); top = r.bottom + 2; }
+    rp.style.left = left + "px"; rp.style.top = Math.max(8, Math.min(top, innerHeight - h - 8)) + "px";
+  }
   if(!p.hidden && $("acctBtn")){ const r = $("acctBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.right - p.offsetWidth, innerWidth - p.offsetWidth - 8)) + "px"; p.style.top = (r.bottom + 6) + "px"; }
 }
 $("fileBtn").addEventListener("click", () => fileMenu($("filePop").hidden));
 $("filePop").addEventListener("click", e => {
   const b = e.target.closest("[data-file]"); if(!b || b.disabled) return;
+  if(b.dataset.file==="recent"){ recentMenu($("recentPop").hidden, e.detail===0); return; }
   fileMenu(false);
   ({new: newBeat, open: () => openOpen(), save: saveCmd, saveas: () => askName("saveas"), rename: () => askName("rename"), json: downloadJson, wav: exportWav})[b.dataset.file]();
 });
 $("filePop").addEventListener("keydown", e => {
   const items = [...$("filePop").querySelectorAll(".mi:not(:disabled)")], i = items.indexOf(document.activeElement);
-  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); recentMenu(false); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  else if(e.key==="ArrowRight" && document.activeElement===$("recentBtn")){ e.preventDefault(); recentMenu(true, true); }
   else if(e.key==="Escape" || e.key==="Tab"){ fileMenu(false); if(e.key==="Escape") $("fileBtn").focus(); }
 });
+// with a mouse, hovering Open recent opens it and hovering another item closes it
+$("filePop").addEventListener("pointerover", e => {
+  if(e.pointerType!=="mouse") return;
+  const b = e.target.closest(".mi"); if(!b) return;
+  clearTimeout(recentMenu.tm);
+  recentMenu.tm = setTimeout(() => recentMenu(b===$("recentBtn")), b===$("recentBtn") ? 80 : 200);
+});
+$("recentPop").addEventListener("pointerover", () => clearTimeout(recentMenu.tm));
+$("recentPop").addEventListener("click", e => {
+  const b = e.target.closest(".mi"); if(!b) return;
+  if(b.hasAttribute("data-all")){ fileMenu(false); openOpen(); return; }
+  const d = savedDocs.find(x => x.id===b.dataset.id);
+  fileMenu(false);
+  if(d && d.id!==currentDocId) openSaved(d);
+});
+$("recentPop").addEventListener("keydown", e => {
+  const items = [...$("recentPop").querySelectorAll(".mi")], i = items.indexOf(document.activeElement);
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  else if(e.key==="ArrowLeft" || e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); recentMenu(false); $("recentBtn").focus(); }
+  else if(e.key==="Tab") fileMenu(false);
+});
 document.addEventListener("pointerdown", e => {
-  if(!$("filePop").hidden && !e.target.closest("#filePop, #fileBtn")) fileMenu(false);
+  if(!$("filePop").hidden && !e.target.closest("#filePop, #fileBtn, #recentPop")) fileMenu(false);
   if(!$("acctPop").hidden && !e.target.closest("#acctPop, #acctBtn")) $("acctPop").hidden = true;
 });
 addEventListener("resize", () => { fileMenu(false); $("acctPop").hidden = true; });
@@ -4072,7 +4157,7 @@ function setDoc(id){
 }
 // the saved list arrived: pick up the baseline after a reload, or a newer save from another tab
 function syncBaseline(){
-  docsLoaded = true;
+  docsLoaded = true; renderRecent();
   const d = currentDocId && savedDocs.find(x => x.id===currentDocId);
   if(d && (baseline==null || (d.updatedAt||0) > baselineAt)){ baseline = snapOf(d.beat); baselineAt = d.updatedAt||0; }
   updateSaveBar();
