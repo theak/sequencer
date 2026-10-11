@@ -406,6 +406,9 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .acctpop .em{font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere}
 .acctpop .quota{font-size:12px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:8px}
 .gsi{min-height:32px;display:flex;align-items:center}
+/* Google's button is an iframe with a light page in it. Under our dark color-scheme the browser paints an opaque
+   white backdrop behind a light-scheme iframe, so match its scheme to keep it see-through. */
+.gsi iframe{color-scheme:light}
 .gsi .gfb{display:inline-flex;align-items:center;gap:8px;border-radius:17px;background:#fff;color:#1f1f1f;border:0;font-weight:600}
 .gsi .gfb svg{width:16px;height:16px}
 /* Dialogs */
