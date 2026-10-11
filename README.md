@@ -1,6 +1,6 @@
 # AK-16 Sequencer
 
-An 808-style drum machine and synth sequencer that runs in your browser. It has 16-step patterns with up to 4 pages, eight drums with a tone knob each, pitched drums (808, tom, conga, cowbell) played from a keyboard, mono and polyphonic (chord) synth channels, swing, sidechain and tape warble. You can save beats (⌘S), see at a glance whether you have unsaved changes, flip Compare to hear the last save before you overwrite it, and revert to it in one click. There's a live spectrogram of the loop, and you can export the beat as a WAV. When you generate, the AI can get that spectrogram too (a separate checkbox, on by default), so it can hear the mix and not just read the notes. You can also describe a groove and have an AI model write it for you.
+An 808-style drum machine and synth sequencer that runs in your browser. It has 16-step patterns with up to 4 pages, eight drums with a tone knob each, pitched drums (808, tom, conga, cowbell) played from a keyboard, mono and polyphonic (chord) synth channels, YouTube samples that play along with the beat, swing, sidechain and tape warble. You can save beats (⌘S), see at a glance whether you have unsaved changes, flip Compare to hear the last save before you overwrite it, and revert to it in one click. There's a live spectrogram of the loop, and you can export the beat as a WAV. When you generate, the AI can get that spectrogram too (a separate checkbox, on by default), so it can hear the mix and not just read the notes. You can also describe a groove and have an AI model write it for you.
 
 It's one small Rust binary in a `scratch` container, with the whole frontend baked in. Beats are saved as JSON files on a volume. AI generation goes through [OpenRouter](https://openrouter.ai), so the API key stays on the server.
 
@@ -63,6 +63,20 @@ To check which build you're running, open `/api/version`. Its `commit` should ma
 | `PORT` | `42716` | Port to listen on. |
 
 The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically.
+
+## YouTube samples
+
+Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
+
+Samples play in YouTube's own embedded player, not through the audio engine. So:
+
+- **Loose timing.** They follow the beat loosely. Each player measures how late it starts and fires that much earlier next time, which usually lands hits within a few tens of milliseconds once it has warmed up. An ad, or slow buffering, can still throw off a hit.
+- **No effects.** Swing timing applies, but the master effects, sidechain and spectrogram don't touch them.
+- **Not exported.** They aren't in WAV exports. Saved beats and JSON keep their settings.
+- **Visible player.** The video stays visible, as YouTube requires.
+- **Some videos won't load.** Videos whose owners block embedding don't load, and the card says so.
+- **Needs the internet.** The rest of the app runs offline. Samples don't.
+- **Use the page's web address.** Open the app from its address (like `http://localhost:42716`), not a saved file, or YouTube refuses to play.
 
 ## Storage
 
