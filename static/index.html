@@ -16,7 +16,7 @@
   --body:#19181b; --panel:#232226; --panel-2:#2c2a30; --panel-3:#35333a;
   --line:#3d3a42; --ink:#ede7da; --ink-dim:#a39d92; --ink-faint:#6f6a73;
   --red:#e2472f; --orange:#ef8b2c; --yellow:#eecb4c; --cream:#efe7d3;
-  --synth:#6fd3c2; --danger:#ff6b57;
+  --synth:#6fd3c2; --danger:#ff6b57; --sample:#b9a2f2;
   --ui:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --hdr:300px;
@@ -196,6 +196,43 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .syn .cell.chord{letter-spacing:-.03em;white-space:nowrap;overflow:hidden;padding:0 2px;gap:0}
 .syn .cell.chord::after{content:"";position:absolute;left:3px;top:3px;width:5px;height:7px;background:repeating-linear-gradient(#0d2622 0 1px,transparent 1px 3px);opacity:.5}
 .b808{min-width:36px;text-align:center;background:var(--synth)}
+/* Samples: a trigger starts the video, the lighter run after it is how long it plays */
+.smp .cell{--g:var(--sample);font-family:var(--mono);font-size:12px;font-weight:600;color:#1d1530}
+.smp .cell.q1,.smp .cell.q3{background:color-mix(in srgb,var(--sample) 9%,var(--panel-2))}
+.smp .cell.q2,.smp .cell.q4{background:color-mix(in srgb,var(--sample) 16%,var(--panel-2))}
+.smp .cell.on{background:var(--sample);box-shadow:0 0 10px color-mix(in srgb,var(--sample) 35%,transparent)}
+.smp .cell.on:empty::after{content:"";border-left:7px solid #1d1530;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px;opacity:.75}
+.smp .cell.tail{background:color-mix(in srgb,var(--sample) 40%,var(--panel-2));box-shadow:none}
+.smp .cell.tail.ph{filter:brightness(1.25)}
+.ytb{background:var(--sample);color:#1d1530;min-width:36px;text-align:center}
+.row.smp .rname{cursor:pointer}
+.row.smp .rname:hover{text-decoration:underline;text-decoration-color:var(--ink-faint)}
+.row.smp .rname.empty{color:var(--ink-faint);font-weight:500}
+.rmenu-sp{flex:none;width:16px}
+.smpdeck{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.smpdeck .sec{margin:0;padding:0;border:0;flex-wrap:wrap}
+.smpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px}
+.smpcard{display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px}
+.smpcard.flash{border-color:var(--sample);box-shadow:0 0 0 1px var(--sample)}
+.smph{display:flex;align-items:center;gap:8px;min-width:0}
+.smpt{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.smpt.empty{color:var(--ink-faint);font-weight:500}
+.yt{position:relative;width:100%;aspect-ratio:16/9;min-height:200px;max-width:100%;background:#0c0b0d;border-radius:4px;overflow:hidden}
+.yt iframe,.yt .ytmount{position:absolute;inset:0;width:100%;height:100%;border:0}
+.ytmsg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;font-size:12.5px;color:var(--ink-dim);background:#0c0b0d}
+.ytmsg.bad{color:var(--danger)}
+.ytmsg a{color:var(--sample)}
+.smpl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.smpl input{width:100%;min-width:0;font-size:12.5px}
+.smpf{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.1fr);gap:8px;align-items:end}
+.smpf label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.smpf input,.smpf select{width:100%;min-width:0}
+.smpf input[data-f="start"]{font-size:12.5px;padding:7px 8px}
+.smpbtns{display:flex;gap:6px;flex-wrap:wrap}
+.smpbtns .btn{padding:6px 10px}
+.smpbtns .btn[aria-pressed="true"]{border-color:var(--sample);color:var(--sample)}
+.smpstat{font-size:11.5px;color:var(--ink-faint);min-height:1.2em}
+@media (max-width:420px){ .smpf{grid-template-columns:1fr 1fr} .smpf label:first-child{grid-column:1 / -1} .transport .field{flex-wrap:wrap} }
 .subsec{display:flex;align-items:center;gap:10px;margin:8px 0 2px}
 .subsec .lbl{color:var(--synth)}
 .ptog{border:0;cursor:pointer;min-width:36px;text-align:center;background:color-mix(in srgb,var(--synth) 45%,var(--panel-3))}
@@ -401,6 +438,10 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
   </section>
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
+  <section class="smpdeck" id="smpDeck" aria-label="Sample videos" hidden>
+    <div class="sec"><h2>Sample videos</h2><span class="hint" id="smpHint"></span></div>
+    <div class="smpgrid" id="smpGrid"></div>
+  </section>
 
   <details class="json spec" id="specDetails">
     <summary>Spectrogram<span class="hint">what one loop sounds like, low notes at the bottom</span></summary>
@@ -539,6 +580,7 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 (() => {
 "use strict";
 const $ = id => document.getElementById(id);
+const dlog = m => console.warn(m);
 
 /* ---------- Model ---------- */
 const DRUMS = [
@@ -557,6 +599,53 @@ const VEL = {g:.38, x:.78, X:1};
 const TONE_IDS = DRUM_IDS; // every drum has a tone knob (0.5 is the classic sound)
 const defaultTones = () => Object.fromEntries(TONE_IDS.map(id => [id, .5]));
 const MAX_SYNTHS = 8;
+const MAX_SAMPLES = 4;
+const YT_OK = true; // the Claude artifact can't embed YouTube, so samples only keep their settings there
+const YT_RATES = [.25,.5,.75,1,1.25,1.5,1.75,2];
+const BEAT_OPTS = [.25,.5,1,2,3,4,6,8,12,16,32,0]; // 0 keeps playing until you stop
+const beatLabel = b => !b ? "∞ infinite" : b===.25 ? "¼ beat" : b===.5 ? "½ beat" : b===1 ? "1 beat" : b+" beats";
+function ytId(v){
+  const s = String(v ?? "").trim();
+  if(/^[\w-]{11}$/.test(s)) return s;
+  let u; try { u = new URL(/^https?:\/\//i.test(s) ? s : "https://"+s); } catch { return null; }
+  const h = u.hostname.replace(/^(www|m|music)\./, "");
+  let id = null;
+  if(h==="youtu.be") id = u.pathname.slice(1).split("/")[0];
+  else if(h==="youtube.com" || h==="youtube-nocookie.com") id = u.searchParams.get("v") || (u.pathname.match(/^\/(?:embed|shorts|live|v)\/([\w-]{11})/) || [])[1];
+  return /^[\w-]{11}$/.test(id || "") ? id : null;
+}
+// the t= on a shared link ("90", "90s", "1m30s") becomes the start time
+function ytLinkStart(v){
+  let u; try { u = new URL(String(v).trim()); } catch { return null; }
+  const t = u.searchParams.get("t") || u.searchParams.get("start"); if(!t) return null;
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s?)?$/.exec(t);
+  return m && t ? (+(m[1]||0))*3600 + (+(m[2]||0))*60 + (+(m[3]||0)) : null;
+}
+function parseTime(v){
+  const s = String(v ?? "").trim().replace(",", ".");
+  if(!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(s)) return null;
+  return s.split(":").reduce((a,x) => a*60 + parseFloat(x), 0);
+}
+function fmtTime(t){
+  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = t%60;
+  const ss = (sec < 10 ? "0" : "") + (+sec.toFixed(2)).toString();
+  return (h ? h+":"+String(m).padStart(2,"0") : m) + ":" + ss;
+}
+const nearest = (list, v) => list.reduce((a,x) => Math.abs(x-v) < Math.abs(a-v) ? x : a);
+function smpSteps(v, len){
+  if(v==null) return Array.from({length:len}, (_,i) => i===0 || null);
+  const arr = Array.isArray(v) ? v : [...String(v).replace(/[|\s]/g, "")];
+  return Array.from({length:len}, (_,i) => { const x = arr[i]; return x===true || (typeof x==="string" && x!=="" && x!=="." && x!=="-") || null; });
+}
+function newSample(len, x={}){
+  const b = x.beats==="inf" || x.beats==="∞" || x.beats===0 || x.beats===null ? 0 : nearest(BEAT_OPTS.filter(Boolean), clamp(x.beats,.25,64,4));
+  return {uid:++uid, vid: ytId(x.video ?? x.url ?? "") || "", title: String(x.title || "").slice(0,140), start: +clamp(x.start,0,86400,0).toFixed(2),
+    rate: nearest(YT_RATES, clamp(x.speed ?? x.rate,.25,2,1)), beats: b, volume: clamp(x.volume,0,1,.8), steps: smpSteps(x.steps, len)};
+}
+const smpKey = s => "y"+s.uid;
+const smpByKey = key => S.samples.find(s => smpKey(s)===key);
+// a pattern that changes length keeps its samples' triggers repeating, so a one-bar sample stays on every bar
+const fitSamples = (list, len) => list.map(s => ({...s, steps: Array.from({length:len}, (_,i) => s.steps[i % s.steps.length] ?? null)}));
 /* Tonal drums: locked, always-mono rows played from the keyboard. They sit under the drums, teal like the synths.
    "-" holds only mean something on the 808; the others ring out on their own and the next hit cuts them off. */
 const TONAL = {
@@ -633,7 +722,7 @@ let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE))};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE)), samples:[]};
 }
 /* Tonal rows live in S.synths ahead of the user's synths, marked with fixed:<kind> (the 808 also keeps is808) */
 function newTonal(kind, len){ return {uid:++uid, name: kind==="808" ? "808" : TONAL[kind].name, fixed:kind, is808: kind==="808", perc: kind!=="808", poly:false, volume:TONAL[kind].vol, timbre:.5, steps:Array(len).fill(null)}; }
@@ -794,6 +883,7 @@ function fromJSON(o){
     tidyStac(n);
     return n;
   })];
+  st.samples = (Array.isArray(o.samples) ? o.samples.slice(0,MAX_SAMPLES) : []).map(x => newSample(len, x && typeof x==="object" ? x : {}));
   return st;
 }
 function toJSON(st){
@@ -809,6 +899,8 @@ function toJSON(st){
     drums, levels, tones: Object.fromEntries(TONE_IDS.map(id => [id, +st.tones[id].toFixed(2)])),
     ...Object.fromEntries(TONAL_IDS.map(k => { const b = tonalRow(k, st); return [k==="808" ? "bass808" : k, {volume:+b.volume.toFixed(2), [TONAL[k].key]:+b.timbre.toFixed(2), steps:b.steps.map(x => x ?? ".")}]; })),
     synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
+    ...(st.samples?.length ? {samples: st.samples.map(s => ({video:s.vid, ...(s.title ? {title:s.title} : {}), start:s.start, speed:s.rate, beats:s.beats || "inf", volume:+s.volume.toFixed(2),
+      steps:s.steps.map(x => x ? "x" : ".").join("").match(/.{1,16}/g).join("|")}))} : {}),
   };
 }
 function pretty(o){
@@ -861,11 +953,11 @@ const saved0 = readLocal();
 let S;
 try { S = fromJSON(saved0?.beat ?? PRESETS[0]); } catch { S = fromJSON(PRESETS[0]); }
 const muted = new Set(), soloed = new Set();
-const groupOf = id => DRUM_IDS.includes(id) || S.synths.find(s => "s"+s.uid===id)?.fixed ? "drums" : "synths"; // tonal rows mute with the drums
+const groupOf = id => id[0]==="y" ? "samples" : DRUM_IDS.includes(id) || S.synths.find(s => "s"+s.uid===id)?.fixed ? "drums" : "synths"; // tonal rows mute with the drums
 const anySolo = () => soloed.size>0;
 const audible = id => !muted.has(id) && (!anySolo() || soloed.has(id));
 // the group M / S buttons flip every row in the group, and they're lit only while every row in it is flagged
-const groupIds = g => [...DRUM_IDS, ...S.synths.map(s => "s"+s.uid)].filter(id => groupOf(id)===g);
+const groupIds = g => [...DRUM_IDS, ...S.synths.map(s => "s"+s.uid), ...S.samples.map(smpKey)].filter(id => groupOf(id)===g);
 const groupAll = (set, g) => { const ids = groupIds(g); return ids.length>0 && ids.every(id => set.has(id)); };
 const toggleGroup = (set, g) => { const on = !groupAll(set, g); groupIds(g).forEach(id => on ? set.add(id) : set.delete(id)); refreshFlags(); };
 let currentDocId = null;
@@ -1235,7 +1327,7 @@ function playSynth(midi,t,dur,vol,tim=.5,poly=false,short=false){
 
 /* ---------- Scheduler ---------- */
 const LOOKAHEAD = .12;
-let playing = false, nextTime = 0, stepIx = 0, ticker = null, worker = null;
+let playing = false, nextTime = 0, stepIx = 0, ticker = null, worker = null, stepAbs = 0;
 const vq = [];
 try {
   const src = "let i=null;onmessage=e=>{clearInterval(i);if(e.data==='go')i=setInterval(()=>postMessage(0),25)}";
@@ -1270,6 +1362,7 @@ function scheduleStep(step,t,sd){
 }
 function tick(){
   if(!playing) return;
+  smpTick(); // samples plan further ahead than the drums, so they go first and never miss a step
   while(nextTime < ctx.currentTime + LOOKAHEAD){
     const sd = 60/S.bpm/4;
     stepIx %= stepCount();
@@ -1278,12 +1371,14 @@ function tick(){
     vq.push({step:stepIx, t});
     nextTime += sd;
     stepIx = (stepIx+1)%stepCount();
+    stepAbs++;
   }
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0;
-  nextTime = ctx.currentTime + .06;
+  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1;
+  // a loaded video needs a moment to start, so the very first hit waits a little for it
+  nextTime = ctx.currentTime + .06 + (YT_OK && S.samples.some(s => s.vid && s.steps.some(Boolean) && decks.get(s.uid)?.ready) ? .3 : 0);
   tick();
   if(worker){ worker.postMessage("go"); setTimeout(() => { if(playing && !workerOk) fallbackTimer(); }, 300); }
   else ticker = setInterval(tick,25);
@@ -1297,6 +1392,7 @@ function stopPlay(){
   applyVerb();
   if(worker) worker.postMessage("stop"); if(ticker){ clearInterval(ticker); ticker = null; }
   vq.length = 0; setPlayhead(-1);
+  for(const d of decks.values()) smpHalt(d);
   if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,ctx.currentTime,.01); openHatChoke = null; }
   if(bassChoke){ bassChoke.gain.setTargetAtTime(0,ctx.currentTime,.02); bassChoke = null; }
   kickChoke = null;
@@ -1326,6 +1422,304 @@ function draw(){
   if(cur!=null) setPlayhead(cur);
   requestAnimationFrame(draw);
 }
+
+/* ---------- Samples: YouTube players that follow the beat ----------
+   The video plays in YouTube's own player, outside WebAudio, so it can't be scheduled to the sample.
+   Instead each trigger is planned half a second ahead and fired early by that player's start delay,
+   which it measures on every hit and keeps adjusting. */
+const decks = new Map();  // sample uid -> its card and player
+const smpQ = [];          // timed player commands, by performance.now()
+let smpDone = -1;         // the last step (counted from Play) that samples were planned for
+const SMP_AHEAD = .5;
+const smpOf = d => S.samples.find(s => s.uid===d.uid);
+function smpDue(){
+  const now = performance.now();
+  for(let i=0; i<smpQ.length;){
+    if(smpQ[i].at <= now+2){ const e = smpQ.splice(i,1)[0]; try { e.fn(); } catch(err){ console.warn("sample:", err); } }
+    else i++;
+  }
+}
+function smpAt(at, fn, d=null){ const e = {at, fn, d}; smpQ.push(e); setTimeout(smpDue, Math.max(0, at - performance.now())); return e; }
+function smpCancel(e){ const i = e ? smpQ.indexOf(e) : -1; if(i>=0) smpQ.splice(i,1); }
+// plans triggers from the drum clock's next step, so tempo changes and page edits never pull them out of line
+function smpTick(){
+  smpDue();
+  if(!YT_OK) return;
+  const sd = 60/S.bpm/4, n = stepCount(), now = ctx.currentTime;
+  for(let k=0; nextTime + k*sd < now + SMP_AHEAD; k++){
+    const abs = stepAbs + k; if(abs <= smpDone) continue;
+    smpDone = abs;
+    const step = (stepIx + k) % n, t = nextTime + k*sd + (step%2 ? S.swing*sd : 0);
+    for(const s of S.samples) if(s.steps[step]) smpTrigger(s, t);
+  }
+  smpDrift();
+}
+function smpCued(d, s){ return d.st!==1 && d.st!==3 && d.cuedAt!=null && Math.abs(d.cuedAt - s.start) < .05; }
+function smpTrigger(s, t){
+  const d = decks.get(s.uid); if(!d?.ready || d.err) return;
+  const at = performance.now() + (t - ctx.currentTime)*1000; // when this step is heard
+  if(!s.beats){ if(d.run) return; d.run = true; }            // ∞ starts once and keeps going through every loop
+  if(d.endE && d.endE.at > at - 30){ smpCancel(d.endE); d.endE = null; } // a retrigger cuts the last hit short
+  smpAt(at - Math.max(d.lead.play, d.lead.seek)*1000, () => smpFire(d, at), d);
+  if(s.beats) d.endE = smpAt(at + s.beats*60000/S.bpm, () => smpStop(d), d);
+}
+function smpFire(d, at){
+  const s = smpOf(d), p = d.player;
+  if(!playing || !s || !d.ready || !p) return;
+  const cued = smpCued(d, s), lead = (cued ? d.lead.play : d.lead.seek)*1000;
+  if(at - lead - performance.now() > 4){ smpAt(at - lead, () => smpFire(d, at), d); return; } // it's already parked on the start: go a little later
+  if(d.priming){ d.priming = false; p.unMute(); }
+  smpVol(d, s);
+  if(!cued) p.seekTo(s.start, true);
+  p.playVideo(); d.cuedAt = null;
+  if(!s.beats){ d.runAt = at; d.chk = at + 2500; }
+  d.meas = {at, start:s.start, rate:s.rate, kind: cued ? "play" : "seek", t:performance.now()};
+  smpMeasure(d);
+}
+// once it's playing, read back where the video is to see how late it really started, and lead by that next time
+function smpMeasure(d){
+  const m = d.meas; let v0 = null;
+  const poll = () => {
+    if(d.meas!==m || !playing || !d.player) return;
+    const now = performance.now();
+    if(now - m.t > 3000){ d.meas = null; return; }
+    if(d.st===1 && now - m.t > 350){
+      const v = d.player.getCurrentTime();
+      if(v0==null) v0 = v;
+      else if(v!==v0){
+        const began = now - (v - m.start)/m.rate*1000, err = began - m.at; // > 0: it started late
+        if(v >= m.start && Math.abs(err) < 700) d.lead[m.kind] = Math.min(.45, Math.max(.02, d.lead[m.kind] + err/1000*.6));
+        d.meas = null; return;
+      }
+    }
+    requestAnimationFrame(poll);
+  };
+  requestAnimationFrame(poll);
+}
+// an ∞ sample that stalls to buffer gets pulled back to where it should be, at most every few seconds
+function smpDrift(){
+  const now = performance.now();
+  for(const d of decks.values()){
+    if(!d.run || d.runAt==null || d.st!==1 || now < d.chk) continue;
+    const s = smpOf(d); if(!s) continue;
+    d.chk = now + 2000;
+    const want = s.start + (now - d.runAt)/1000*s.rate, have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
+    if(want < dur - 1 && Math.abs(have - want) > .25){ d.player.seekTo(want + d.lead.seek*s.rate, true); d.chk = now + 4000; }
+  }
+}
+// pause and park on the start point, ready for the next hit
+function smpStop(d){
+  d.endE = null; d.preview = false; smpPreviewBtn(d);
+  const s = smpOf(d), p = d.player; if(!p || !d.ready) return;
+  try { p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } } catch {}
+}
+function smpHalt(d){
+  for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d===d) smpQ.splice(i,1);
+  d.endE = null;
+  d.run = false; d.runAt = null; d.meas = null;
+  if(d.ready && (d.st===1 || d.st===3 || d.preview)) smpStop(d);
+}
+function smpVol(d, s=smpOf(d)){
+  if(!d.ready || !s || d.priming || !d.player) return;
+  try { d.player.setVolume(audible(smpKey(s)) ? Math.round(s.volume * $("masterIn").value) : 0); } catch {}
+}
+function smpVols(){ for(const d of decks.values()) smpVol(d); }
+
+let ytLoad = null;
+function ytApi(){
+  if(window.YT?.Player) return Promise.resolve(window.YT);
+  return ytLoad ||= new Promise((res, rej) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { try { prev?.(); } catch {} res(window.YT); };
+    const sc = document.createElement("script");
+    sc.src = "https://www.youtube.com/iframe_api"; sc.async = true;
+    sc.onerror = () => { ytLoad = null; sc.remove(); rej(new Error("YouTube didn't load")); };
+    document.head.appendChild(sc);
+  });
+}
+const YT_ERR = {
+  2:"That link doesn't point to a video. Check it and paste it again.",
+  5:"This browser's player can't play that video.",
+  100:"That video is private or was taken down.",
+  101:"The owner doesn't let this video play on other sites. Try another upload of it.",
+  150:"The owner doesn't let this video play on other sites. Try another upload of it.",
+  153:"YouTube wants to know which site is playing it. Open the AK-16 from its web address, not a saved file.",
+};
+function smpMsg(d, html, bad=false){
+  const m = d.card.querySelector(".ytmsg");
+  m.hidden = !html; m.innerHTML = html || ""; m.classList.toggle("bad", bad);
+}
+function smpTitle(d){
+  const s = smpOf(d), t = d.player?.getVideoData?.()?.title;
+  if(!s || !t || s.title) return;
+  // the title comes from YouTube a moment after the link: fold it into that edit instead of a separate undo step
+  const quiet = committed===snapStr();
+  s.title = t.slice(0,140);
+  if(quiet && !peek) committed = snapStr();
+  smpNames(); syncJson();
+}
+function ytReady(d){
+  const s = smpOf(d); if(!s || !d.player) return;
+  d.ready = true; d.err = "";
+  smpMsg(d, "");
+  try { d.player.setPlaybackRate(s.rate); } catch {}
+  smpVol(d, s); smpTitle(d);
+  if(!playing) smpPrime(d);
+}
+// play it muted for a moment so the start point is buffered before the first hit, then park there
+function smpPrime(d){
+  const s = smpOf(d), p = d.player; if(!s || !p) return;
+  d.priming = true;
+  try { p.mute(); p.seekTo(s.start, true); p.playVideo(); } catch {}
+  setTimeout(() => { if(d.priming){ d.priming = false; try { p.unMute(); } catch {} smpVol(d); } }, 4000);
+}
+function ytState(d, st){
+  d.st = st;
+  const s = smpOf(d), p = d.player;
+  if(st===1 && d.priming){ d.priming = false; p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } p.unMute(); smpVol(d); smpTitle(d); return; }
+  if(st===5 && d.cueing){ d.cueing = false; ytReady(d); }
+  if(st===0){ d.run = false; d.runAt = null; d.preview = false; smpPreviewBtn(d); }
+  if(st===1 || st===5) smpTitle(d);
+  if(st===1 && !playing && !d.preview && !d.priming) d.cuedAt = null; // played from YouTube's own controls
+}
+function ytError(d, code){
+  d.err = YT_ERR[code] || `YouTube couldn't play this video (error ${code}).`;
+  d.ready = false; smpHalt(d);
+  smpMsg(d, esc(d.err), true);
+}
+function smpLoad(d, s){
+  d.vid = s.vid; d.ready = false; d.err = ""; d.cuedAt = null; smpHalt(d);
+  if(!YT_OK){
+    smpMsg(d, s.vid ? `YouTube can't play inside this Claude page. The sample's settings save with the beat and play in the self-hosted AK-16.<a href="https://www.youtube.com/watch?v=${s.vid}" target="_blank" rel="noopener">Open the video on YouTube ↗</a>`
+      : "YouTube can't play inside this Claude page. You can still set up the sample here, and it plays in the self-hosted AK-16.");
+    return;
+  }
+  if(!s.vid){
+    if(d.player){ try { d.player.destroy(); } catch {} d.player = null; d.card.querySelector(".yt").insertAdjacentHTML("afterbegin", '<div class="ytmount"></div>'); }
+    smpMsg(d, "Paste a YouTube link below to load a video."); return;
+  }
+  if(d.player?.cueVideoById){ d.cueing = true; smpMsg(d, "Loading the video…"); d.player.cueVideoById({videoId:s.vid, startSeconds:s.start}); return; }
+  smpMsg(d, "Loading YouTube…");
+  const vid = s.vid;
+  ytApi().then(YT => {
+    if(decks.get(d.uid)!==d || d.vid!==vid || d.player) return;
+    d.player = new YT.Player(d.card.querySelector(".ytmount"), {width:"100%", height:"100%", videoId:vid,
+      playerVars:{playsinline:1, rel:0, start:Math.floor(smpOf(d)?.start || 0), origin:location.origin},
+      events:{onReady:() => ytReady(d), onStateChange:e => ytState(d, e.data), onError:e => ytError(d, e.data)}});
+  }).catch(() => smpMsg(d, "YouTube didn't load. Check your connection, then reload the page.", true));
+}
+function smpCardHTML(s){
+  const id = f => `smp${s.uid}${f}`;
+  return `<div class="smpcard" data-uid="${s.uid}">
+    <div class="smph"><span class="abbr ytb" data-f="tag"></span><span class="smpt" data-f="title"></span></div>
+    <div class="yt"><div class="ytmount"></div><div class="ytmsg" hidden></div></div>
+    <label class="smpl"><span class="lbl">YouTube link</span><input type="text" id="${id("link")}" data-f="link" placeholder="Paste a link, like https://youtu.be/…" spellcheck="false" autocomplete="off"></label>
+    <div class="smpf">
+      <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" title="Minutes:seconds, like 1:23.5"></label>
+      <label><span class="lbl">Speed</span><select id="${id("rate")}" data-f="rate" class="num">${YT_RATES.map(r => `<option value="${r}">${r}×</option>`).join("")}</select></label>
+      <label><span class="lbl">Play for</span><select id="${id("beats")}" data-f="beats">${BEAT_OPTS.map(b => `<option value="${b}">${beatLabel(b)}</option>`).join("")}</select></label>
+    </div>
+    <div class="smpbtns" ${YT_OK ? "" : "hidden"}><button class="btn" type="button" data-f="here" title="Set the start to where the video is now">Start here</button><button class="btn" type="button" data-f="preview" aria-pressed="false" title="Play this sample once from its start">Preview</button></div>
+    <div class="smpstat" data-f="stat" aria-live="polite"></div>
+  </div>`;
+}
+const smpName = (s, i) => s.title || (s.vid ? (YT_OK ? "Loading the title…" : "youtu.be/"+s.vid) : "No video yet");
+function smpNames(){
+  S.samples.forEach((s,i) => {
+    const r = rack.querySelector(`.row[data-row="${smpKey(s)}"] .rname`);
+    if(r){ r.textContent = smpName(s, i); r.title = smpName(s, i) + " (click to show its video)"; r.classList.toggle("empty", !s.title); }
+    const d = decks.get(s.uid);
+    if(d){ const t = d.card.querySelector('[data-f="title"]'); t.textContent = smpName(s, i); t.classList.toggle("empty", !s.title); }
+  });
+}
+function smpPreviewBtn(d){ const b = d.card.querySelector('[data-f="preview"]'); if(b){ b.setAttribute("aria-pressed", !!d.preview); b.textContent = d.preview ? "Stop" : "Preview"; } }
+// keep one card per sample row. Cards live outside the rack because moving a YouTube iframe reloads it;
+// a load, undo or compare hands an old card to the new row with the same video, so the player doesn't reload
+function syncDeck(){
+  $("smpDeck").hidden = !S.samples.length;
+  $("smpHint").textContent = YT_OK ? "They play in YouTube's own player, so they follow the beat loosely (each one learns its start delay as it plays) and aren't in WAV exports."
+    : "YouTube can't play inside this Claude page, but samples save with the beat and play in the self-hosted AK-16.";
+  const live = new Set(S.samples.map(s => s.uid));
+  for(const s of S.samples) if(!decks.has(s.uid) && s.vid){
+    const old = [...decks.entries()].find(([u,d]) => !live.has(u) && d.vid===s.vid);
+    if(old){ decks.delete(old[0]); old[1].uid = s.uid; old[1].card.dataset.uid = s.uid; decks.set(s.uid, old[1]); }
+  }
+  for(const [u,d] of decks) if(!live.has(u)){ smpHalt(d); try { d.player?.destroy(); } catch {} d.card.remove(); decks.delete(u); }
+  S.samples.forEach((s,i) => {
+    let d = decks.get(s.uid);
+    if(!d){
+      $("smpGrid").insertAdjacentHTML("beforeend", smpCardHTML(s));
+      d = {uid:s.uid, card:$("smpGrid").lastElementChild, player:null, ready:false, vid:null, st:-1, err:"", lead:{play:.15, seek:.25}, cuedAt:null, run:false};
+      decks.set(s.uid, d);
+    }
+    d.card.style.order = i;
+    const f = n => d.card.querySelector(`[data-f="${n}"]`), set = (n, v) => { if(document.activeElement!==f(n)) f(n).value = v; };
+    f("tag").textContent = "YT"+(i+1);
+    if(s.vid || document.activeElement!==f("link")) set("link", s.vid ? "https://youtu.be/"+s.vid : "");
+    set("start", fmtTime(s.start)); set("rate", String(s.rate)); set("beats", String(s.beats));
+    if(s.vid!==d.vid) smpLoad(d, s);
+    else if(d.ready){ try { if(d.player.getPlaybackRate()!==s.rate) d.player.setPlaybackRate(s.rate); } catch {} smpVol(d, s); }
+  });
+  smpNames();
+}
+// which steps each trigger keeps playing over, for the lighter run after it
+function smpCover(s){
+  const n = s.steps.length, out = Array(n).fill(false);
+  if(!s.steps.some(Boolean)) return out;
+  if(!s.beats) return out.fill(true);
+  const span = Math.max(1, Math.round(s.beats*4));
+  for(let i=0;i<n;i++) if(s.steps[i]) for(let k=0; k<span && k<n; k++){ const j = (i+k)%n; if(k>0 && s.steps[j]) break; out[j] = true; }
+  return out;
+}
+function smpCard(el){ const c = el.closest(".smpcard"); return c && {c, s:S.samples.find(x => String(x.uid)===c.dataset.uid), d:decks.get(+c.dataset.uid)}; }
+function smpStat(d, msg){ const el = d.card.querySelector('[data-f="stat"]'); el.textContent = msg; clearTimeout(d.statT); if(msg) d.statT = setTimeout(() => el.textContent = "", 4000); }
+function smpSetLink(c, raw, final){
+  const id = ytId(raw);
+  if(!id){ if(final && raw.trim()) smpStat(c.d, "That doesn't look like a YouTube link."); return; }
+  if(id===c.s.vid) return;
+  c.s.vid = id; c.s.title = "";
+  const t = ytLinkStart(raw); if(t!=null) c.s.start = +Math.min(t, 86400).toFixed(2);
+  render(); changed();
+}
+$("smpGrid").addEventListener("input", e => {
+  const c = smpCard(e.target); if(!c?.s) return;
+  if(e.target.dataset.f==="link") smpSetLink(c, e.target.value, false); // a pasted link loads straight away
+});
+$("smpGrid").addEventListener("change", e => {
+  const c = smpCard(e.target); if(!c?.s) return;
+  const f = e.target.dataset.f, v = e.target.value;
+  if(f==="link"){
+    if(!v.trim() && c.s.vid){ c.s.vid = ""; c.s.title = ""; render(); changed(); return; }
+    smpSetLink(c, v, true); return;
+  }
+  if(f==="start"){
+    const t = parseTime(v);
+    if(t==null){ e.target.value = fmtTime(c.s.start); smpStat(c.d, "Use minutes:seconds, like 1:23.5"); return; }
+    c.s.start = +Math.min(t, 86400).toFixed(2); e.target.value = fmtTime(c.s.start);
+    if(!playing && c.d?.ready) smpStop(c.d);
+  }
+  else if(f==="rate"){ c.s.rate = +v; if(c.d?.ready){ try { c.d.player.setPlaybackRate(c.s.rate); } catch {} c.d.runAt = null; } }
+  else if(f==="beats"){ c.s.beats = +v; c.d && (c.d.run = false); paintRow(smpKey(c.s)); }
+  changed();
+});
+$("smpGrid").addEventListener("click", e => {
+  const b = e.target.closest("button[data-f]"); if(!b) return;
+  const c = smpCard(b); if(!c?.s || !c.d) return;
+  const {s, d} = c;
+  if(!d.ready){ smpStat(d, s.vid ? "The video is still loading." : "Paste a YouTube link first."); return; }
+  if(b.dataset.f==="here"){
+    s.start = +d.player.getCurrentTime().toFixed(2);
+    d.card.querySelector('[data-f="start"]').value = fmtTime(s.start);
+    smpStat(d, `Starts at ${fmtTime(s.start)}`); changed();
+  } else if(b.dataset.f==="preview"){
+    if(playing){ smpStat(d, "Stop the beat to preview on its own."); return; }
+    if(d.preview){ smpCancel(d.endE); smpStop(d); return; }
+    d.preview = true; d.priming = false; smpPreviewBtn(d);
+    try { d.player.unMute(); } catch {}
+    smpVol(d, s); d.player.seekTo(s.start, true); d.player.playVideo(); d.cuedAt = null;
+    smpCancel(d.endE); d.endE = smpAt(performance.now() + (s.beats || 8)*60000/S.bpm, () => smpStop(d), d);
+  }
+});
 
 /* ---------- Offline render: the beat as audio, without playing it (spectrogram + export) ---------- */
 const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -1572,7 +1966,7 @@ $("exportBtn").addEventListener("click", async () => {
     const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
     const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
     const done = await saveFile(`${name} ${st.bpm}bpm.wav`, wav);
-    if(done) $("exportStatus").textContent = `${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "");
+    if(done) $("exportStatus").textContent = `${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "") + (st.samples.some(s => s.vid) ? " · YouTube samples aren't in it" : "");
   } catch(e){ dlog("export: "+(e?.message||e)); $("exportStatus").textContent = "Couldn't render the audio. Try again."; }
   finally { b.disabled = false; }
 });
@@ -1642,6 +2036,9 @@ function render(){
   for(const s of S.synths) if(!s.fixed) h += synRow(s, off);
   const full = userSynths().length>=MAX_SYNTHS ? "disabled" : "";
   h += `<div class="addrow"><button class="btn" data-act="addsyn" ${full}>+ Add synth</button><button class="btn" data-act="addpoly" ${full}>+ Add chord synth</button><span class="hint">${userSynths().length}/${MAX_SYNTHS} · mono plays one note at a time, poly plays chords</span></div>`;
+  h += `<div class="sec"><div class="sech"><h2>Samples</h2>${S.samples.length ? gm("samples") : ""}</div><span class="hint">Click a step to start the video there · it plays for the length set on its card below · right-click clears</span></div>`;
+  S.samples.forEach((s,i) => { h += smpRow(s, i, off); });
+  h += `<div class="addrow"><button class="btn" data-act="addsmp" ${S.samples.length>=MAX_SAMPLES ? "disabled" : ""}>+ Add sample</button><span class="hint">${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at any of YouTube's speeds</span></div>`;
   const fb = $("flagbar"); fb.remove();           // keep the live Unmute/Unsolo bar across re-renders
   rack.innerHTML = h;
   renderRest(fb);
@@ -1664,6 +2061,19 @@ function synRow(s, off){
     h += `</div>`;
     return h;
 }
+function smpRow(s, i, off){
+  const key = smpKey(s);
+  let h = `<div class="row smp ${audible(key)?"":"muted"}" data-row="${key}">
+    <div class="rh"><span class="abbr ytb">YT${i+1}</span><span class="rname" data-act="smpgo" data-uid="${s.uid}" title="${esc(smpName(s, i))} (click to show its video)">${esc(smpName(s, i))}</span>
+    <button class="mute" data-act="mute" data-kind="mute" data-id="${key}" aria-pressed="${muted.has(key)}" title="Mute (drag to mute several)">M</button>
+    <button class="mute solo" data-act="mute" data-kind="solo" data-id="${key}" aria-pressed="${soloed.has(key)}" title="Solo (drag to solo several)">S</button>
+    <span class="knob-sp" aria-hidden="true"></span>
+    <input type="range" class="vol" data-act="yvol" data-uid="${s.uid}" min="0" max="100" data-default="80" data-fmt="%" value="${Math.round(s.volume*100)}" aria-label="Sample ${i+1} volume">
+    <span class="rmenu-sp" aria-hidden="true"></span>
+    <button class="del" data-act="delsmp" data-uid="${s.uid}" title="Remove sample" aria-label="Remove sample ${i+1}">✕</button></div>`;
+  for(let k=0;k<16;k++) h += `<button class="cell ${q(k)}" style="--i:${k};--r:${DRUM_IDS.length + S.synths.length + i}" data-kind="smp" data-row="${key}" data-step="${off+k}" aria-label="Sample ${i+1} step ${off+k+1}"></button>`;
+  return h + `</div>`;
+}
 function renderRest(fb){
   // a page flip mid-drag rebuilds the rack: hand the drag over to the fresh knob so it keeps going
   if(knobDrag){
@@ -1676,6 +2086,7 @@ function renderRest(fb){
   rack.querySelectorAll(".cell").forEach(el => { columns[+el.dataset.step % PAGE].push(el); paintCell(el); });
   phShown = -1; if(playing && phStep>=0) setPlayhead(phStep);
   syncTransport();
+  syncDeck();
   syncJson();
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1689,6 +2100,12 @@ function paintCell(el){
     el.classList.toggle("ghost", !!c && c.v==="g");
     el.classList.toggle("acc", !!c && c.v==="X");
     el.innerHTML = c && c.r>1 ? Array(c.r).fill('<span class="rb"></span>').join("") + `<span class="rl">${c.r}</span>` : "";
+  } else if(kind==="smp"){
+    const s = smpByKey(row); if(!s) return;
+    const on = !!s.steps[i];
+    el.classList.toggle("on", on);
+    el.classList.toggle("tail", !on && smpCover(s)[i]);
+    el.textContent = on && !s.beats ? "∞" : "";
   } else {
     const s = synthByKey(row); if(!s) return;
     const n = s.steps[i];
@@ -1733,8 +2150,11 @@ function undo(){
   if(!prev) return;
   const mutedIdx = S.synths.map((s,i) => muted.has("s"+s.uid) ? i : -1).filter(i => i>=0);
   const soloIdx = S.synths.map((s,i) => soloed.has("s"+s.uid) ? i : -1).filter(i => i>=0);
+  const smpFlags = S.samples.map(s => [muted.has(smpKey(s)), soloed.has(smpKey(s))]);
   S.synths.forEach(s => { muted.delete("s"+s.uid); soloed.delete("s"+s.uid); });
+  S.samples.forEach(s => { muted.delete(smpKey(s)); soloed.delete(smpKey(s)); });
   S = fromJSON(JSON.parse(prev.json));
+  smpFlags.forEach(([m, so], i) => { const s = S.samples[i]; if(!s) return; if(m) muted.add(smpKey(s)); if(so) soloed.add(smpKey(s)); });
   mutedIdx.forEach(i => { if(S.synths[i]) muted.add("s"+S.synths[i].uid); });
   soloIdx.forEach(i => { if(S.synths[i]) soloed.add("s"+S.synths[i].uid); });
   viewPage = Math.min(prev.page, S.pages-1);
@@ -1767,6 +2187,7 @@ function refreshFlags(){
   $("unmuteAll").querySelector("span").textContent = `Unmute all (${nm})`;
   $("unsoloAll").querySelector("span").textContent = `Unsolo all (${ns})`;
   $("flagbar").hidden = !nm && !ns;
+  smpVols();
   specSoon();
 }
 $("unmuteAll").addEventListener("click", () => { muted.clear(); refreshFlags(); });
@@ -1933,6 +2354,12 @@ rack.addEventListener("pointerdown", e => {
   ensureCtx();
   const {kind,row} = cell.dataset, step = +cell.dataset.step;
   drag = {kind,row,start:step,last:step,lastRow:DRUM_IDS.indexOf(row),moved:false,pid:e.pointerId,cell,pickerOnIt};
+  if(kind==="smp"){
+    const s = smpByKey(row);
+    drag.paint = !s.steps[step]; s.steps[step] = drag.paint || null;
+    paintRow(row);
+    return;
+  }
   if(kind==="drum"){
     const cur = S.drums[row][step];
     drag.orig = cur ? {...cur} : null;
@@ -1999,6 +2426,12 @@ window.addEventListener("pointermove", e => {
   }
   if(el.dataset.row!==drag.row || s===drag.last) return;
   drag.moved = true; clearTimeout(drag.lp);
+  if(drag.kind==="smp"){
+    const sm = smpByKey(drag.row), a = Math.min(drag.last, s), z = Math.max(drag.last, s);
+    for(let i=a;i<=z;i++) sm.steps[i] = drag.paint || null;
+    paintRow(drag.row); drag.last = s;
+    return;
+  }
   if(synthByKey(drag.row)?.perc){ // tom, conga and cowbell ring out on their own: nothing to hold, so a drag paints or erases like a drum
     const syn = synthByKey(drag.row), a = Math.min(drag.last, s), z = Math.max(drag.last, s);
     for(let i=a;i<=z;i++) syn.steps[i] = drag.erase ? null : syn.steps[i] || drag.orig[drag.start];
@@ -2032,12 +2465,13 @@ window.addEventListener("pointerup", endDrag);
 window.addEventListener("pointercancel", e => { muteDrag = null; if(drag){ clearTimeout(drag.lp); drag = null; changed(); } });
 rack.addEventListener("contextmenu", e => {
   const rh = e.target.closest(".row .rh");
-  if(rh && rh.closest(".row[data-row]") && !e.target.closest("input")){ e.preventDefault(); openRowMenu(rh); return; }
+  if(rh && rh.closest(".row[data-row]:not(.smp)") && !e.target.closest("input")){ e.preventDefault(); openRowMenu(rh); return; }
   const cell = e.target.closest(".cell");
   if(!cell) return;
   e.preventDefault();
   if(lastPT!=="mouse") return;
   if(cell.dataset.kind==="drum") openRollMenu(cell);
+  else if(cell.dataset.kind==="smp"){ smpByKey(cell.dataset.row).steps[+cell.dataset.step] = null; paintRow(cell.dataset.row); changed(); }
   else { const s = synthByKey(cell.dataset.row); s.steps[+cell.dataset.step] = null; paintRow(cell.dataset.row); changed(); }
 });
 
@@ -2080,6 +2514,20 @@ rack.addEventListener("click", e => {
     else s.steps = s.steps.map(unStac);
     closePops(); render(); commit();
     toast(s.poly ? `${s.name} is poly: steps can hold chords` : had ? `${s.name} is mono: kept the top note of each chord (Undo restores them)` : `${s.name} is mono`);
+  } else if(act==="addsmp"){
+    if(S.samples.length>=MAX_SAMPLES) return;
+    const s = newSample(stepCount()); S.samples.push(s);
+    render(); commit();
+    const d = decks.get(s.uid);
+    if(d){ d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"}); d.card.querySelector('[data-f="link"]').focus({preventScroll:true}); }
+  } else if(act==="smpgo"){
+    const d = decks.get(+b.dataset.uid); if(!d) return;
+    d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"});
+    d.card.classList.remove("flash"); void d.card.offsetWidth; d.card.classList.add("flash"); setTimeout(() => d.card.classList.remove("flash"), 900);
+  } else if(act==="delsmp"){
+    if(b.dataset.armed){ S.samples = S.samples.filter(s => String(s.uid)!==b.dataset.uid); muted.delete("y"+b.dataset.uid); soloed.delete("y"+b.dataset.uid); render(); commit(); return; }
+    b.dataset.armed = "1"; b.textContent = "?"; b.title = "Click again to remove";
+    setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "✕"; b.title = "Remove sample"; } }, 2500);
   } else if(act==="delsyn"){
     if(b.dataset.armed){ S.synths = S.synths.filter(s => String(s.uid)!==b.dataset.uid); muted.delete("s"+b.dataset.uid); soloed.delete("s"+b.dataset.uid); render(); commit(); return; }
     b.dataset.armed = "1"; b.textContent = "?"; b.title = "Click again to remove";
@@ -2091,11 +2539,12 @@ rack.addEventListener("input", e => {
   if(act==="vol"){ S.levels[t.dataset.id] = t.value/100; changedSoon(); }
   else if(act==="svol"){ const s = S.synths.find(x => String(x.uid)===t.dataset.uid); if(s){ s.volume = t.value/100; changedSoon(); } }
   else if(act==="rename"){ const s = S.synths.find(x => String(x.uid)===t.dataset.uid); if(s){ s.name = t.value.slice(0,24) || "Synth"; changedSoon(); } }
+  else if(act==="yvol"){ const s = S.samples.find(x => String(x.uid)===t.dataset.uid); if(s){ s.volume = t.value/100; const d = decks.get(s.uid); if(d) smpVol(d, s); changedSoon(); } }
 });
 rack.addEventListener("change", e => {
   const t = e.target;
   if(t.dataset.act==="follow"){ followPlay = t.checked; persistLocal(); return; }
-  if(["vol","svol","rename"].includes(t.dataset.act)){ changed(); return; }
+  if(["vol","svol","rename","yvol"].includes(t.dataset.act)){ changed(); return; }
 });
 function insertPage(copy){
   if(S.pages>=MAX_PAGES) return;
@@ -2105,7 +2554,7 @@ function insertPage(copy){
     const chunk = copy ? row.slice(from, from+PAGE).map(c => c ? {...c} : null) : Array(PAGE).fill(null);
     row.splice(at, 0, ...chunk);
   }
-  for(const s of S.synths){
+  for(const s of [...S.synths, ...S.samples]){
     const chunk = copy ? s.steps.slice(from, from+PAGE) : Array(PAGE).fill(null);
     s.steps.splice(at, 0, ...chunk);
   }
@@ -2117,7 +2566,7 @@ function removePage(p){
   if(S.pages<=1) return;
   const at = p*PAGE;
   for(const id of DRUM_IDS) S.drums[id].splice(at, PAGE);
-  for(const s of S.synths) s.steps.splice(at, PAGE);
+  for(const s of [...S.synths, ...S.samples]) s.steps.splice(at, PAGE);
   S.pages--;
   if(viewPage >= S.pages) viewPage = S.pages-1;
   if(playing){ if(stepIx >= at+PAGE) stepIx -= PAGE; else if(stepIx >= at) stepIx = at % stepCount(); }
@@ -2628,7 +3077,7 @@ function applyVerb(){
   W.nbp.frequency.setTargetAtTime(600 * Math.pow(15, w), t, k);
   W.nGain.gain.setTargetAtTime(live * .22 * Math.pow(w,1.6), t, playing ? k : .15);
 }
-$("masterIn").addEventListener("input", e => { if(master) master.gain.setTargetAtTime(e.target.value/100, ctx.currentTime, .02); });
+$("masterIn").addEventListener("input", e => { if(master) master.gain.setTargetAtTime(e.target.value/100, ctx.currentTime, .02); smpVols(); });
 $("masterIn").addEventListener("change", persistLocal);
 /* Sliders without a readout show their value in a tip above the thumb while hovered, focused or dragged */
 function valueTip(id, label){
@@ -2828,6 +3277,7 @@ $("genBtn").addEventListener("click", async () => {
   ensureCtx();
   const model = $("tierSel").value, label = modelLabel();
   const req = $("prompt").value.trim(), cur = $("buildOn").checked ? toJSON(S) : null, st0 = S;
+  if(cur) delete cur.samples;
   let hear = null;
   genCtl = new AbortController();
   $("genBtn").disabled = true; $("stopGen").hidden = false;
@@ -2855,6 +3305,7 @@ $("genBtn").addEventListener("click", async () => {
     let data;
     try { data = parseReply(res.text); } catch { throw {code:"invalid_json", tierNote}; }
     const st = fromJSON(data);
+    if(!st.samples.length && S.samples.length) st.samples = fitSamples(S.samples, st.pages*PAGE);
     loadState(st, null);
     compFinish(true, `“${st.name}” is in`);
     revealRack();
@@ -3194,6 +3645,7 @@ function startPeek(){
   // borrow the live rows' ids so mutes, solos and voice chokes carry over row for row
   const liveUser = userSynths(S); let ui = 0;
   st.synths.forEach(s => { const m = s.fixed ? S.synths.find(x => x.fixed===s.fixed) : liveUser[ui++]; if(m) s.uid = m.uid; });
+  st.samples.forEach((s,i) => { if(S.samples[i]) s.uid = S.samples[i].uid; });
   closePops();
   peek = {live:S, page:viewPage};
   S = st;
