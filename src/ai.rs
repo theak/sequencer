@@ -11,8 +11,11 @@
 //! fails with `image_rejected` and the browser retries without one.
 //!
 //! The API key never leaves the server, and only allowlisted models can be requested.
+//! With sign-in on, generating needs an account, and each account gets `AI_DAILY_LIMIT`
+//! generations a day. A request that fails before the model writes anything doesn't count.
 
 use crate::AppState;
+use crate::auth::{Viewer, db_failure};
 use crate::handlers::err;
 use axum::{
     Json,
@@ -125,6 +128,7 @@ fn upstream_failure(status: reqwest::StatusCode, body: &Value) -> Response {
 
 pub async fn generate(
     State(state): State<AppState>,
+    viewer: Viewer,
     body: Result<Json<GenerateBody>, JsonRejection>,
 ) -> Response {
     let Some(key) = state.cfg.openrouter_key.clone() else {
@@ -133,6 +137,10 @@ pub async fn generate(
             "not_configured",
             "AI generation is off on this server. Set OPENROUTER_API_KEY to turn it on.",
         );
+    };
+    let (user, _) = match viewer.member() {
+        Ok(u) => u,
+        Err(r) => return r,
     };
     let Json(b) = match body {
         Ok(b) => b,
@@ -151,6 +159,25 @@ pub async fn generate(
             "image must be a JPEG, PNG or WebP data URL under 1.5 MB",
         );
     }
+    if let Some(limit) = state.ai_limit(&user) {
+        match state.db.ai_take(user.id, limit).await {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                return err(
+                    StatusCode::TOO_MANY_REQUESTS,
+                    "daily_limit",
+                    &format!("That's all {limit} AI beats for today. More tomorrow."),
+                );
+            }
+            Err(e) => return db_failure(e),
+        }
+    }
+    // hand the generation back if it fails before the model writes anything
+    let refund = || async {
+        if state.ai_limit(&user).is_some() {
+            let _ = state.db.ai_refund(user.id).await;
+        }
+    };
     let content = match &b.image {
         Some(url) => json!([
             { "type": "image_url", "image_url": { "url": url } },
@@ -163,7 +190,7 @@ pub async fn generate(
         .client
         .post(format!("{}/chat/completions", state.cfg.openrouter_base))
         .bearer_auth(key)
-        .header("X-Title", "AK-16 Sequencer")
+        .header("X-Title", "16.AKS.ZONE")
         .timeout(UPSTREAM_TIMEOUT)
         .json(&json!({
             "model": b.model,
@@ -175,6 +202,7 @@ pub async fn generate(
         Ok(r) => r,
         Err(e) => {
             eprintln!("sequencer: OpenRouter request failed: {e}");
+            refund().await;
             return err(
                 StatusCode::BAD_GATEWAY,
                 "upstream_error",
@@ -185,6 +213,7 @@ pub async fn generate(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.json::<Value>().await.unwrap_or(Value::Null);
+        refund().await;
         // OpenRouter answers 404 "no endpoints support image input" (or a 400/415/422)
         // when the model can't see images: say so, so the browser can retry without one
         if b.image.is_some() && matches!(status.as_u16(), 400 | 404 | 415 | 422) {

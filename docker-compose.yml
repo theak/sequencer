@@ -8,6 +8,9 @@ services:
     environment:
       # Optional: turns on AI beat generation. Keep the real value in a .env file.
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Optional: turns on Google sign-in (see the README). Without it, there's one shared local account.
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - AI_DAILY_LIMIT=${AI_DAILY_LIMIT:-10}
     volumes:
       - sequencer-data:/data
     restart: unless-stopped

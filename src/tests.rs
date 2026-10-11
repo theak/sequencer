@@ -3,7 +3,8 @@ use crate::{AppState, BODY_LIMIT, Config, Model, build_router, parse_models};
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::routing::post;
+use axum::routing::{get, post};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as B64};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use std::path::PathBuf;
@@ -30,15 +31,32 @@ fn cfg(dir: PathBuf, key: Option<&str>, base: &str) -> Config {
             id: "test/model".into(),
             label: "Test".into(),
         }],
+        google_client_id: None,
+        google_certs_url: "http://127.0.0.1:1".into(),
+        ai_daily_limit: 10,
     }
 }
 
-fn app(dir: PathBuf) -> Router {
-    build_router(AppState::new(cfg(dir, None, "http://127.0.0.1:1")))
+async fn router(c: Config) -> Router {
+    build_router(AppState::new(c).await.unwrap())
 }
 
-async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
+/// A server without sign-in: everything is the built-in `local` account.
+async fn app(dir: PathBuf) -> Router {
+    router(cfg(dir, None, "http://127.0.0.1:1")).await
+}
+
+async fn send(
+    app: &Router,
+    method: &str,
+    uri: &str,
+    body: Option<Value>,
+    cookie: Option<&str>,
+) -> axum::response::Response {
     let mut req = Request::builder().method(method).uri(uri);
+    if let Some(c) = cookie {
+        req = req.header("cookie", c);
+    }
     let body = match body {
         Some(v) => {
             req = req.header("content-type", "application/json");
@@ -46,7 +64,10 @@ async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (St
         }
         None => Body::empty(),
     };
-    let resp = app.clone().oneshot(req.body(body).unwrap()).await.unwrap();
+    app.clone().oneshot(req.body(body).unwrap()).await.unwrap()
+}
+
+async fn as_json(resp: axum::response::Response) -> (StatusCode, Value) {
     let status = resp.status();
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     (
@@ -55,21 +76,123 @@ async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (St
     )
 }
 
+async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
+    as_json(send(app, method, uri, body, None).await).await
+}
+
+async fn call_as(
+    app: &Router,
+    cookie: &str,
+    method: &str,
+    uri: &str,
+    body: Option<Value>,
+) -> (StatusCode, Value) {
+    as_json(send(app, method, uri, body, Some(cookie)).await).await
+}
+
+async fn serve(mock: Router) -> String {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    base
+}
+
+// ---- Google sign-in, with a throwaway RSA key standing in for Google's ----
+
+const TEST_KEY: &[u8] = include_bytes!("testdata/google-test-key.pk8");
+const TEST_JWKS: &str = include_str!("testdata/google-test-jwks.json");
+const CLIENT_ID: &str = "test-client.apps.googleusercontent.com";
+
+fn now_s() -> i64 {
+    crate::db::now_ms() / 1000
+}
+
+/// An ID token like Google's, signed with the test key. `tweak` edits the claims.
+fn id_token(sub: &str, tweak: impl FnOnce(&mut Value)) -> String {
+    let mut claims = json!({
+        "iss": "https://accounts.google.com", "aud": CLIENT_ID, "sub": sub,
+        "email": format!("{sub}@example.com"), "iat": now_s(), "exp": now_s() + 3600,
+    });
+    tweak(&mut claims);
+    let head = B64.encode(json!({"alg":"RS256","kid":"test-kid","typ":"JWT"}).to_string());
+    let msg = format!("{head}.{}", B64.encode(claims.to_string()));
+    let key = ring::signature::RsaKeyPair::from_pkcs8(TEST_KEY).unwrap();
+    let mut sig = vec![0; key.public().modulus_len()];
+    key.sign(
+        &ring::signature::RSA_PKCS1_SHA256,
+        &ring::rand::SystemRandom::new(),
+        msg.as_bytes(),
+        &mut sig,
+    )
+    .unwrap();
+    format!("{msg}.{}", B64.encode(sig))
+}
+
+/// A server with sign-in on, checking tokens against the test key.
+async fn google_app(dir: PathBuf, key: Option<&str>, base: &str) -> Router {
+    let certs = serve(Router::new().route(
+        "/certs",
+        get(|| async { ([("content-type", "application/json")], TEST_JWKS) }),
+    ))
+    .await;
+    let mut c = cfg(dir, key, base);
+    c.google_client_id = Some(CLIENT_ID.into());
+    c.google_certs_url = format!("{certs}/certs");
+    router(c).await
+}
+
+/// Sign in and return the session cookie (`sq_session=...`).
+async fn sign_in(app: &Router, sub: &str) -> (String, Value) {
+    let resp = send(
+        app,
+        "POST",
+        "/api/auth/google",
+        Some(json!({"credential": id_token(sub, |_| {})})),
+        None,
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let set = resp.headers()["set-cookie"].to_str().unwrap().to_string();
+    assert!(
+        set.contains("HttpOnly") && set.contains("Secure") && set.contains("SameSite=Lax"),
+        "{set}"
+    );
+    let cookie = set.split(';').next().unwrap().to_string();
+    let (_, me) = as_json(resp).await;
+    (cookie, me)
+}
+
+/// Sign in and pick a username.
+async fn member(app: &Router, sub: &str, username: &str) -> String {
+    let (cookie, _) = sign_in(app, sub).await;
+    let (s, me) = call_as(
+        app,
+        &cookie,
+        "POST",
+        "/api/auth/username",
+        Some(json!({"username": username})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK, "{me}");
+    cookie
+}
+
 #[tokio::test]
 async fn index_serves_app() {
-    let app = app(temp_dir());
+    let app = app(temp_dir()).await;
     let resp = app
         .oneshot(Request::get("/").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let html = resp.into_body().collect().await.unwrap().to_bytes();
-    assert!(String::from_utf8_lossy(&html).contains("AK-16"));
+    assert!(String::from_utf8_lossy(&html).contains("16<b>.</b>AKS<b>.</b>ZONE"));
 }
 
 #[tokio::test]
 async fn version_reports_the_commit() {
     let resp = app(temp_dir())
+        .await
         .oneshot(Request::get("/api/version").body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -87,6 +210,7 @@ async fn serves_the_icons() {
         ("/apple-touch-icon.png", "image/png", &b"\x89PNG"[..]),
     ] {
         let resp = app(temp_dir())
+            .await
             .oneshot(Request::get(path).body(Body::empty()).unwrap())
             .await
             .unwrap();
@@ -99,34 +223,45 @@ async fn serves_the_icons() {
 
 #[tokio::test]
 async fn config_reports_generation_off_without_key() {
-    let (s, v) = call(&app(temp_dir()), "GET", "/api/config", None).await;
+    let (s, v) = call(&app(temp_dir()).await, "GET", "/api/config", None).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(v["generate"], false);
     assert_eq!(v["save"], true);
     assert_eq!(v["auth"], "none");
+    assert_eq!(v["googleClientId"], Value::Null);
     assert_eq!(v["models"][0]["id"], "test/model");
+    // without sign-in, everyone is the local account, unmetered
+    let (_, me) = call(&app(temp_dir()).await, "GET", "/api/me", None).await;
+    assert_eq!(me["user"]["username"], "local");
+    assert_eq!(me["user"]["local"], true);
+    assert_eq!(me["user"]["ai"]["limit"], Value::Null);
 }
 
 #[tokio::test]
 async fn beats_crud_round_trip() {
     let dir = temp_dir();
-    let app = app(dir.clone());
+    let app = app(dir.clone()).await;
 
     let (s, v) = call(&app, "GET", "/api/beats", None).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(v["beats"], json!([]));
+    assert_eq!(v["username"], "local");
 
     let (s, a) = call(
         &app,
         "POST",
         "/api/beats",
-        Some(json!({"name":"  First  ","beat":{"bpm":90}})),
+        Some(json!({"name":"  First  ","beat":{"bpm":90,"pages":2,"synths":[{},{}]}})),
     )
     .await;
     assert_eq!(s, StatusCode::CREATED);
-    let id = a["id"].as_str().unwrap().to_string();
+    assert_eq!(a["id"], "1");
     assert_eq!(a["name"], "First");
-    assert!(dir.join("local/beats").join(format!("{id}.json")).exists());
+    assert_eq!(
+        (a["bpm"].as_f64(), a["pages"].as_i64(), a["synths"].as_i64()),
+        (Some(90.0), Some(2), Some(2))
+    );
+    assert!(dir.join("sequencer.db").exists());
 
     let (_, b) = call(
         &app,
@@ -136,45 +271,69 @@ async fn beats_crud_round_trip() {
     )
     .await;
     assert_eq!(b["name"], "Untitled beat");
+    assert_eq!(b["id"], "2");
 
     // Update keeps createdAt, bumps updatedAt, and moves it to the top of the list.
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
     let (s, u) = call(
         &app,
         "PUT",
-        &format!("/api/beats/{id}"),
+        "/api/beats/1",
         Some(json!({"name":"Renamed","beat":{"bpm":95}})),
     )
     .await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(u["createdAt"], a["createdAt"]);
-    assert!(u["updatedAt"].as_u64() > a["updatedAt"].as_u64());
+    assert!(u["updatedAt"].as_i64() > a["updatedAt"].as_i64());
+    assert_eq!(u["beat"]["bpm"], 95);
 
+    // The list is summaries; one beat's JSON comes from its own URL.
     let (_, v) = call(&app, "GET", "/api/beats", None).await;
     let beats = v["beats"].as_array().unwrap();
     assert_eq!(beats.len(), 2);
     assert_eq!(beats[0]["name"], "Renamed");
-    assert_eq!(beats[0]["beat"]["bpm"], 95);
+    assert!(beats[0].get("beat").is_none());
+    let (s, one) = call(&app, "GET", "/api/beats/1", None).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(one["beat"]["bpm"], 95);
 
-    let (s, _) = call(&app, "DELETE", &format!("/api/beats/{id}"), None).await;
-    assert_eq!(s, StatusCode::NO_CONTENT);
-    let (s, _) = call(&app, "DELETE", &format!("/api/beats/{id}"), None).await;
+    // Updating a beat that isn't there doesn't create it.
+    let (s, _) = call(&app, "PUT", "/api/beats/7", Some(json!({"beat":{}}))).await;
     assert_eq!(s, StatusCode::NOT_FOUND);
-    let (_, v) = call(&app, "GET", "/api/beats", None).await;
-    assert_eq!(v["beats"].as_array().unwrap().len(), 1);
+
+    let (s, _) = call(&app, "DELETE", "/api/beats/1", None).await;
+    assert_eq!(s, StatusCode::NO_CONTENT);
+    let (s, _) = call(&app, "DELETE", "/api/beats/1", None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
+
+    // Numbers are never reused, so an old link can't point at a different beat.
+    let (_, c) = call(
+        &app,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Third","beat":{}})),
+    )
+    .await;
+    assert_eq!(c["id"], "3");
 
     // A fresh server over the same dir sees the same beats.
-    let (_, v) = call(&self::app(dir), "GET", "/api/beats", None).await;
-    assert_eq!(v["beats"].as_array().unwrap().len(), 1);
+    let (_, v) = call(&self::app(dir).await, "GET", "/api/beats", None).await;
+    assert_eq!(v["beats"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
 async fn rejects_bad_ids_and_bodies() {
-    let app = app(temp_dir());
-    let (s, _) = call(&app, "PUT", "/api/beats/..%2Fetc", Some(json!({"beat":{}}))).await;
-    assert_eq!(s, StatusCode::BAD_REQUEST);
-    let (s, _) = call(&app, "PUT", "/api/beats/ABC", Some(json!({"beat":{}}))).await;
-    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let app = app(temp_dir()).await;
+    for bad in ["..%2Fetc", "abc", "01", "0", "1.5"] {
+        let (s, _) = call(
+            &app,
+            "PUT",
+            &format!("/api/beats/{bad}"),
+            Some(json!({"beat":{}})),
+        )
+        .await;
+        assert_eq!(s, StatusCode::BAD_REQUEST, "{bad}");
+    }
     let (s, _) = call(&app, "DELETE", "/api/beats/a.b", None).await;
     assert_eq!(s, StatusCode::BAD_REQUEST);
     let (s, v) = call(
@@ -191,10 +350,345 @@ async fn rejects_bad_ids_and_bodies() {
 }
 
 #[tokio::test]
+async fn shared_links_open_anyones_beat() {
+    let app = app(temp_dir()).await;
+    call(
+        &app,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Night <Drive>","beat":{"bpm":100}})),
+    )
+    .await;
+    let (s, v) = call(&app, "GET", "/api/u/local/1", None).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(v["username"], "local");
+    assert_eq!(v["beat"]["bpm"], 100);
+    let (s, _) = call(&app, "GET", "/api/u/local/2", None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
+
+    // The page itself, with a link preview naming the beat (escaped).
+    let resp = send(&app, "GET", "/local/1", None, None).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let html = String::from_utf8(
+        resp.into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(
+        html.contains(r#"<meta property="og:title" content="Night &lt;Drive&gt; by local">"#),
+        "no preview title"
+    );
+    for missing in ["/local/2", "/local/01", "/nobody/1", "/api/1"] {
+        let resp = send(&app, "GET", missing, None, None).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "{missing}");
+    }
+}
+
+#[tokio::test]
+async fn import_appends_in_order_and_keeps_dates() {
+    let app = app(temp_dir()).await;
+    call(
+        &app,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Already here","beat":{}})),
+    )
+    .await;
+    let (s, v) = call(
+        &app,
+        "POST",
+        "/api/beats/import",
+        Some(json!({"beats":[
+            {"name":"Old","beat":{"bpm":80},"createdAt":1000,"updatedAt":2000},
+            {"name":"Newer","beat":{"bpm":90},"createdAt":3000,"updatedAt":4000},
+        ]})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    let got = v["beats"].as_array().unwrap();
+    assert_eq!(
+        (got[0]["id"].as_str(), got[1]["id"].as_str()),
+        (Some("2"), Some("3"))
+    );
+    assert_eq!(
+        (got[0]["createdAt"].as_i64(), got[0]["updatedAt"].as_i64()),
+        (Some(1000), Some(2000))
+    );
+    let (_, v) = call(&app, "GET", "/api/beats", None).await;
+    let names: Vec<&str> = v["beats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["Already here", "Newer", "Old"]);
+}
+
+#[tokio::test]
+async fn sign_in_pick_a_username_and_save() {
+    let app = google_app(temp_dir(), None, "http://127.0.0.1:1").await;
+    let (_, cfg) = call(&app, "GET", "/api/config", None).await;
+    assert_eq!(cfg["auth"], "google");
+    assert_eq!(cfg["googleClientId"], CLIENT_ID);
+
+    // Signed out: no saving to the server, no AI.
+    let (s, me) = call(&app, "GET", "/api/me", None).await;
+    assert_eq!((s, &me["user"]), (StatusCode::OK, &Value::Null));
+    let (s, v) = call(&app, "POST", "/api/beats", Some(json!({"beat":{}}))).await;
+    assert_eq!(
+        (s, v["code"].as_str()),
+        (StatusCode::UNAUTHORIZED, Some("signed_out"))
+    );
+
+    // First sign-in: an account with no username yet, which can't save.
+    let (cookie, me) = sign_in(&app, "g-123").await;
+    assert_eq!(me["user"]["username"], Value::Null);
+    assert_eq!(me["user"]["email"], "g-123@example.com");
+    let (s, v) = call_as(&app, &cookie, "GET", "/api/beats", None).await;
+    assert_eq!(
+        (s, v["code"].as_str()),
+        (StatusCode::FORBIDDEN, Some("needs_username"))
+    );
+
+    for (bad, why) in [
+        ("ab", "3 to 20"),
+        ("Akshay", "lowercase"),
+        ("-ak", "Start"),
+        ("api", "reserved"),
+    ] {
+        let (s, v) = call_as(
+            &app,
+            &cookie,
+            "POST",
+            "/api/auth/username",
+            Some(json!({"username": bad})),
+        )
+        .await;
+        assert_eq!(s, StatusCode::BAD_REQUEST, "{bad}");
+        assert!(v["message"].as_str().unwrap().contains(why), "{bad}: {v}");
+    }
+    let (_, v) = call(&app, "GET", "/api/usernames/akshay", None).await;
+    assert_eq!(v["available"], true);
+    let (s, me) = call_as(
+        &app,
+        &cookie,
+        "POST",
+        "/api/auth/username",
+        Some(json!({"username":"akshay"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(me["user"]["username"], "akshay");
+    assert_eq!(me["user"]["ai"]["limit"], 10);
+    // It's permanent.
+    let (s, _) = call_as(
+        &app,
+        &cookie,
+        "POST",
+        "/api/auth/username",
+        Some(json!({"username":"other"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+
+    // Someone else can't take it.
+    let (c2, _) = sign_in(&app, "g-456").await;
+    let (_, v) = call(&app, "GET", "/api/usernames/akshay", None).await;
+    assert_eq!(v["available"], false);
+    let (s, _) = call_as(
+        &app,
+        &c2,
+        "POST",
+        "/api/auth/username",
+        Some(json!({"username":"akshay"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::CONFLICT);
+    let (s, _) = call_as(
+        &app,
+        &c2,
+        "POST",
+        "/api/auth/username",
+        Some(json!({"username":"friend"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::OK);
+
+    // Each account numbers its own beats, and only sees its own.
+    let (_, a) = call_as(
+        &app,
+        &cookie,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Mine","beat":{"bpm":91}})),
+    )
+    .await;
+    let (_, b) = call_as(
+        &app,
+        &c2,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Theirs","beat":{}})),
+    )
+    .await;
+    assert_eq!((a["id"].as_str(), b["id"].as_str()), (Some("1"), Some("1")));
+    let (_, v) = call_as(&app, &c2, "GET", "/api/beats", None).await;
+    assert_eq!(v["beats"].as_array().unwrap().len(), 1);
+    assert_eq!(v["beats"][0]["name"], "Theirs");
+    let (s, _) = call_as(&app, &c2, "DELETE", "/api/beats/2", None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
+    // ...but anyone can open a beat by its link.
+    let (s, v) = call(&app, "GET", "/api/u/akshay/1", None).await;
+    assert_eq!((s, v["name"].as_str()), (StatusCode::OK, Some("Mine")));
+
+    // Signing in again finds the same account.
+    let (c3, me) = sign_in(&app, "g-123").await;
+    assert_eq!(me["user"]["username"], "akshay");
+    // Signing out ends that session only.
+    let resp = send(&app, "POST", "/api/auth/signout", None, Some(&c3)).await;
+    assert!(
+        resp.headers()["set-cookie"]
+            .to_str()
+            .unwrap()
+            .contains("Max-Age=0")
+    );
+    let (_, me) = call_as(&app, &c3, "GET", "/api/me", None).await;
+    assert_eq!(me["user"], Value::Null);
+    let (_, me) = call_as(&app, &cookie, "GET", "/api/me", None).await;
+    assert_eq!(me["user"]["username"], "akshay");
+    // A made-up cookie is nobody.
+    let (_, me) = call_as(&app, "sq_session=nope", "GET", "/api/me", None).await;
+    assert_eq!(me["user"], Value::Null);
+}
+
+#[tokio::test]
+async fn rejects_bad_google_tokens() {
+    let app = google_app(temp_dir(), None, "http://127.0.0.1:1").await;
+    let bad: Vec<(&str, String)> = vec![
+        (
+            "wrong audience",
+            id_token("x", |c| c["aud"] = json!("someone-else")),
+        ),
+        (
+            "wrong issuer",
+            id_token("x", |c| c["iss"] = json!("https://evil.example")),
+        ),
+        (
+            "expired",
+            id_token("x", |c| c["exp"] = json!(now_s() - 3600)),
+        ),
+        ("no subject", id_token("x", |c| c["sub"] = json!(""))),
+        ("tampered", {
+            let t = id_token("x", |_| {});
+            let p: Vec<&str> = t.split('.').collect();
+            let forged = B64.encode(json!({"iss":"https://accounts.google.com","aud":CLIENT_ID,"sub":"admin","exp":now_s()+3600}).to_string());
+            format!("{}.{forged}.{}", p[0], p[2])
+        }),
+        ("alg none", {
+            let t = id_token("x", |_| {});
+            let p: Vec<&str> = t.split('.').collect();
+            format!(
+                "{}.{}.",
+                B64.encode(r#"{"alg":"none","kid":"test-kid"}"#),
+                p[1]
+            )
+        }),
+        ("garbage", "not.a.jwt".into()),
+    ];
+    for (why, tok) in bad {
+        let (s, v) = call(
+            &app,
+            "POST",
+            "/api/auth/google",
+            Some(json!({"credential": tok})),
+        )
+        .await;
+        assert_eq!(
+            (s, v["code"].as_str()),
+            (StatusCode::UNAUTHORIZED, Some("bad_token")),
+            "{why}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn ai_needs_an_account_and_counts_per_day() {
+    let upstream = serve(Router::new().route(
+        "/chat/completions",
+        post(|body: String| async move {
+            if body.contains("fail") {
+                return (StatusCode::BAD_GATEWAY, [("content-type", "application/json")], "{}".to_string());
+            }
+            let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            (StatusCode::OK, [("content-type", "text/event-stream")], sse.to_string())
+        }),
+    ))
+    .await;
+    let dir = temp_dir();
+    let app = google_app(dir.clone(), Some("k"), &upstream).await;
+    let gen_ = json!({"model":"test/model","prompt":"a beat"});
+
+    let (s, v) = call(&app, "POST", "/api/generate", Some(gen_.clone())).await;
+    assert_eq!(
+        (s, v["code"].as_str()),
+        (StatusCode::UNAUTHORIZED, Some("signed_out"))
+    );
+
+    let cookie = member(&app, "g-1", "maker").await;
+    // a failed upstream call doesn't use up a generation
+    let (s, _) = call_as(
+        &app,
+        &cookie,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":"fail"})),
+    )
+    .await;
+    assert_eq!(s, StatusCode::BAD_GATEWAY);
+    for _ in 0..10 {
+        let resp = send(
+            &app,
+            "POST",
+            "/api/generate",
+            Some(gen_.clone()),
+            Some(&cookie),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        resp.into_body().collect().await.unwrap();
+    }
+    let (_, me) = call_as(&app, &cookie, "GET", "/api/me", None).await;
+    assert_eq!(
+        (
+            me["user"]["ai"]["used"].as_i64(),
+            me["user"]["ai"]["limit"].as_i64()
+        ),
+        (Some(10), Some(10))
+    );
+    let (s, v) = call_as(&app, &cookie, "POST", "/api/generate", Some(gen_.clone())).await;
+    assert_eq!(
+        (s, v["code"].as_str()),
+        (StatusCode::TOO_MANY_REQUESTS, Some("daily_limit"))
+    );
+
+    // `sequencer set-ai-limit` raises one account's limit.
+    let db = crate::db::Db::open(&dir.join("sequencer.db")).unwrap();
+    assert!(db.set_ai_limit("maker".into(), Some(12)).await.unwrap());
+    let (_, me) = call_as(&app, &cookie, "GET", "/api/me", None).await;
+    assert_eq!(me["user"]["ai"]["limit"], 12);
+    let resp = send(&app, "POST", "/api/generate", Some(gen_), Some(&cookie)).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn rejects_oversize_body() {
     let big = "x".repeat(BODY_LIMIT + 1);
     let (s, v) = call(
-        &app(temp_dir()),
+        &app(temp_dir()).await,
         "POST",
         "/api/beats",
         Some(json!({"name":"x","beat":{"pad":big}})),
@@ -207,7 +701,7 @@ async fn rejects_oversize_body() {
 #[tokio::test]
 async fn generate_needs_key_and_known_model() {
     let (s, v) = call(
-        &app(temp_dir()),
+        &app(temp_dir()).await,
         "POST",
         "/api/generate",
         Some(json!({"model":"test/model","prompt":"hi"})),
@@ -216,11 +710,7 @@ async fn generate_needs_key_and_known_model() {
     assert_eq!(s, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(v["code"], "not_configured");
 
-    let keyed = build_router(AppState::new(cfg(
-        temp_dir(),
-        Some("k"),
-        "http://127.0.0.1:1",
-    )));
+    let keyed = router(cfg(temp_dir(), Some("k"), "http://127.0.0.1:1")).await;
     let (s, _) = call(
         &keyed,
         "POST",
@@ -277,11 +767,9 @@ async fn generate_streams_from_upstream() {
             ([("content-type", "text/event-stream")], sse)
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let base = serve(mock).await;
 
-    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let app = router(cfg(temp_dir(), Some("k"), &base)).await;
     let resp = app
         .oneshot(
             Request::post("/api/generate")
@@ -321,11 +809,9 @@ async fn generate_maps_upstream_errors() {
             )
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let base = serve(mock).await;
 
-    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let app = router(cfg(temp_dir(), Some("k"), &base)).await;
     let (s, v) = call(
         &app,
         "POST",
@@ -353,10 +839,8 @@ async fn generate_forwards_the_image() {
             ([("content-type", "text/event-stream")], sse)
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
-    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let base = serve(mock).await;
+    let app = router(cfg(temp_dir(), Some("k"), &base)).await;
     let image = format!(
         "data:image/jpeg;base64,{}",
         "A".repeat(BODY_LIMIT + 100_000)
@@ -379,11 +863,7 @@ async fn generate_forwards_the_image() {
 
 #[tokio::test]
 async fn generate_checks_the_image() {
-    let keyed = build_router(AppState::new(cfg(
-        temp_dir(),
-        Some("k"),
-        "http://127.0.0.1:1",
-    )));
+    let keyed = router(cfg(temp_dir(), Some("k"), "http://127.0.0.1:1")).await;
     for bad in [
         "https://example.com/x.jpg",
         "data:text/html;base64,AAAA",
@@ -428,10 +908,8 @@ async fn generate_reports_image_rejected() {
             )
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
-    let app = build_router(AppState::new(cfg(temp_dir(), Some("k"), &base)));
+    let base = serve(mock).await;
+    let app = router(cfg(temp_dir(), Some("k"), &base)).await;
     let (s, v) = call(
         &app,
         "POST",
