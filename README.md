@@ -66,7 +66,7 @@ The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-so
 
 ## YouTube samples
 
-Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts.
+Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
 
 Samples play in YouTube's own embedded player, not through the audio engine. So:
 

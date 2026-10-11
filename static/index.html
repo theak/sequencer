@@ -602,7 +602,7 @@ const MAX_SYNTHS = 8;
 const MAX_SAMPLES = 4;
 const YT_OK = true; // the Claude artifact can't embed YouTube, so samples only keep their settings there
 const YT_RATES = [.25,.5,.75,1,1.25,1.5,1.75,2];
-const BEAT_OPTS = [.25,.5,1,2,3,4,6,8,12,16,32,0]; // 0 keeps playing until you stop
+const BEAT_OPTS = [.25,.5,1,2,3,4,6,8,12,16,32,64,0]; // 0 keeps playing until you stop
 const beatLabel = b => !b ? "∞ infinite" : b===.25 ? "¼ beat" : b===.5 ? "½ beat" : b===1 ? "1 beat" : b+" beats";
 function ytId(v){
   const s = String(v ?? "").trim();
@@ -1459,6 +1459,8 @@ function smpTrigger(s, t){
   const d = decks.get(s.uid); if(!d?.ready || d.err) return;
   const at = performance.now() + (t - ctx.currentTime)*1000; // when this step is heard
   if(!s.beats){ if(d.run) return; d.run = true; }            // ∞ starts once and keeps going through every loop
+  else if(s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
+  if(s.beats) d.busyTill = at + s.beats*60000/S.bpm;
   if(d.endE && d.endE.at > at - 30){ smpCancel(d.endE); d.endE = null; } // a retrigger cuts the last hit short
   smpAt(at - Math.max(d.lead.play, d.lead.seek)*1000, () => smpFire(d, at), d);
   if(s.beats) d.endE = smpAt(at + s.beats*60000/S.bpm, () => smpStop(d), d);
@@ -1472,7 +1474,7 @@ function smpFire(d, at){
   smpVol(d, s);
   if(!cued) p.seekTo(s.start, true);
   p.playVideo(); d.cuedAt = null;
-  if(!s.beats){ d.runAt = at; d.chk = at + 2500; }
+  d.runAt = at; d.chk = at + 2500;
   d.meas = {at, start:s.start, rate:s.rate, kind: cued ? "play" : "seek", t:performance.now()};
   smpMeasure(d);
 }
@@ -1500,7 +1502,7 @@ function smpMeasure(d){
 function smpDrift(){
   const now = performance.now();
   for(const d of decks.values()){
-    if(!d.run || d.runAt==null || d.st!==1 || now < d.chk) continue;
+    if(d.runAt==null || d.st!==1 || now < d.chk) continue;
     const s = smpOf(d); if(!s) continue;
     d.chk = now + 2000;
     const want = s.start + (now - d.runAt)/1000*s.rate, have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
@@ -1509,14 +1511,14 @@ function smpDrift(){
 }
 // pause and park on the start point, ready for the next hit
 function smpStop(d){
-  d.endE = null; d.preview = false; smpPreviewBtn(d);
+  d.endE = null; d.preview = false; d.runAt = null; smpPreviewBtn(d);
   const s = smpOf(d), p = d.player; if(!p || !d.ready) return;
   try { p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } } catch {}
 }
 function smpHalt(d){
   for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d===d) smpQ.splice(i,1);
   d.endE = null;
-  d.run = false; d.runAt = null; d.meas = null;
+  d.run = false; d.runAt = null; d.meas = null; d.busyTill = 0;
   if(d.ready && (d.st===1 || d.st===3 || d.preview)) smpStop(d);
 }
 function smpVol(d, s=smpOf(d)){
@@ -1666,7 +1668,7 @@ function syncDeck(){
 function smpCover(s){
   const n = s.steps.length, out = Array(n).fill(false);
   if(!s.steps.some(Boolean)) return out;
-  if(!s.beats) return out.fill(true);
+  if(!s.beats || s.beats*4 >= n) return out.fill(true);
   const span = Math.max(1, Math.round(s.beats*4));
   for(let i=0;i<n;i++) if(s.steps[i]) for(let k=0; k<span && k<n; k++){ const j = (i+k)%n; if(k>0 && s.steps[j]) break; out[j] = true; }
   return out;
@@ -1699,7 +1701,7 @@ $("smpGrid").addEventListener("change", e => {
     if(!playing && c.d?.ready) smpStop(c.d);
   }
   else if(f==="rate"){ c.s.rate = +v; if(c.d?.ready){ try { c.d.player.setPlaybackRate(c.s.rate); } catch {} c.d.runAt = null; } }
-  else if(f==="beats"){ c.s.beats = +v; c.d && (c.d.run = false); paintRow(smpKey(c.s)); }
+  else if(f==="beats"){ c.s.beats = +v; c.d && (c.d.run = false, c.d.busyTill = 0); paintRow(smpKey(c.s)); }
   changed();
 });
 $("smpGrid").addEventListener("click", e => {
@@ -2105,7 +2107,9 @@ function paintCell(el){
     const on = !!s.steps[i];
     el.classList.toggle("on", on);
     el.classList.toggle("tail", !on && smpCover(s)[i]);
-    el.textContent = on && !s.beats ? "∞" : "";
+    const loops = s.beats*4/s.steps.length;
+    el.textContent = !on ? "" : !s.beats ? "∞" : loops > 1 ? +loops.toFixed(1) + "×" : "";
+    el.title = on && loops > 1 ? `Plays for ${s.beats} beats, ${+loops.toFixed(2)} times through the pattern` : "";
   } else {
     const s = synthByKey(row); if(!s) return;
     const n = s.steps[i];
