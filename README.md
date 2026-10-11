@@ -125,21 +125,16 @@ Your working beat also autosaves in the browser, so a refresh never loses it.
 
 ## Deploying publicly
 
-Run it on any machine with a disk (a small VM is plenty) behind a reverse proxy that handles HTTPS. With [Caddy](https://caddyserver.com), add a service to the compose file:
+The server speaks plain HTTP, so put something in front of it that handles HTTPS. A [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (`cloudflared`) works well and needs no open ports. Point the hostname's ingress at the app:
 
 ```yaml
-  caddy:
-    image: caddy:2
-    ports:
-      - "80:80"
-      - "443:443"
-    command: caddy reverse-proxy --from 16.aks.zone --to sequencer:42716
-    volumes:
-      - caddy-data:/data
-    restart: unless-stopped
+ingress:
+  - hostname: 16.aks.zone
+    service: http://localhost:42716
+  - service: http_status:404
 ```
 
-Add `caddy-data:` under `volumes:`, point the domain's DNS at the machine, and Caddy gets the certificate itself. You can drop the `ports:` on `sequencer` so it's only reachable through Caddy.
+The browser sees HTTPS, so the `Secure` session cookie works. Add `https://16.aks.zone` to the Google client's authorized JavaScript origins.
 
 SQLite needs a real disk, so a network-mounted bucket (like Cloud Run with Cloud Storage) isn't a safe place for `DATA_DIR`. Stick to one instance with a persistent disk.
 
