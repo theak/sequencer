@@ -530,8 +530,8 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <label class="field"><span class="lbl">model</span>
         <select id="tierSel" class="num"></select>
       </label>
-      <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
-      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
+      <label class="check"><input type="checkbox" id="buildOn"> Build on the current beat</label>
+      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn"> <span id="hearTxt">Share spectrogram</span></label>
       <div class="spacer"></div>
       <span class="quota" id="aiQuota"></span>
       <button class="btn primary" id="genBtn">Generate</button>
@@ -3435,7 +3435,7 @@ $("genBtn").addEventListener("click", async () => {
     try { data = parseReply(res.text); } catch { throw {code:"invalid_json", tierNote}; }
     const st = fromJSON(data);
     if(!st.samples.length && S.samples.length) st.samples = fitSamples(S.samples, st.pages*PAGE);
-    loadState(st, null);
+    loadState(st, null, {msg:`AI wrote “${st.name}” as a new beat. Save it to keep it`});
     compFinish(true, `“${st.name}” is in`);
     revealRack();
     $("genStatus").textContent = `${tierNote} · Loaded “${st.name}” · ${st.bpm} BPM · ${st.pages} page${st.pages===1?"":"s"} · ${userSynths(st).length} synth channel${userSynths(st).length===1?"":"s"}${tonalRow("808", st).steps.some(x => x) ? " + 808" : ""}${st.synths.some(x => x.poly) ? " (with chords)" : ""}.`;
