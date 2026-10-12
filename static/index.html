@@ -329,6 +329,12 @@ details.json[open] summary{margin-bottom:10px}
 .lane .ldot{position:absolute;left:0;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--cream);box-shadow:0 0 6px var(--cream);pointer-events:none}
 .lane.off .ldot{display:none}
 .lane.drawing .lt{border-color:var(--ink-faint)}
+.lane .lpts{position:absolute;inset:0;pointer-events:none}
+.lane .lpt{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--orange);border:2px solid #1d1c20;box-shadow:0 0 0 1px var(--orange);pointer-events:auto;cursor:grab;touch-action:none}
+.lane .lpt:hover,.lane .lpt.on{background:var(--cream);box-shadow:0 0 0 1px var(--cream),0 0 8px var(--orange)}
+.lane.drawing .lpt.on{cursor:grabbing}
+.lane.off .lpt{background:var(--ink-faint);box-shadow:0 0 0 1px var(--ink-faint)}
+.lane.bin .lt.erase{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cg transform='rotate(-45 11 11)'%3E%3Crect x='3' y='7' width='16' height='8' rx='1.5' fill='%23efe7d3' stroke='%231a1814' stroke-width='1.3'/%3E%3Crect x='3' y='7' width='6' height='8' rx='1.5' fill='%23e2472f' stroke='%231a1814' stroke-width='1.3'/%3E%3C/g%3E%3C/svg%3E") 4 17, not-allowed}
 .lane.flash .lt{animation:laneflash 1.4s}
 @keyframes laneflash{0%,45%{border-color:var(--cream);box-shadow:0 0 0 2px color-mix(in srgb,var(--cream) 35%,transparent)}}
 .lled{flex:none;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel-2);padding:0;display:grid;place-items:center}
@@ -1742,6 +1748,7 @@ let phStep = -1, phShown = -1, columns = [];
 function setPlayhead(s){
   if(s===phStep && s===phShown) return;
   const pg = s>=0 ? Math.floor(s/PAGE) : -1;
+  if(s>=0 && followPlay && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
   if(s>=0 && followPlay && pg!==viewPage && !drag && !rangeHeld && popsClosed()){ viewPage = pg; phStep = s; render(); return; }
   if(phShown>=0 && columns[phShown]) columns[phShown].forEach(el => el.classList.remove("ph"));
   phStep = s;
@@ -3941,16 +3948,22 @@ function shapePts(p, k){
   return S.lanes[p.id].pts;
 }
 const norm = (p, v) => (v - p.lo)/(p.hi - p.lo);
-function laneSVG(p, d=laneDense(p)){
-  const N = d.length, Y = v => (4 + (1-norm(p, v))*92).toFixed(1);
+// the points of a lane, as handles you can drag (left/top in % of the lane)
+function lanePts(p, P=S.lanes[p.id].pts){
+  const n = stepCount(), N = songN();
+  return P.map(([a,v], i) => a*n > N ? "" : `<i class="lpt" data-i="${i}" style="left:${a*n/N*100}%;top:${4 + (1-norm(p, v))*92}%" title="${esc(p.fmt(v))} · drag to move · right-click to delete"></i>`).join("");
+}
+function laneSVG(p, d=p.bin ? laneDense(p) : null, live=null){
+  const N = d ? d.length : songN(), Y = v => (4 + (1-norm(p, v))*92).toFixed(1);
   let g = "";
   if(p.bin){
     for(let i=0;i<N;){ if(d[i]>.5){ let j = i; while(j<N && d[j]>.5) j++; g += `<rect x="${i}" y="18" width="${j-i}" height="64"/>`; i = j; } else i++; }
     return `<svg viewBox="0 0 ${N} 100" preserveAspectRatio="none" aria-hidden="true">${g}</svg>`;
   }
-  let path = `M0,${Y(d[0])}`;
-  for(let i=1;i<N;i++) if(d[i]!==d[i-1]) path += `H${i}V${Y(d[i])}`;
-  path += `H${N}`;
+  const n = stepCount(), P = live || S.lanes[p.id]?.pts || [[0, p.get()]];
+  let path = `M0,${Y(P[0][1])}`;
+  for(const [a,v] of P) path += `L${(a*n).toFixed(2)},${Y(v)}`;
+  path += `L${N},${Y(P[P.length-1][1])}`;
   const b = Y(p.get());
   return `<svg viewBox="0 0 ${N} 100" preserveAspectRatio="none" aria-hidden="true"><line class="lbase" x1="0" x2="${N}" y1="${b}" y2="${b}"/><path class="larea" d="${path}V100H0Z"/><path class="lline" d="${path}"/></svg>`;
 }
@@ -3966,10 +3979,9 @@ function renderAuto(){
   const seg = (items, cur, act) => `<div class="seg v">${items.map(([k,t]) => `<button type="button" data-aact="${act}" data-k="${k}" aria-pressed="${k===cur}">${t}</button>`).join("")}</div>`;
   let h = `<div class="pagebar">${viewTabs()}<span id="flagSlot"></span>
     <span class="pgrp"><span class="lbl">Length</span><span class="stepper"><button class="btn" data-aact="len" data-d="-1" aria-label="Fewer loops">−</button><input type="number" class="num" id="songLen" min="1" max="${SONG_MAX}" value="${L}" aria-label="Song length in loops"><button class="btn" data-aact="len" data-d="1" aria-label="More loops">+</button></span><span class="lbl">loops</span></span>
-    <span class="vsep" aria-hidden="true"></span><span class="pgrp"><span class="lbl">Tool</span>${seg([["draw","Draw"],["line","Line"]], laneTool, "tool")}</span>
-    <span class="pgrp"><span class="lbl">Snap</span>${seg(SNAPS, laneSnap, "snap")}</span>
+    <span class="vsep" aria-hidden="true"></span><span class="pgrp"><span class="lbl">Snap</span>${seg(SNAPS, laneSnap, "snap")}</span>
     <div class="spacer"></div><button class="btn" data-aact="pick" aria-haspopup="menu">+ Add lane</button></div>`;
-  h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Drag on a lane to draw · Shift-drag for a straight line · right-click a lane for shapes · the dashed line is the loop value</span></div>`;
+  h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Click a lane to add a point, drag points to move them, right-click one to delete it · click just beside a point for a jump · on/off lanes: drag to paint, or over a block to erase · right-click a lane for shapes · dashed line: the loop value</span></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
   h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
     <div class="lt" data-aact="ruler" title="Click or drag to move the song position">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
@@ -3983,7 +3995,7 @@ function renderAuto(){
         <span class="lval num" data-lv="${p.id}"></span>
         <button class="rmenu" data-aact="lmenu" data-id="${p.id}" title="Shapes and options" aria-haspopup="menu" aria-label="${esc(p.label)} lane options">⋮</button>
         <button class="del" data-aact="remove" data-id="${p.id}" title="Remove lane" aria-label="Remove the ${esc(p.label)} lane">✕</button></div>
-      <div class="lt" data-lt="${p.id}">${laneSVG(p)}<i class="lph"></i>${p.bin ? "" : `<i class="ldot"></i>`}</div></div>`;
+      <div class="lt" data-lt="${p.id}">${laneSVG(p)}<i class="lph"></i>${p.bin ? "" : `<i class="ldot"></i><span class="lpts">${lanePts(p)}</span>`}</div></div>`;
   }
   if(!list.length) h += `<div class="laneempty"><h3>No automation yet</h3><p>Right-click any knob, slider or M/S button in the loop editor and choose Add automation lane, or add one here. The AI below can write lanes for you too.</p><div class="rowflex"><button class="btn primary" data-aact="pick" aria-haspopup="menu">+ Add lane</button><button class="btn" data-aact="view" data-v="loop">Back to loop editor</button></div></div>`;
   h += `</div>`;
@@ -4015,48 +4027,99 @@ rack.addEventListener("pointerdown", e => {
   const t = e.target.closest(".lt[data-lt]"); if(!t) return;
   const p = regGet(t.dataset.lt); if(!p) return;
   e.preventDefault(); closePops(); closeAutoPop();
-  const N = songN(), box = t.getBoundingClientRect();
-  const pt = ev => ({i: Math.max(0, Math.min(N-1, Math.floor((ev.clientX-box.left)/box.width*N))), u: Math.max(0, Math.min(1, 1 - (((ev.clientY-box.top)/box.height)*100 - 4)/92))});
-  const d0 = laneDense(p), p0 = pt(e), snap = snapSteps();
-  const tgt = p.bin ? (d0[p0.i] > .5 ? 0 : 1) : 0, line = laneTool==="line" || e.shiftKey;
-  const val = u => { const v = p.lo + u*(p.hi-p.lo); return p.id==="transpose" ? Math.round(v/100)*100 : v; };
-  const put = (d, i, u) => { const v = p.bin ? tgt : val(u), b = i - i%snap; for(let k=b; k<Math.min(N, b+snap); k++) d[k] = v; };
-  laneDraw = {pid:e.pointerId, p, t, work: Float64Array.from(d0), last:p0, raf:0};
-  const apply = cur => {
-    const ld = laneDraw;
-    if(line){
-      ld.work = Float64Array.from(d0);
-      const a = Math.min(p0.i, cur.i), z = Math.max(p0.i, cur.i);
-      for(let i=a; i<=z; i++){ if(snap>1 && i!==a && i%snap) continue; const f = cur.i===p0.i ? 1 : (i-p0.i)/(cur.i-p0.i); put(ld.work, i, p0.u + (cur.u-p0.u)*f); }
-    } else {
-      const k = Math.abs(cur.i - ld.last.i);
-      for(let j=0;j<=k;j++){ const f = k ? j/k : 1; put(ld.work, Math.round(ld.last.i + (cur.i-ld.last.i)*f), ld.last.u + (cur.u-ld.last.u)*f); }
-      ld.last = cur;
-    }
+  t.setPointerCapture?.(e.pointerId); t.closest(".lane").classList.add("drawing");
+  if(p.bin) binDown(e, t, p); else ptDown(e, t, p);
+});
+// the lane's box, found again if the rack was rebuilt under the drag
+const laneBox = d => { if(!d.t.isConnected) d.t = rack.querySelector(`.lt[data-lt="${CSS.escape(d.p.id)}"]`) || d.t; return d.t.getBoundingClientRect(); };
+const laneU = (ev, box) => Math.max(0, Math.min(1, 1 - (((ev.clientY-box.top)/box.height)*100 - 4)/92));
+// on/off lanes: drag to paint on, or start on a block to erase it
+function binDown(e, t, p){
+  const N = songN(), d0 = laneDense(p), snap = snapSteps();
+  const ld = laneDraw = {pid:e.pointerId, p, t, work: Float64Array.from(d0), raf:0};
+  const at = ev => { const box = laneBox(ld); return Math.max(0, Math.min(N-1, Math.floor((ev.clientX-box.left)/box.width*N))); };
+  const i0 = at(e), tgt = d0[i0] > .5 ? 0 : 1;
+  t.classList.toggle("erase", !tgt);
+  const put = i => { const b = i - i%snap; for(let k=b; k<Math.min(N, b+snap); k++) ld.work[k] = tgt; };
+  let last = i0;
+  ld.move = ev => {
+    const i = at(ev), k = Math.abs(i - last);
+    for(let j=0;j<=k;j++) put(Math.round(last + (i-last)*(k ? j/k : 1)));
+    last = i;
     if(!ld.raf) ld.raf = requestAnimationFrame(() => { ld.raf = 0; const svg = ld.t.querySelector("svg"); if(svg) svg.outerHTML = laneSVG(p, ld.work); });
   };
-  laneDraw.apply = apply;
-  t.setPointerCapture?.(e.pointerId); t.closest(".lane").classList.add("drawing");
-  apply(p0);
+  ld.done = () => setPts(p.id, ptsFromDense(p, ld.work));
+  put(i0); ld.move(e);
+}
+// continuous lanes: click to add a point and drag it; drag a point to move it
+function ptDown(e, t, p){
+  const n = stepCount(), N = songN(), L = S.songLoops, snap = snapSteps();
+  const pts = S.lanes[p.id].pts.map(x => x.slice());
+  const box = t.getBoundingClientRect(), px = a => box.left + a*n/N*box.width;
+  const val = u => { const v = p.lo + u*(p.hi-p.lo); return p.id==="transpose" ? Math.round(v/100)*100 : +v.toFixed(4); };
+  const snapAt = ev => { const x = (ev.clientX-box.left)/box.width*N; return Math.max(0, Math.min(L, Math.round(x/snap)*snap/n)); };
+  let idx;
+  const hit = e.target.closest(".lpt");
+  if(hit) idx = +hit.dataset.i;
+  else {
+    // next to a point (or on its snap spot), the new one shares its place: a jump. Left of it, the line arrives
+    // at the new value and then jumps; right of it, the line leaves from the new value.
+    let a = snapAt(e), before = false;
+    const near = pts.findIndex(([b]) => Math.abs(px(b) - e.clientX) <= 7);
+    if(near>=0){ a = pts[near][0]; before = e.clientX < px(a); }
+    const same = pts.map(([b],i) => b===a ? i : -1).filter(i => i>=0);
+    idx = same.length ? (before ? same[0] : same[same.length-1]+1) : pts.findIndex(([b]) => b > a);
+    if(idx<0) idx = pts.length;
+    pts.splice(idx, 0, [a, val(laneU(e, box))]);
+  }
+  const lo = idx>0 ? pts[idx-1][0] : 0, hi = idx<pts.length-1 ? pts[idx+1][0] : L;
+  const ld = laneDraw = {pid:e.pointerId, p, t, raf:0, pts};
+  const show = () => {
+    const [a,v] = pts[idx], tip = $("knobTip"), b = laneBox(ld);
+    const step = Math.round(a*n), loop = Math.floor(step/n);
+    tip.hidden = false; tip.textContent = `Loop ${Math.min(loop+1, L)} · step ${step - loop*n + 1} · ${p.fmt(v)}`;
+    tip.style.left = (b.left + a*n/N*b.width) + "px"; tip.style.top = (b.top + (4 + (1-norm(p, v))*.92*100)/100*b.height - 10) + "px";
+    if(!ld.raf) ld.raf = requestAnimationFrame(() => {
+      ld.raf = 0; const svg = ld.t.querySelector("svg"), dots = ld.t.querySelector(".lpts");
+      if(svg) svg.outerHTML = laneSVG(p, null, pts);
+      if(dots){ dots.innerHTML = lanePts(p, pts); dots.querySelector(`[data-i="${idx}"]`)?.classList.add("on"); }
+    });
+  };
+  ld.move = ev => { const b = laneBox(ld); pts[idx] = [Math.max(lo, Math.min(hi, snapAt(ev))), val(laneU(ev, b))]; show(); };
+  ld.done = () => { $("knobTip").hidden = true; setPts(p.id, pts); };
+  show();
+}
+// right-click a point to delete it
+rack.addEventListener("contextmenu", e => {
+  const dot = view==="auto" && e.target.closest(".lpt"); if(!dot) return;
+  e.preventDefault(); e.stopPropagation();
+  const id = dot.closest(".lt").dataset.lt, l = S.lanes[id]; if(!l) return;
+  if(l.pts.length < 2){ toast("A lane keeps at least one point. Remove the lane with ✕"); return; }
+  setPts(id, l.pts.filter((_,i) => i!==+dot.dataset.i));
+}, true);
+// on/off lanes: crosshair where a click paints, an eraser over a block it would erase
+rack.addEventListener("pointermove", e => {
+  if(view!=="auto" || laneDraw) return;
+  const t = e.target.closest(".lane.bin .lt[data-lt]"); if(!t) return;
+  const p = regGet(t.dataset.lt); if(!p) return;
+  const b = t.getBoundingClientRect(), d = laneDense(p), i = Math.floor((e.clientX-b.left)/b.width*d.length);
+  t.classList.toggle("erase", d[Math.max(0, Math.min(d.length-1, i))] > .5);
 });
 window.addEventListener("pointermove", e => {
   if(rulerDrag && e.pointerId===rulerDrag.pid){ setSongCur(rulerDrag.at(e)); return; }
-  if(!laneDraw || e.pointerId!==laneDraw.pid) return;
-  const N = songN(), box = laneDraw.t.getBoundingClientRect();
-  laneDraw.apply({i: Math.max(0, Math.min(N-1, Math.floor((e.clientX-box.left)/box.width*N))), u: Math.max(0, Math.min(1, 1 - (((e.clientY-box.top)/box.height)*100 - 4)/92))});
+  if(laneDraw && e.pointerId===laneDraw.pid) laneDraw.move(e);
 });
 ["pointerup","pointercancel"].forEach(t => window.addEventListener(t, e => {
   if(rulerDrag && e.pointerId===rulerDrag.pid) rulerDrag = null;
   if(!laneDraw || e.pointerId!==laneDraw.pid) return;
-  const {p, work, raf} = laneDraw; laneDraw = null; cancelAnimationFrame(raf);
-  if(t==="pointercancel"){ render(); return; }
-  setPts(p.id, ptsFromDense(p, work));
+  const ld = laneDraw; laneDraw = null; cancelAnimationFrame(ld.raf);
+  if(t==="pointercancel"){ $("knobTip").hidden = true; render(); return; }
+  ld.done();
 }));
 rack.addEventListener("click", e => {
   const b = e.target.closest("[data-aact]"); if(!b) return;
   const a = b.dataset.aact, id = b.dataset.id;
   if(a==="view") setView(b.dataset.v);
-  else if(a==="tool"){ laneTool = b.dataset.k; render(); }
   else if(a==="snap"){ laneSnap = b.dataset.k; render(); }
   else if(a==="len") setLoops(S.songLoops + +b.dataset.d);
   else if(a==="toggle" || a==="remove") laneAct(a, id);
