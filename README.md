@@ -67,26 +67,33 @@ To check which build you're running, open `/api/version`. Its `commit` should ma
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | unset | Turns on AI beat generation. Without it, everything else still works. |
 | `OPENROUTER_MODELS` | Sonnet, Haiku, GPT Luna, Gemini Flash | The models offered in the picker, as comma-separated `slug=Label` pairs. Only these can be requested. |
+| `OPENROUTER_PREMIUM_MODELS` | GPT Sol | Bigger models offered only to accounts whose own AI limit is over 10 (see Accounts). Same `slug=Label` format; empty turns them off. |
+| `OPENROUTER_SEARCH_MODELS` | Gemini Flash | Model slugs that can search the web while they write, through OpenRouter's web search tool. Comma-separated; empty turns search off. |
 | `GOOGLE_CLIENT_ID` | unset | Turns on Google sign-in. Without it, there's no sign-in and everyone shares one `local` account (see below). |
 | `AI_DAILY_LIMIT` | `10` | AI generations per account per day (UTC). Only applies with sign-in on. |
 | `DATA_DIR` | `/data` | Where the database (`sequencer.db`) lives. |
 | `PORT` | `42716` | Port to listen on. |
 
-The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically.
+The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically. GPT Sol is `~openai/gpt-sol-latest`.
+
+Gemini Flash can look things up while it writes (a song you name, a genre's usual tempo). It uses OpenRouter's `openrouter:web_search` tool, so OpenRouter runs the searches with Google's own search, and the model decides when to search. Searches cost extra on your OpenRouter bill (a cent or two per request that searches). If OpenRouter won't run the tool for a request, the server sends it again without search.
 
 ## Automation
 
 Turn a loop into a song. Right-click any knob, slider, M/S button or the warble button and pick **Add automation lane**, or use **+ Add lane** in the Automation tab. The tab has a lane per control over a song of 1 to 64 loops:
 - **Drawing:** drag to draw, Shift-drag (or the Line tool) for a straight line, and Snap to beats, pages or loops. Right-click a lane for shapes like ramps, waves or every other loop.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
+  - The choice is saved with the beat. A beat opens on Loop unless it was saved on Automation, and adding a beat's first lane switches it to Automation.
+- **Keys:** L flips Plays between Loop and Automation, and A flips between the loop editor and the automation editor.
 - **AI:** in the Automation tab, the AI writes lanes for the beat on screen ("build for 4 loops, drop on loop 5, fade out").
 - **Export:** with Automation playback on, Export audio renders the whole song.
 
-In the JSON, a song is a `song` object. Each lane is a list of `[at, value]` points, where `at` counts loops from the start (0 is the start of loop 1). Values ramp between points, two points at the same `at` make a jump, and mute, solo and warble take `true`/`false`:
+In the JSON, a song is a `song` object, with `"play": "automation"` when Play plays the song (left out, it plays the loop). Each lane is a list of `[at, value]` points, where `at` counts loops from the start (0 is the start of loop 1). Values ramp between points, two points at the same `at` make a jump, and mute, solo and warble take `true`/`false`:
 
 ```json
 "song": {
   "loops": 8,
+  "play": "automation",
   "lanes": {
     "synthTone": [[0, 0.14], [8, 0.64]],
     "synthReverb": [[0, 0.1], [5, 0.1], [6, 0.85], [7, 0.85], [7, 0.15]],
@@ -132,6 +139,8 @@ To give one account its own AI limit:
 docker compose exec sequencer /sequencer set-ai-limit akshay 1000
 docker compose exec sequencer /sequencer set-ai-limit akshay default
 ```
+
+An account whose own limit is over 10 also gets the premium models (`OPENROUTER_PREMIUM_MODELS`, GPT Sol by default) in its model picker. Changing `ai_limit` in the `users` table directly works too, and it applies on the next page load, with no restart. That also holds without sign-in, for the `local` account.
 
 Without `GOOGLE_CLIENT_ID`, there's no sign-in. Everyone is one built-in `local` account that saves to the server, with unmetered AI. That's fine on your own network, but don't expose it to the internet like that.
 

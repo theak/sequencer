@@ -591,7 +591,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <div class="acct" id="acct"></div>
     </div>
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
-    <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays"><button type="button" data-pm="loop" aria-pressed="false" title="Loop the pattern with the knobs as set">Loop</button><button type="button" data-pm="auto" aria-pressed="true" title="Play the song with its automation lanes">Automation</button></div><span class="num songpos" id="songPos"></span></div>
+    <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays" aria-keyshortcuts="L" title="What Play plays (L)"><button type="button" data-pm="loop" aria-pressed="true" title="Loop the pattern with the knobs as set (L)">Loop</button><button type="button" data-pm="auto" aria-pressed="false" title="Play the song with its automation lanes (L)">Automation</button></div><span class="num songpos" id="songPos"></span></div>
     <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="1"><span class="lbl">BPM</span></label>
     <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
     <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
@@ -958,7 +958,7 @@ let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE)), samples:[], songLoops:SONG_LOOPS, lanes:{}};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE)), samples:[], songLoops:SONG_LOOPS, lanes:{}, playMode:"loop"};
 }
 /* Tonal rows live in S.synths ahead of the user's synths, marked with fixed:<kind> (the 808 also keeps is808) */
 function newTonal(kind, len){ return {uid:++uid, name: kind==="808" ? "808" : TONAL[kind].name, fixed:kind, is808: kind==="808", perc: kind!=="808", poly:false, volume:TONAL[kind].vol, timbre:.5, steps:Array(len).fill(null)}; }
@@ -1150,6 +1150,7 @@ function pretty(o){
    2.5 is halfway through loop 3) and snaps to the nearest step. Values ramp in a straight line between points,
    hold before the first and after the last, and two points at the same at make a jump. Values use the beat's own
    units (swing 0-0.5, transpose in cents, the rest 0-1); mute, solo and warble are on/off and switch instantly.
+   "play": "automation" makes Play play the song; without it the beat opens playing the loop.
    Lane names: the globals by their beat key, then "<row>.volume|tone|mute|solo", where a row is a drum id, bass808,
    tom, conga, cowbell, synth1… or sample1… in order, and "drums|synths|samples.mute|solo" for the group buttons. */
 const SONG_LOOPS = 8, SONG_MAX = 64, LANE_MAX_PTS = 400;
@@ -1196,9 +1197,10 @@ function parseLane(raw, sp){
   return {pts, on: !(raw && !Array.isArray(raw) && raw.bypass)};
 }
 function parseSong(o, st){
-  st.songLoops = SONG_LOOPS; st.lanes = {};
+  st.songLoops = SONG_LOOPS; st.lanes = {}; st.playMode = "loop";
   const sg = o && typeof o.song==="object" && o.song ? o.song : null;
   if(!sg) return;
+  if(/^auto/i.test(String(sg.play || ""))) st.playMode = "auto"; // what Play plays: the song, or (unless it says so) the loop
   st.songLoops = Math.round(clamp(sg.loops,1,SONG_MAX,SONG_LOOPS));
   const ids = new Map(laneIds(st).map(([id, name]) => [name, id]));
   const src = sg.lanes && typeof sg.lanes==="object" ? sg.lanes : {};
@@ -1217,7 +1219,8 @@ function songJSON(st){
     const pts = l.pts.map(([a,v]) => [+a.toFixed(4), sp.bin ? v>.5 : id==="transpose" ? Math.round(v) : +v.toFixed(3)]);
     lanes[name] = l.on ? pts : {points: pts, bypass: true};
   }
-  return Object.keys(lanes).length ? {loops: st.songLoops, lanes} : null;
+  const auto = st.playMode==="auto", any = Object.keys(lanes).length > 0;
+  return any || auto ? {loops: st.songLoops, ...(auto ? {play:"automation"} : {}), ...(any ? {lanes} : {})} : null;
 }
 
 /* ---------- Starters (built-in examples) ---------- */
@@ -1286,8 +1289,8 @@ function docOwner(){ return isLocalId(currentDocId) ? null : me ? me.username : 
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
 const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘S" : "Ctrl+S";
 let viewPage = 0, followPlay = true;
-// which editor is open, what Play plays, and the master level (a setting of this browser, not of the beat)
-let view = saved0?.view==="auto" ? "auto" : "loop", playMode = saved0?.playMode==="loop" ? "loop" : "auto", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
+// which editor is open and the master level (a setting of this browser, not of the beat)
+let view = saved0?.view==="auto" ? "auto" : "loop", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
 let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false, laneTool = "draw", laneSnap = "off"; // songCur: where the song plays from; songAbs: the next step the song schedules
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
@@ -1299,7 +1302,7 @@ function persistLocal(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
-      master: Math.round(masterLvl*100), view, playMode, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
+      master: Math.round(masterLvl*100), view, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
 }
@@ -1689,7 +1692,7 @@ function tick(){
   if(!playing) return;
   smpTick(); // samples plan further ahead than the drums, so they go first and never miss a step
   while(nextTime < ctx.currentTime + LOOKAHEAD){
-    const sd = 60/S.bpm/4, song = playMode==="auto";
+    const sd = 60/S.bpm/4, song = S.playMode==="auto";
     if(song){ songAbs %= songN(); stepIx = songAbs % stepCount(); } else stepIx %= stepCount();
     const abs = song ? songAbs : -1, live = song && activeLanes().length > 0;
     if(autoWas && !live) autoReset();
@@ -1711,7 +1714,7 @@ function startPlay(){
   ensureCtx();
   playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
-  if(playMode==="auto") stepIx = songAbs % stepCount();
+  if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
   nextTime = ctx.currentTime + .06 + (YT_OK && S.samples.some(s => s.vid && s.steps.some(Boolean) && decks.get(s.uid)?.ready) ? .3 : 0);
   tick();
@@ -1756,7 +1759,7 @@ function draw(){
   const now = ctx.currentTime;
   let cur = null;
   while(vq.length && vq[0].t <= now) cur = vq.shift();
-  if(cur){ setPlayhead(cur.step); if(cur.abs!==phAbs){ phAbs = cur.abs; if(playMode==="auto") paintFrame(); } }
+  if(cur){ setPlayhead(cur.step); if(cur.abs!==phAbs){ phAbs = cur.abs; if(S.playMode==="auto") paintFrame(); } }
   requestAnimationFrame(draw);
 }
 
@@ -2389,7 +2392,7 @@ async function exportWav(){
   if(b.disabled) return;
   b.disabled = true; toast("Rendering the audio…", 60000);
   try {
-    const song = playMode==="auto" && activeLanes().length > 0, loops = song ? S.songLoops : 1;
+    const song = S.playMode==="auto" && activeLanes().length > 0, loops = song ? S.songLoops : 1;
     const {buf, from, loopLen} = await renderBeat({loops, song, tail: st.synthReverb > .5 ? 7 : 3.5, st});
     const end = from + Math.round(loops*loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
     let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
@@ -3653,9 +3656,9 @@ function reg(){
 }
 const regGet = id => reg().map.get(id);
 const laneList = () => reg().list.filter(p => S.lanes[p.id]);
-const activeLanes = () => playMode==="auto" ? reg().list.filter(p => S.lanes[p.id]?.on) : [];
+const activeLanes = () => S.playMode==="auto" ? reg().list.filter(p => S.lanes[p.id]?.on) : [];
 const songN = () => S.songLoops*stepCount();
-const lockedId = id => !!id && playMode==="auto" && !!S.lanes[id]?.on && !!regGet(id);
+const lockedId = id => !!id && S.playMode==="auto" && !!S.lanes[id]?.on && !!regGet(id);
 // the lane's value at every step of the song, in its own units
 const denseCache = new WeakMap();
 function laneDense(p){
@@ -3688,10 +3691,10 @@ function withAuto(abs, fn){
     inAuto = false; autoBase.clear();
   }
 }
-function frameAbs(){ return playing && playMode==="auto" && phAbs>=0 ? phAbs : Math.min(songCur, songN()-1); }
+function frameAbs(){ return playing && S.playMode==="auto" && phAbs>=0 ? phAbs : Math.min(songCur, songN()-1); }
 function withFrame(fn){ return withAuto(frameAbs(), fn); }
 // the swing k steps ahead of the next one, for the samples, which plan further ahead than the drums
-function swingAhead(k){ const p = playMode==="auto" && S.lanes.swing?.on && regGet("swing"); return p ? laneAt(p, (songAbs + k) % songN()) : S.swing; }
+function swingAhead(k){ const p = S.playMode==="auto" && S.lanes.swing?.on && regGet("swing"); return p ? laneAt(p, (songAbs + k) % songN()) : S.swing; }
 // audio that isn't read per note: the reverb, drive, transpose, warble and master, set at each step's time
 const autoLast = new Map();
 function autoAudio(t, sd, live=autoLast){
@@ -3720,7 +3723,7 @@ function autoReset(){
 /* What the controls show: in Automation playback, the song's values at the playhead (or the song cursor) */
 let framePainted = false;
 function paintFrame(){
-  const live = playMode==="auto" && activeLanes().length > 0;
+  const live = S.playMode==="auto" && activeLanes().length > 0;
   if(live || framePainted) withFrame(paintControls);
   framePainted = live;
   markAuto(); smpVols(); songReadout(); lanesPlayhead();
@@ -3781,7 +3784,7 @@ function ctlParam(el){
 function markAuto(){
   document.querySelectorAll(".autod").forEach(el => el.classList.remove("autod","autoon"));
   for(const p of laneList()){
-    const on = playMode==="auto" && S.lanes[p.id].on;
+    const on = S.playMode==="auto" && S.lanes[p.id].on;
     for(const el of ctlEls(p.id)){
       const host = el.id==="lfoBtn" ? el : el.closest(".transport .field") || el;
       host.classList.add("autod"); host.classList.toggle("autoon", on);
@@ -3847,10 +3850,11 @@ function autoChanged(){ if(playing) autoReset(); render(); commit(); }
 function addLane(id, open){
   const p = regGet(id); if(!p) return;
   if(S.lanes[id]){ goLane(id); return; }
+  const first = !laneList().length && S.playMode!=="auto";
   S.lanes[id] = {pts: [[0, p.get()]], on: true};
-  autoChanged();
+  if(first) setPlayMode("auto"); else autoChanged();
   if(open) goLane(id);
-  else toast(`Automation lane added · ${p.label}`, 3400, view==="auto" ? null : {label:"Open automation", fn: () => goLane(id)});
+  else toast(`Automation lane added · ${p.label}${first ? " · Play now plays the automation (L)" : ""}`, 3400, view==="auto" ? null : {label:"Open automation", fn: () => goLane(id)});
 }
 function setPts(id, pts){ S.lanes[id] = {...S.lanes[id], pts}; autoChanged(); }
 function laneAct(a, id, k){
@@ -3872,30 +3876,30 @@ function goLane(id){
 }
 function setView(v){ if(v===view) return; view = v; closePops(); closeAutoPop(); persistLocal(); render(); }
 function setPlayMode(m){
-  if(m===playMode) return;
-  playMode = m;
+  if(m===S.playMode) return;
+  S.playMode = m;
   if(playing){
     if(m==="auto"){ const n = stepCount(); songAbs = (Math.floor(Math.min(songCur, songN()-1)/n)*n + stepIx) % songN(); }
     else { autoReset(); autoWas = false; }
   }
-  persistLocal(); render();
+  render(); commit();
 }
 function setSongCur(abs){
   songCur = Math.max(0, Math.min(songN()-1, abs));
-  if(playing && playMode==="auto"){ songAbs = songCur; stepIx = songCur % stepCount(); }
+  if(playing && S.playMode==="auto"){ songAbs = songCur; stepIx = songCur % stepCount(); }
   paintFrame();
 }
 function setLoops(L){
   L = Math.round(clamp(L, 1, SONG_MAX, S.songLoops));
   if(L===S.songLoops) return;
   S.songLoops = L; songCur = Math.min(songCur, songN()-1);
-  if(playing && playMode==="auto") songAbs %= songN();
+  if(playing && S.playMode==="auto") songAbs %= songN();
   render(); commit();
 }
 function songReadout(){
   const el = $("songPos"), n = stepCount(), a = frameAbs();
-  el.textContent = playMode==="auto" ? `loop ${Math.floor(a/n)+1}/${S.songLoops} · step ${String(a%n+1).padStart(2,"0")}` : "loop only";
-  $("pmodeSeg").querySelectorAll("[data-pm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pm===playMode));
+  el.textContent = S.playMode==="auto" ? `loop ${Math.floor(a/n)+1}/${S.songLoops} · step ${String(a%n+1).padStart(2,"0")}` : "loop only";
+  $("pmodeSeg").querySelectorAll("[data-pm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pm===S.playMode));
 }
 
 /* Shapes and drawing. A drawn stroke is kept as a value per step, then thinned back to a few points. */
@@ -3946,7 +3950,7 @@ function laneSVG(p, d=laneDense(p)){
 const viewTabs = () => {
   const nl = laneList().length;
   return `<div class="vtabs" role="tablist" aria-label="Editor">${[["loop","Loop editor",`${stepCount()} steps · ${S.pages} page${S.pages===1?"":"s"}`],["auto","Automation",`${nl} lane${nl===1?"":"s"}`]].map(([v,t,m]) =>
-    `<button class="vtab" role="tab" data-aact="view" data-v="${v}" aria-selected="${view===v}">${t}<span class="mini">${m}</span></button>`).join("")}</div>`;
+    `<button class="vtab" role="tab" data-aact="view" data-v="${v}" aria-selected="${view===v}" aria-keyshortcuts="A" title="${t} (A)">${t}<span class="mini">${m}</span></button>`).join("")}</div>`;
 };
 const SNAPS = [["off","Off"],["beat","Beat"],["page","Page"],["loop","Loop"]];
 const snapSteps = () => ({off:1, beat:4, page:PAGE, loop:stepCount()})[laneSnap] || 1;
@@ -3959,7 +3963,7 @@ function renderAuto(){
     <span class="pgrp"><span class="lbl">Snap</span>${seg(SNAPS, laneSnap, "snap")}</span>
     <div class="spacer"></div><button class="btn" data-aact="pick" aria-haspopup="menu">+ Add lane</button></div>`;
   h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Drag on a lane to draw · Shift-drag for a straight line · right-click a lane for shapes · the dashed line is the loop value</span></div>`;
-  if(playMode==="loop") h += `<div class="autonote">Play is set to <b>Loop</b>, so these lanes are bypassed: the loop plays with its knobs as set. <button class="btn" data-aact="pmode" data-k="auto">Play automation</button></div>`;
+  if(S.playMode==="loop") h += `<div class="autonote">Play is set to <b>Loop</b>, so these lanes are bypassed: the loop plays with its knobs as set. <button class="btn" data-aact="pmode" data-k="auto">Play automation</button></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
   h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
     <div class="lt" data-aact="ruler" title="Click or drag to move the song position">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
@@ -4100,6 +4104,13 @@ autoPop.addEventListener("click", e => {
 document.addEventListener("pointerdown", e => { if(!autoPop.hidden && !autoPop.contains(e.target) && !e.target.closest('[data-aact="lmenu"],[data-aact="pick"]')) closeAutoPop(); });
 document.addEventListener("keydown", e => { if(e.key==="Escape") closeAutoPop(); });
 $("pmodeSeg").addEventListener("click", e => { const b = e.target.closest("[data-pm]"); if(b) setPlayMode(b.dataset.pm); });
+// L flips what Play plays, A flips between the loop editor and the automation editor
+document.addEventListener("keydown", e => {
+  if(e.metaKey || e.ctrlKey || e.altKey || e.repeat || typingTarget(e.target) || document.body.classList.contains("peeking")) return;
+  const k = e.key.toLowerCase();
+  if(k==="l"){ e.preventDefault(); setPlayMode(S.playMode==="auto" ? "loop" : "auto"); toast(S.playMode==="auto" ? "Play plays the automation" : "Play plays the loop"); }
+  else if(k==="a"){ e.preventDefault(); setView(view==="auto" ? "loop" : "auto"); }
+});
 
 /* ---------- AI generation (OpenRouter via /api/generate) ---------- */
 const IDEAS = ["Dusty boom bap, swung hats, minor 9 chords","Four-on-the-floor deep house with offbeat bass","Trap at 140 with triplet hat rolls and 808 slides","Funky breakbeat with ghost-note snares","Synthwave drive with arpeggiated bass","Reggaeton dembow with a plucky lead"];
@@ -4343,7 +4354,7 @@ async function genAuto(){
     const nl = Object.keys(tmp.lanes).length;
     if(!nl) throw {code:"invalid_json", tierNote:label};
     S.lanes = tmp.lanes; S.songLoops = tmp.songLoops; songCur = 0;
-    if(playMode!=="auto") setPlayMode("auto");
+    if(S.playMode!=="auto") setPlayMode("auto");
     if(playing){ autoReset(); songAbs = 0; stepIx = 0; }
     render(); commit();
     $("genStatus").textContent = `${label} · Wrote ${nl} lane${nl===1?"":"s"} over ${S.songLoops} loop${S.songLoops===1?"":"s"}. Undo brings back what was there.`;
@@ -4971,7 +4982,15 @@ $("acct").addEventListener("click", e => {
   p.hidden = false; placeMenus();
 });
 // what the page says and offers depends on who's signed in
+// the model picker: the server's models, plus any this account gets for a raised AI limit
+function fillModels(){
+  const sel = $("tierSel"), cur = sel.value || saved0?.model, models = [...(cfg?.models || []), ...(me?.models || [])];
+  const html = models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+  if(sel.innerHTML!==html) sel.innerHTML = html;
+  if(models.some(m => m.id===cur)) sel.value = cur;
+}
 function renderAuth(){
+  fillModels();
   const google = cfg?.auth==="google", member = !!me?.username, pending = !!me && !me.username;
   const a = $("acct");
   if(!google) a.innerHTML = "";
@@ -5166,13 +5185,11 @@ window.addEventListener("keydown", e => {
   try { const r = await fetch("/api/config"); if(!r.ok) throw 0; cfg = await r.json(); }
   catch { cfg = null; }
   if(cfg){
-    const sel = $("tierSel"), models = cfg.models || [];
-    sel.innerHTML = models.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
-    if(models.some(m => m.id===saved0?.model)) sel.value = saved0.model;
     hearOK = !!cfg.images; syncHear();
     if(cfg.generate){ genEnabled = true; $("genBtn").disabled = false; }
     else disableGen("AI generation is off. Set OPENROUTER_API_KEY on the server to turn it on.");
     try { me = (await api.req("GET", "/api/me")).user; } catch {}
+    fillModels();
   } else disableGen("Couldn't reach the server.");
   db = me?.username ? cloudDb : localDb;
   // a draft pointing at a beat in another account (or from before you signed out) is just a draft now

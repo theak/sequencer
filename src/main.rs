@@ -31,6 +31,11 @@ pub const DEFAULT_MODELS: &str = "~anthropic/claude-sonnet-latest=Claude Sonnet,
 ~anthropic/claude-haiku-latest=Claude Haiku,\
 ~openai/gpt-luna-latest=GPT Luna,\
 ~google/gemini-flash-latest=Gemini Flash";
+/// Bigger models, offered only to accounts whose own AI limit is over `PREMIUM_MIN_LIMIT`.
+pub const DEFAULT_PREMIUM_MODELS: &str = "~openai/gpt-sol-latest=GPT Sol";
+pub const PREMIUM_MIN_LIMIT: i64 = 10;
+/// Models that get OpenRouter's web search tool, so they can look things up (a song, a genre).
+pub const DEFAULT_SEARCH_MODELS: &str = "~google/gemini-flash-latest";
 
 /// Largest request body we accept (a 4-page beat with several synths is ~10 kB; a
 /// generation prompt with "build on current beat" is ~20 kB).
@@ -56,6 +61,10 @@ pub struct Config {
     pub openrouter_key: Option<String>,
     pub openrouter_base: String,
     pub models: Vec<Model>,
+    /// Offered on top of `models` to accounts with an `ai_limit` over `PREMIUM_MIN_LIMIT`.
+    pub premium_models: Vec<Model>,
+    /// Model ids that can search the web while they write.
+    pub search_models: Vec<String>,
     /// Turns on Google sign-in. Without it, there's one built-in `local` account.
     pub google_client_id: Option<String>,
     pub google_certs_url: String,
@@ -99,6 +108,15 @@ pub fn load_config() -> Config {
             .trim_end_matches('/')
             .to_string(),
         models: parse_models(&var("OPENROUTER_MODELS").unwrap_or_else(|| DEFAULT_MODELS.into())),
+        premium_models: parse_models(
+            &var("OPENROUTER_PREMIUM_MODELS").unwrap_or_else(|| DEFAULT_PREMIUM_MODELS.into()),
+        ),
+        search_models: parse_models(
+            &var("OPENROUTER_SEARCH_MODELS").unwrap_or_else(|| DEFAULT_SEARCH_MODELS.into()),
+        )
+        .into_iter()
+        .map(|m| m.id)
+        .collect(),
         google_client_id: var("GOOGLE_CLIENT_ID"),
         google_certs_url: var("GOOGLE_CERTS_URL").unwrap_or_else(|| auth::DEFAULT_CERTS_URL.into()),
         ai_daily_limit: var("AI_DAILY_LIMIT")
@@ -153,6 +171,25 @@ impl AppState {
     pub fn ai_limit(&self, u: &db::User) -> Option<i64> {
         self.google.as_ref()?;
         Some(u.ai_limit.unwrap_or(self.cfg.ai_daily_limit))
+    }
+
+    /// The premium models this account gets: those whose own limit was raised over
+    /// `PREMIUM_MIN_LIMIT` (by `set-ai-limit` or in the database), with or without sign-in.
+    pub fn extra_models(&self, u: &db::User) -> &[Model] {
+        if u.ai_limit.is_some_and(|l| l > PREMIUM_MIN_LIMIT) {
+            &self.cfg.premium_models
+        } else {
+            &[]
+        }
+    }
+
+    /// Can this account generate with this model?
+    pub fn model_ok(&self, u: &db::User, id: &str) -> bool {
+        self.cfg
+            .models
+            .iter()
+            .chain(self.extra_models(u))
+            .any(|m| m.id == id)
     }
 }
 
@@ -254,6 +291,13 @@ async fn main() {
     } else {
         let ids: Vec<&str> = cfg.models.iter().map(|m| m.id.as_str()).collect();
         eprintln!("sequencer: AI generation enabled with {}", ids.join(", "));
+        if !cfg.premium_models.is_empty() {
+            let ids: Vec<&str> = cfg.premium_models.iter().map(|m| m.id.as_str()).collect();
+            eprintln!(
+                "sequencer: accounts with an AI limit over {PREMIUM_MIN_LIMIT} also get {}",
+                ids.join(", ")
+            );
+        }
     }
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port()));

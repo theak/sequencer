@@ -10,7 +10,13 @@
 //! the model as an image part next to the prompt. If the model won't take images, the call
 //! fails with `image_rejected` and the browser retries without one.
 //!
-//! The API key never leaves the server, and only allowlisted models can be requested.
+//! The API key never leaves the server, and only allowlisted models can be requested
+//! (plus the premium ones, for accounts whose AI limit was raised over 10).
+//!
+//! Models in `search_models` get OpenRouter's `openrouter:web_search` server tool:
+//! OpenRouter runs the searches (Gemini uses Google's own), the model decides when to
+//! search, and only its text streams back. If OpenRouter turns the tool down, the request
+//! goes again without it.
 //! With sign-in on, generating needs an account, and each account gets `AI_DAILY_LIMIT`
 //! generations a day. A request that fails before the model writes anything doesn't count.
 
@@ -149,7 +155,7 @@ pub async fn generate(
         Ok(b) => b,
         Err(r) => return err(r.status(), "invalid_argument", &r.body_text()),
     };
-    if !state.cfg.models.iter().any(|m| m.id == b.model) {
+    if !state.model_ok(&user, &b.model) {
         return err(StatusCode::BAD_REQUEST, "invalid_argument", "unknown model");
     }
     if b.prompt.trim().is_empty() {
@@ -196,19 +202,39 @@ pub async fn generate(
         None => json!(b.prompt),
     };
 
-    let req = state
-        .client
-        .post(format!("{}/chat/completions", state.cfg.openrouter_base))
-        .bearer_auth(key)
-        .header("X-Title", "16.AKS.ZONE")
-        .timeout(UPSTREAM_TIMEOUT)
-        .json(&json!({
+    let send = |search: bool| {
+        let mut body = json!({
             "model": b.model,
             "stream": true,
             "max_tokens": MAX_TOKENS,
             "messages": [{ "role": "user", "content": content }],
-        }));
-    let mut resp = match req.send().await {
+        });
+        if search {
+            body["tools"] = json!([{ "type": "openrouter:web_search" }]);
+        }
+        state
+            .client
+            .post(format!("{}/chat/completions", state.cfg.openrouter_base))
+            .bearer_auth(&key)
+            .header("X-Title", "16.AKS.ZONE")
+            .timeout(UPSTREAM_TIMEOUT)
+            .json(&body)
+            .send()
+    };
+    let search = state.cfg.search_models.contains(&b.model);
+    let mut sent = send(search).await;
+    // a search the model or route can't do shouldn't cost the beat: try once without it
+    if search
+        && let Ok(r) = &sent
+        && matches!(r.status().as_u16(), 400 | 404 | 422)
+    {
+        eprintln!(
+            "sequencer: OpenRouter {} with web search; retrying without it",
+            r.status()
+        );
+        sent = send(false).await;
+    }
+    let mut resp = match sent {
         Ok(r) => r,
         Err(e) => {
             eprintln!("sequencer: OpenRouter request failed: {e}");
