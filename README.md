@@ -84,6 +84,7 @@ Turn a loop into a song. Right-click any knob, slider, M/S button or the warble 
 - **Drawing:** drag to draw, Shift-drag (or the Line tool) for a straight line, and Snap to beats, pages or loops. Right-click a lane for shapes like ramps, waves or every other loop.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
   - The choice is saved with the beat. A beat opens on Loop unless it was saved on Automation, and adding a beat's first lane switches it to Automation.
+  - The automation editor always plays the automation: opening it switches Play to Automation, and switching Play to Loop goes back to the loop editor. Automation playback works in either editor.
 - **Keys:** L flips Plays between Loop and Automation, and A flips between the loop editor and the automation editor.
 - **AI:** in the Automation tab, the AI writes lanes for the beat on screen ("build for 4 loops, drop on loop 5, fade out").
 - **Export:** with Automation playback on, Export audio renders the whole song.
