@@ -286,7 +286,12 @@ impl FromRequestParts<AppState> for Viewer {
     type Rejection = Infallible;
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Infallible> {
         if state.google.is_none() {
-            return Ok(Viewer(state.local_user.clone()));
+            // read it fresh, so a limit changed in the database applies without a restart
+            let fresh = match &state.local_user {
+                Some(u) => state.db.user(u.id).await.ok().flatten(),
+                None => None,
+            };
+            return Ok(Viewer(fresh.or_else(|| state.local_user.clone())));
         }
         let Some(tok) = cookie_token(&parts.headers) else {
             return Ok(Viewer(None));
@@ -353,6 +358,8 @@ async fn me_json(state: &AppState, user: Option<&User>) -> Value {
         "email": u.email,
         "local": state.google.is_none(),
         "ai": { "used": used, "limit": limit, "resetsAt": (crate::db::today() + 1) * 86_400_000 },
+        // premium models on top of /api/config's list, for accounts with a raised limit
+        "models": state.extra_models(u).iter().map(|m| json!({ "id": m.id, "label": m.label })).collect::<Vec<_>>(),
     }})
 }
 

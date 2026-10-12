@@ -31,6 +31,11 @@ fn cfg(dir: PathBuf, key: Option<&str>, base: &str) -> Config {
             id: "test/model".into(),
             label: "Test".into(),
         }],
+        premium_models: vec![Model {
+            id: "test/premium".into(),
+            label: "Premium".into(),
+        }],
+        search_models: vec!["test/search".into()],
         google_client_id: None,
         google_certs_url: "http://127.0.0.1:1".into(),
         ai_daily_limit: 10,
@@ -969,4 +974,120 @@ async fn generate_caps_the_prompt() {
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
+}
+
+/// The premium model is offered and allowed only to accounts whose own limit is over 10.
+#[tokio::test]
+async fn premium_models_need_a_raised_limit() {
+    let upstream = serve(Router::new().route(
+        "/chat/completions",
+        post(|body: String| async move {
+            let v: Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(v["model"], "test/premium");
+            let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            ([("content-type", "text/event-stream")], sse)
+        }),
+    ))
+    .await;
+    let dir = temp_dir();
+    let app = google_app(dir.clone(), Some("k"), &upstream).await;
+    let cookie = member(&app, "g-1", "maker").await;
+    let premium = json!({"model":"test/premium","prompt":"a beat"});
+    let db = crate::db::Db::open(&dir.join("sequencer.db")).unwrap();
+    for (limit, offered) in [(None, false), (Some(10), false), (Some(11), true)] {
+        assert!(db.set_ai_limit("maker".into(), limit).await.unwrap());
+        let (_, me) = call_as(&app, &cookie, "GET", "/api/me", None).await;
+        let ids: Vec<&str> = me["user"]["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|m| m["id"].as_str())
+            .collect();
+        assert_eq!(ids == ["test/premium"], offered, "limit {limit:?}: {me}");
+        let resp = send(
+            &app,
+            "POST",
+            "/api/generate",
+            Some(premium.clone()),
+            Some(&cookie),
+        )
+        .await;
+        let want = if offered {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_REQUEST
+        };
+        assert_eq!(resp.status(), want, "limit {limit:?}");
+        resp.into_body().collect().await.unwrap();
+    }
+    // /api/config, which everyone sees, never lists it
+    let (_, v) = call(&app, "GET", "/api/config", None).await;
+    assert!(!v.to_string().contains("test/premium"));
+}
+
+/// A search model asks OpenRouter for its web search tool, and if OpenRouter turns the tool
+/// down, the same request goes again without it. Other models never get the tool.
+#[tokio::test]
+async fn search_models_get_web_search_and_fall_back() {
+    static CALLS: AtomicU32 = AtomicU32::new(0);
+    let mock = Router::new().route(
+        "/chat/completions",
+        post(|body: String| async move {
+            let v: Value = serde_json::from_str(&body).unwrap();
+            let n = CALLS.fetch_add(1, Ordering::SeqCst);
+            let tools = v.get("tools").cloned();
+            let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            match (v["model"].as_str().unwrap(), n) {
+                ("test/model", _) => assert!(tools.is_none()),
+                ("test/search", 1) => {
+                    assert_eq!(tools, Some(json!([{"type":"openrouter:web_search"}])));
+                    return (StatusCode::BAD_REQUEST, [("content-type", "application/json")], "{\"error\":{\"message\":\"no tools\"}}".to_string());
+                }
+                ("test/search", 2) => assert!(tools.is_none(), "the retry drops the tool"),
+                other => panic!("unexpected call {other:?}"),
+            }
+            (StatusCode::OK, [("content-type", "text/event-stream")], sse.to_string())
+        }),
+    );
+    let base = serve(mock).await;
+    let mut c = cfg(temp_dir(), Some("k"), &base);
+    c.models.push(Model {
+        id: "test/search".into(),
+        label: "Search".into(),
+    });
+    let app = router(c).await;
+    for model in ["test/model", "test/search"] {
+        let resp = send(
+            &app,
+            "POST",
+            "/api/generate",
+            Some(json!({"model": model, "prompt":"a beat"})),
+            None,
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK, "{model}");
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        assert!(
+            String::from_utf8_lossy(&body).contains(r#"{"t":"ok"}"#),
+            "{model}"
+        );
+    }
+    assert_eq!(CALLS.load(Ordering::SeqCst), 3);
+}
+
+/// Without sign-in, a limit changed in the database (an admin tool, `set-ai-limit`) applies
+/// to the local account right away, premium models included.
+#[tokio::test]
+async fn local_account_sees_limit_changes_live() {
+    let dir = temp_dir();
+    let app = router(cfg(dir.clone(), Some("k"), "http://127.0.0.1:1")).await;
+    let (_, me) = call(&app, "GET", "/api/me", None).await;
+    assert_eq!(me["user"]["models"], json!([]));
+    let db = crate::db::Db::open(&dir.join("sequencer.db")).unwrap();
+    assert!(db.set_ai_limit("local".into(), Some(50)).await.unwrap());
+    let (_, me) = call(&app, "GET", "/api/me", None).await;
+    assert_eq!(
+        me["user"]["models"],
+        json!([{"id":"test/premium","label":"Premium"}])
+    );
 }

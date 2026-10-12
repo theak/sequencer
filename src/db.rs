@@ -194,6 +194,19 @@ impl Db {
     // ---- accounts ----
 
     /// The single account a server without sign-in saves everything under.
+    /// One account as it is now (an admin tool may have changed its limit since boot).
+    pub async fn user(&self, id: i64) -> DbResult<Option<User>> {
+        self.call(move |c| {
+            Ok(c.query_row(
+                &format!("SELECT {USER_COLS} FROM users WHERE id = ?1"),
+                params![id],
+                user_row,
+            )
+            .optional()?)
+        })
+        .await
+    }
+
     pub async fn local_user(&self) -> DbResult<User> {
         self.call(|c| {
             c.execute(
