@@ -74,6 +74,33 @@ To check which build you're running, open `/api/version`. Its `commit` should ma
 
 The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically.
 
+## Automation
+
+Turn a loop into a song. Right-click any knob, slider, M/S button or the warble button and pick **Add automation lane**, or use **+ Add lane** in the Automation tab. The tab has a lane per control over a song of 1 to 64 loops:
+- **Drawing:** drag to draw, Shift-drag (or the Line tool) for a straight line, and Snap to beats, pages or loops. Right-click a lane for shapes like ramps, waves or every other loop.
+- **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
+- **AI:** in the Automation tab, the AI writes lanes for the beat on screen ("build for 4 loops, drop on loop 5, fade out").
+- **Export:** with Automation playback on, Export audio renders the whole song.
+
+In the JSON, a song is a `song` object. Each lane is a list of `[at, value]` points, where `at` counts loops from the start (0 is the start of loop 1). Values ramp between points, two points at the same `at` make a jump, and mute, solo and warble take `true`/`false`:
+
+```json
+"song": {
+  "loops": 8,
+  "lanes": {
+    "synthTone": [[0, 0.14], [8, 0.64]],
+    "synthReverb": [[0, 0.1], [5, 0.1], [6, 0.85], [7, 0.85], [7, 0.15]],
+    "kick.mute": [[0, true], [2, false]],
+    "synth2.volume": [[0, 0.05], [2, 0.65]]
+  }
+}
+```
+
+Lane names:
+- Globals: `swing`, `synthTone`, `transpose` (cents), `warble`, `synthReverb`, `sidechain`, `drumDrive` and `master`.
+- Rows: `<row>.volume|tone|mute|solo`. A row is a drum id, `bass808`, `tom`, `conga`, `cowbell`, `synth1`… or `sample1`…, in order, and `tone` is that row's knob.
+- Group buttons: `drums|synths|samples.mute|solo`.
+
 ## YouTube samples
 
 Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.

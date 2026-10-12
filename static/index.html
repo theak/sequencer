@@ -298,6 +298,89 @@ details.json summary{cursor:pointer;font-size:12px;letter-spacing:.18em;text-tra
 details.json[open] summary{margin-bottom:10px}
 #jsonBox{font-family:var(--mono);font-size:12px;min-height:320px;line-height:1.5;white-space:pre;overflow:auto}
 
+/* Automation */
+.pmode .seg button{min-width:0}
+.songpos{font-size:11.5px;color:var(--ink-faint);white-space:nowrap;min-width:9.6em}
+.vtabs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:7px;background:var(--body)}
+.vtab{padding:6px 12px;border-radius:5px;border:1px solid transparent;background:transparent;color:var(--ink-dim);font-weight:700;font-stretch:112%;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;text-align:left}
+.vtab:hover{color:var(--ink)}
+.vtab .mini{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:0;text-transform:none;font-weight:500;opacity:.75}
+.vtab[aria-selected="true"]{background:var(--ink);color:var(--body);border-color:var(--ink)}
+.vsep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.stepper{display:inline-flex;align-items:center;gap:4px}
+.pgrp{display:inline-flex;align-items:center;gap:8px}
+.stepper .btn{padding:5px 10px}
+#songLen{width:52px;text-align:center}
+.autonote{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;border:1px dashed var(--orange);border-radius:7px;background:color-mix(in srgb,var(--orange) 8%,var(--panel));font-size:12.5px;color:var(--ink-dim)}
+.autonote b{color:var(--ink)}
+.lanes{display:flex;flex-direction:column;gap:6px}
+.lane{display:grid;grid-template-columns:var(--hdr) minmax(0,1fr);column-gap:8px;align-items:center}
+.lane .lh{display:flex;align-items:center;gap:8px;min-width:0}
+.lane .lt{position:relative;height:64px;border:1px solid var(--line);border-radius:6px;overflow:hidden;touch-action:none;cursor:crosshair;background-color:#1d1c20;
+  background-image:repeating-linear-gradient(90deg,#4a4650 0 1px,transparent 1px calc(100% / var(--L))),repeating-linear-gradient(90deg,#2e2c32 0 1px,transparent 1px calc(100% / var(--pages))),repeating-linear-gradient(90deg,#232126 0 1px,transparent 1px calc(100% / var(--beats))),repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--L)),rgba(255,255,255,.025) calc(100% / var(--L)) calc(200% / var(--L)))}
+.lane.bin .lt{height:30px}
+.lane .lt svg{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.lane .lline{fill:none;stroke:var(--orange);stroke-width:1.75;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.lane .larea{fill:var(--orange);opacity:.14}
+.lane .lbase{stroke:#8a848c;stroke-width:1;stroke-dasharray:2 4;vector-effect:non-scaling-stroke}
+.lane.bin rect{fill:var(--yellow);opacity:.9}
+.lane.bin.solo rect{fill:var(--synth)}
+.lane.off .lline{stroke:var(--ink-faint)}
+.lane.off .larea,.lane.off rect{fill:var(--ink-faint);opacity:.4}
+.lane .lph{position:absolute;top:0;bottom:0;left:0;width:2px;margin-left:-1px;background:var(--cream);opacity:.75;pointer-events:none}
+.lane .ldot{position:absolute;left:0;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--cream);box-shadow:0 0 6px var(--cream);pointer-events:none}
+.lane.off .ldot{display:none}
+.lane.drawing .lt{border-color:var(--ink-faint)}
+.lane.flash .lt{animation:laneflash 1.4s}
+@keyframes laneflash{0%,45%{border-color:var(--cream);box-shadow:0 0 0 2px color-mix(in srgb,var(--cream) 35%,transparent)}}
+.lled{flex:none;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel-2);padding:0;display:grid;place-items:center}
+.lled::after{content:"";width:7px;height:7px;border-radius:50%;background:#4a4750}
+.lled[aria-pressed="true"]::after{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+.lname{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
+.lname b{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lane.off .lname b{color:var(--ink-dim)}
+.lval{font-size:11.5px;white-space:nowrap}
+.lane.off .lval{color:var(--ink-faint)}
+.lanehead{margin-top:6px;padding-top:8px;border-top:1px dashed var(--line)}
+.lanehead h2{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-stretch:118%;color:var(--ink-dim);font-weight:700}
+.lane.ruler .lt{height:26px;cursor:pointer;background:var(--panel-2)}
+.lmark{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding-left:6px;border-left:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden}
+.lmark:first-child{border-left:0}
+.laneempty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:8px;color:var(--ink-dim)}
+.laneempty h3{margin:0 0 6px;font-size:15px;color:var(--ink)}
+.laneempty p{margin:0 auto 14px;max-width:470px;font-size:12.5px}
+.laneempty .rowflex{justify-content:center}
+/* a control with a lane gets a dot: orange while it follows the lane, grey while the lane is bypassed or Play plays the loop */
+.field.autod > .lbl:first-child::after{content:"";display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--ink-faint);vertical-align:middle}
+.field.autoon > .lbl:first-child{color:var(--orange)}
+.field.autoon > .lbl:first-child::after{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+.mute.autod,.gmute.autod,.gsolo.autod{position:relative}
+.knob.autod::after,.mute.autod::after,.gmute.autod::after,.gsolo.autod::after,.lfo-btn.autod::after{content:"";position:absolute;top:1px;right:1px;width:5px;height:5px;border-radius:50%;background:var(--ink-faint);pointer-events:none}
+.knob.autod::after{top:-2px;right:-2px}
+.knob.autoon::after,.mute.autoon::after,.gmute.autoon::after,.gsolo.autoon::after,.lfo-btn.autoon::after{background:var(--orange);box-shadow:0 0 5px var(--orange)}
+.vol.autod{outline:1px dashed var(--ink-faint);outline-offset:3px;border-radius:3px}
+.vol.autoon{outline-color:var(--orange)}
+.ctlhead{display:flex;flex-direction:column;gap:2px;max-width:280px}
+.ctlhead b{font-size:13px}
+.ctlhead span{font-size:11.5px;color:var(--ink-dim)}
+#resetPop .btn,#autoPop .btn{text-align:left;display:flex;align-items:center;justify-content:space-between;gap:16px}
+#resetPop kbd,#autoPop kbd{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:500}
+#resetPop hr,#autoPop hr{border:0;border-top:1px solid var(--line);margin:0;width:100%}
+.btn.danger{color:var(--danger)}
+.ctlauto{display:flex;flex-direction:column;gap:6px}
+.autopop{min-width:240px}
+.autopop.wide{min-width:300px}
+.aplist{display:flex;flex-direction:column;gap:5px;max-height:min(440px,62vh);overflow-y:auto}
+.aplist > .lbl{margin-top:4px}
+.aplist .btn.has{color:var(--ink-faint)}
+.toast .tact{margin-left:12px;background:#1a1814;color:var(--cream);border:0;border-radius:4px;padding:4px 9px;font-weight:700;font-size:12px}
+.autoai .beatonly{display:none!important}
+@media (max-width:640px){
+  .lane{grid-template-columns:minmax(0,1fr);row-gap:4px}
+  .lane.ruler .lh{display:none}
+  .vsep{display:none}
+}
+
 /* Popovers */
 .pop{position:fixed;z-index:50;background:var(--panel-3);border:1px solid var(--ink-faint);border-radius:8px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:10px;display:flex;flex-direction:column;gap:8px}
 .seg{display:flex;gap:4px}
@@ -508,6 +591,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <div class="acct" id="acct"></div>
     </div>
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
+    <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays"><button type="button" data-pm="loop" aria-pressed="false" title="Loop the pattern with the knobs as set">Loop</button><button type="button" data-pm="auto" aria-pressed="true" title="Play the song with its automation lanes">Automation</button></div><span class="num songpos" id="songPos"></span></div>
     <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="1"><span class="lbl">BPM</span></label>
     <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
     <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
@@ -541,18 +625,18 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
   </details>
 
   <details class="json aicard" id="aiDetails">
-    <summary>Ask AI for a beat<span class="hint">describe a groove and a model writes it</span></summary>
+    <summary><span id="aiTitle">Ask AI for a beat</span><span class="hint" id="aiHint">describe a groove and a model writes it</span></summary>
     <div class="note" id="aiPromo" hidden><span id="aiPromoTxt"></span><div class="gsi" data-gsi="large"></div><button class="btn primary" id="aiFinish" hidden>Pick a username</button></div>
     <div class="aibody" id="aiForm">
-    <p>Describe a groove. The model writes the pattern and it loads straight into the grid.</p>
+    <p id="aiIntro">Describe a groove. The model writes the pattern and it loads straight into the grid.</p>
     <textarea id="prompt" placeholder="Dusty boom bap at 90 BPM with a lazy swung hat, a walking bassline and Rhodes-style minor 9 chords"></textarea>
     <div class="chips" id="ideas"></div>
     <div class="rowflex">
       <label class="field"><span class="lbl">model</span>
         <select id="tierSel" class="num"></select>
       </label>
-      <label class="check"><input type="checkbox" id="buildOn"> Build on the current beat</label>
-      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn"> <span id="hearTxt">Share spectrogram</span></label>
+      <label class="check beatonly"><input type="checkbox" id="buildOn"> Build on the current beat</label>
+      <label class="check beatonly" id="hearLbl" hidden><input type="checkbox" id="hearOn"> <span id="hearTxt">Share spectrogram</span></label>
       <div class="spacer"></div>
       <span class="quota" id="aiQuota"></span>
       <button class="btn primary" id="genBtn">Generate</button>
@@ -697,8 +781,15 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
 </div>
 
 <div class="knob-tip" id="knobTip" hidden></div>
-<div class="pop" id="resetPop" hidden role="menu" aria-label="Slider options">
+<div class="pop" id="resetPop" hidden role="menu" aria-label="Control options">
+  <div class="ctlhead" id="ctlHead" hidden><b id="ctlName"></b><span id="ctlSub"></span></div>
   <button class="btn" role="menuitem" id="resetBtn">Reset</button>
+  <hr id="ctlSep" hidden>
+  <div class="ctlauto" id="ctlAuto" hidden></div>
+</div>
+<div class="pop autopop" id="autoPop" hidden role="menu" aria-label="Automation">
+  <div class="ctlhead"><b id="apTitle"></b><span id="apSub"></span></div>
+  <div class="aplist" id="apList"></div>
 </div>
 
 <div class="pop" id="pianoPop" hidden role="dialog" aria-label="Pick a note">
@@ -867,7 +958,7 @@ let uid = 0;
 function blankState(pages=1){
   const drums = {}, levels = {};
   DRUMS.forEach(d => { drums[d.id] = Array(pages*PAGE).fill(null); levels[d.id] = d.level; });
-  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE)), samples:[]};
+  return {name:"Untitled beat", bpm:110, swing:0, synthTone:.45, synthReverb:.15, transpose:0, warble:{on:false, depth:15, rate:1.5}, sidechain:0, drumDrive:0, tones:defaultTones(), pages, drums, levels, synths:TONAL_IDS.map(k => newTonal(k, pages*PAGE)), samples:[], songLoops:SONG_LOOPS, lanes:{}};
 }
 /* Tonal rows live in S.synths ahead of the user's synths, marked with fixed:<kind> (the 808 also keeps is808) */
 function newTonal(kind, len){ return {uid:++uid, name: kind==="808" ? "808" : TONAL[kind].name, fixed:kind, is808: kind==="808", perc: kind!=="808", poly:false, volume:TONAL[kind].vol, timbre:.5, steps:Array(len).fill(null)}; }
@@ -1029,10 +1120,11 @@ function fromJSON(o){
     return n;
   })];
   st.samples = (Array.isArray(o.samples) ? o.samples.slice(0,MAX_SAMPLES) : []).map(x => newSample(len, x && typeof x==="object" ? x : {}));
+  parseSong(o, st);
   return st;
 }
 function toJSON(st){
-  const drums = {}, levels = {};
+  const drums = {}, levels = {}, song = songJSON(st);
   DRUM_IDS.forEach(id => {
     const chars = st.drums[id].map(cellChar).join("");
     drums[id] = chars.match(/.{1,16}/g).join("|");
@@ -1046,10 +1138,86 @@ function toJSON(st){
     synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
     ...(st.samples?.length ? {samples: st.samples.map(s => ({video:s.vid, ...(s.title ? {title:s.title} : {}), start:s.start, speed:s.rate, beats:s.beats || "inf", volume:+s.volume.toFixed(2),
       steps:s.steps.map(x => x ? "x" : ".").join("").match(/.{1,16}/g).join("|")}))} : {}),
+    ...(song ? {song} : {}),
   };
 }
 function pretty(o){
   return JSON.stringify(o,null,2).replace(/\[\n([^\[\]{}]*?)\n\s*\]/g, (m,inner) => "[" + inner.split(/,\n/).map(s => s.trim()).join(", ") + "]");
+}
+
+/* ---------- Song: automation lanes, over a number of loops of the pattern ----------
+   A lane is a list of points [at, value]. at counts loops from the start of the song (0 is the start of loop 1,
+   2.5 is halfway through loop 3) and snaps to the nearest step. Values ramp in a straight line between points,
+   hold before the first and after the last, and two points at the same at make a jump. Values use the beat's own
+   units (swing 0-0.5, transpose in cents, the rest 0-1); mute, solo and warble are on/off and switch instantly.
+   Lane names: the globals by their beat key, then "<row>.volume|tone|mute|solo", where a row is a drum id, bass808,
+   tom, conga, cowbell, synth1… or sample1… in order, and "drums|synths|samples.mute|solo" for the group buttons. */
+const SONG_LOOPS = 8, SONG_MAX = 64, LANE_MAX_PTS = 400;
+const GLOBAL_LANES = {swing:[0,.5], synthTone:[0,1], transpose:[-1200,1200], warble:null, synthReverb:[0,1], sidechain:[0,1], drumDrive:[0,1], master:[0,1]};
+const LANE_GROUPS = ["drums","synths","samples"];
+// the range of a lane by its id inside the app ("kick.volume", "s12.tone" for a synth, "y3.mute" for a sample)
+function laneSpec(id){
+  if(id in GLOBAL_LANES){ const g = GLOBAL_LANES[id]; return g ? {lo:g[0], hi:g[1], bin:false} : {lo:0, hi:1, bin:true}; }
+  const [row, k] = id.split(".");
+  if(k==="mute" || k==="solo") return {lo:0, hi:1, bin:true};
+  if(k==="volume" || (k==="tone" && row[0]!=="y" && !LANE_GROUPS.includes(row))) return {lo:0, hi:1, bin:false};
+  return null;
+}
+// [json name, row key in the app, section] for every row, in the order they show
+function laneRows(st){
+  const rows = DRUM_IDS.map(id => [id, id, "drums"]);
+  for(const k of TONAL_IDS){ const r = tonalRow(k, st); if(r) rows.push([k==="808" ? "bass808" : k, "s"+r.uid, "tonal"]); }
+  userSynths(st).forEach((s,i) => rows.push(["synth"+(i+1), "s"+s.uid, "synths"]));
+  st.samples.forEach((s,i) => rows.push(["sample"+(i+1), smpKey(s), "samples"]));
+  return rows;
+}
+// every lane id the beat can have, in display order, with its json name
+function laneIds(st){
+  const out = Object.keys(GLOBAL_LANES).map(id => [id, id]);
+  let sec = null;
+  for(const [name, key, s] of laneRows(st)){
+    if(s!==sec){ sec = s; if(LANE_GROUPS.includes(s)) for(const k of ["mute","solo"]) out.push([`${s}.${k}`, `${s}.${k}`]); }
+    for(const k of ["volume","tone","mute","solo"]) if(laneSpec(`${key}.${k}`)) out.push([`${key}.${k}`, `${name}.${k}`]);
+  }
+  if(!st.samples.length) return out.filter(([id]) => !id.startsWith("samples."));
+  return out;
+}
+const laneNum = (sp, v) => sp.bin ? (typeof v==="string" ? /^(on|true|1)$/i.test(v.trim()) : Number(v) > .5) ? 1 : 0 : clamp(v, sp.lo, sp.hi, NaN);
+function parseLane(raw, sp){
+  const list = Array.isArray(raw) ? raw : raw && typeof raw==="object" ? raw.points : null;
+  if(!Array.isArray(list)) return null;
+  const pts = [];
+  for(const p of list.slice(0, LANE_MAX_PTS)){
+    const a = Number(Array.isArray(p) ? p[0] : p?.at), v = laneNum(sp, Array.isArray(p) ? p[1] : p?.value ?? p?.v);
+    if(Number.isFinite(a) && !Number.isNaN(v)) pts.push([Math.min(SONG_MAX, Math.max(0, a)), v]);
+  }
+  if(!pts.length) return null;
+  pts.sort((x,y) => x[0]-y[0]); // stable, so points at the same at keep their order (a jump)
+  return {pts, on: !(raw && !Array.isArray(raw) && raw.bypass)};
+}
+function parseSong(o, st){
+  st.songLoops = SONG_LOOPS; st.lanes = {};
+  const sg = o && typeof o.song==="object" && o.song ? o.song : null;
+  if(!sg) return;
+  st.songLoops = Math.round(clamp(sg.loops,1,SONG_MAX,SONG_LOOPS));
+  const ids = new Map(laneIds(st).map(([id, name]) => [name, id]));
+  const src = sg.lanes && typeof sg.lanes==="object" ? sg.lanes : {};
+  for(const [name, raw] of Object.entries(src)){
+    // the beat's own knob names work too: bass808.drive, tom.size, synth1.timbre
+    const id = ids.get(String(name).trim().replace(/\.(drive|size|timbre)$/, ".tone").replace(/\.level$/, ".volume").replace(/^808\./, "bass808."));
+    const lane = id && parseLane(raw, laneSpec(id));
+    if(lane) st.lanes[id] = lane;
+  }
+}
+function songJSON(st){
+  const lanes = {};
+  for(const [id, name] of laneIds(st)){
+    const l = st.lanes[id]; if(!l?.pts.length) continue;
+    const sp = laneSpec(id);
+    const pts = l.pts.map(([a,v]) => [+a.toFixed(4), sp.bin ? v>.5 : id==="transpose" ? Math.round(v) : +v.toFixed(3)]);
+    lanes[name] = l.on ? pts : {points: pts, bypass: true};
+  }
+  return Object.keys(lanes).length ? {loops: st.songLoops, lanes} : null;
 }
 
 /* ---------- Starters (built-in examples) ---------- */
@@ -1118,6 +1286,9 @@ function docOwner(){ return isLocalId(currentDocId) ? null : me ? me.username : 
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
 const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘S" : "Ctrl+S";
 let viewPage = 0, followPlay = true;
+// which editor is open, what Play plays, and the master level (a setting of this browser, not of the beat)
+let view = saved0?.view==="auto" ? "auto" : "loop", playMode = saved0?.playMode==="loop" ? "loop" : "auto", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
+let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false, laneTool = "draw", laneSnap = "off"; // songCur: where the song plays from; songAbs: the next step the song schedules
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
   followPlay = saved0.followPlay !== false;
@@ -1128,7 +1299,7 @@ function persistLocal(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
-      master: +$("masterIn").value, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
+      master: Math.round(masterLvl*100), view, playMode, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
 }
@@ -1138,7 +1309,7 @@ let ctx = null, master, comp, drumBus, synthBus, noiseBuf, shaper;
 let openHatChoke = null, bassChoke = null, kickChoke = null, drumRoom = null;
 const tonalChoke = new Map(); // row uid -> the last hit's gain, so the next hit on that row cuts it off
 let chorusIn = null, flangeIn = null;
-let duck = null, duckVerb = null, verbSend = null, W = null, tposeNode = null, D = null, lfo = null, lfoAmt = null;
+let duck = null, duckVerb = null, verbSend = null, W = null, tposeNode = null, D = null, lfo = null, lfoAmt = null, outFade = null;
 // drive curve: soft clip with a little asymmetry for even harmonics (the "grit")
 function driveCurve(){
   const n = 2048, c = new Float32Array(n);
@@ -1160,7 +1331,7 @@ function ensureCtx(){
   if(ctx){ if(ctx.state==="suspended") ctx.resume(); return ctx; }
   const AC = window.AudioContext || window.webkitAudioContext;
   ctx = new AC({latencyHint:"interactive"});
-  buildGraph($("masterIn").value/100);
+  buildGraph(masterLvl);
   return ctx;
 }
 // the whole mix, built into whichever context ctx points at: the live one, or an offline one for renders
@@ -1170,7 +1341,8 @@ function buildGraph(level, lean=false){ // lean: an offline render that can skip
   comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = .003; comp.release.value = .18; comp.knee.value = 8;
   drumBus = ctx.createGain(); synthBus = ctx.createGain(); synthBus.gain.value = .9;
   duck = gainNode(1); duckVerb = gainNode(1); duck.connect(synthBus); // sidechain: every synth voice passes through here and dips on each kick
-  master.connect(comp); comp.connect(ctx.destination);
+  outFade = gainNode(1); // after the bus compressor, so a Master lane fades in and out evenly
+  master.connect(comp); comp.connect(outFade).connect(ctx.destination);
   // dry path: drums + synths -> low-cut (swept up during a washout) -> dry level -> master
   const dryHP = filt("highpass", 20, .7), dryGain = gainNode(1);
   // drum drive: parallel distortion blended with the clean drums, then a punchy bus compressor.
@@ -1517,19 +1689,29 @@ function tick(){
   if(!playing) return;
   smpTick(); // samples plan further ahead than the drums, so they go first and never miss a step
   while(nextTime < ctx.currentTime + LOOKAHEAD){
-    const sd = 60/S.bpm/4;
-    stepIx %= stepCount();
-    const t = nextTime + (stepIx%2 ? S.swing*sd : 0);
-    scheduleStep(stepIx, t, sd);
-    vq.push({step:stepIx, t});
+    const sd = 60/S.bpm/4, song = playMode==="auto";
+    if(song){ songAbs %= songN(); stepIx = songAbs % stepCount(); } else stepIx %= stepCount();
+    const abs = song ? songAbs : -1, live = song && activeLanes().length > 0;
+    if(autoWas && !live) autoReset();
+    autoWas = live;
+    // in the song, the step plays with the lanes' values for that moment
+    withAuto(abs, () => {
+      const t = nextTime + (stepIx%2 ? S.swing*sd : 0);
+      scheduleStep(stepIx, t, sd);
+      if(live) autoAudio(t, sd);
+      vq.push({step:stepIx, t, abs});
+    });
     nextTime += sd;
     stepIx = (stepIx+1)%stepCount();
+    if(song) songAbs = (songAbs+1) % songN();
     stepAbs++;
   }
 }
 function startPlay(){
   ensureCtx();
   playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1;
+  songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
+  if(playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
   nextTime = ctx.currentTime + .06 + (YT_OK && S.samples.some(s => s.vid && s.steps.some(Boolean) && decks.get(s.uid)?.ready) ? .3 : 0);
   tick();
@@ -1545,6 +1727,8 @@ function stopPlay(){
   applyVerb();
   if(worker) worker.postMessage("stop"); if(ticker){ clearInterval(ticker); ticker = null; }
   vq.length = 0; setPlayhead(-1);
+  if(autoWas) autoReset();
+  autoWas = false; phAbs = -1; paintFrame();
   for(const d of decks.values()) smpHalt(d);
   if(openHatChoke){ openHatChoke.gain.setTargetAtTime(0,ctx.currentTime,.01); openHatChoke = null; }
   if(bassChoke){ bassChoke.gain.setTargetAtTime(0,ctx.currentTime,.02); bassChoke = null; }
@@ -1571,8 +1755,8 @@ function draw(){
   if(!playing) return;
   const now = ctx.currentTime;
   let cur = null;
-  while(vq.length && vq[0].t <= now) cur = vq.shift().step;
-  if(cur!=null) setPlayhead(cur);
+  while(vq.length && vq[0].t <= now) cur = vq.shift();
+  if(cur){ setPlayhead(cur.step); if(cur.abs!==phAbs){ phAbs = cur.abs; if(playMode==="auto") paintFrame(); } }
   requestAnimationFrame(draw);
 }
 
@@ -1602,7 +1786,7 @@ function smpTick(){
   for(let k=0; nextTime + k*sd < now + SMP_AHEAD; k++){
     const abs = stepAbs + k; if(abs <= smpDone) continue;
     smpDone = abs;
-    const step = (stepIx + k) % n, t = nextTime + k*sd + (step%2 ? S.swing*sd : 0);
+    const step = (stepIx + k) % n, t = nextTime + k*sd + (step%2 ? swingAhead(k)*sd : 0);
     for(const s of S.samples) if(s.steps[step]) smpTrigger(s, t);
   }
   smpDrift();
@@ -1764,7 +1948,8 @@ function smpHalt(d){
 }
 function smpVol(d, s=smpOf(d)){
   if(!d.ready || !s || d.priming || !d.player) return;
-  try { d.player.setVolume(audible(smpKey(s)) ? Math.round(s.volume * $("masterIn").value) : 0); } catch {}
+  const v = withFrame(() => audible(smpKey(s)) ? Math.round(s.volume * masterLvl * 100) : 0); // as the song has it right now
+  try { d.player.setVolume(v); } catch {}
 }
 function smpVols(){ for(const d of decks.values()) smpVol(d); }
 
@@ -1970,10 +2155,10 @@ const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 // Same voices, same mix, built into an offline context. loops: times through the pattern. warm: render one extra loop
 // first and drop it, so reverb tails and notes held over the loop point already ring into the start (a seamless loop).
 // tail: seconds to let the last loop ring out. Mutes and solos apply, like what you hear.
-function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100, lean=false, all=false, st=S}={}){
+function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100, lean=false, all=false, st=S, song=false}={}){ // song: loops is the song, with its lanes
   const sd = 60/st.bpm/4, n = st.pages*PAGE, loopLen = n*sd, skip = warm ? Math.min(loopLen, warmSecs) : 0; // warmSecs: only the end of the warm-up loop
   const total = skip + loops*loopLen + tail;
-  const live = {ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt};
+  const live = {ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt, outFade};
   const liveChokes = new Map(tonalChoke), liveS = S, livePlaying = playing;
   const flags = all && {m:[...muted], s:[...soloed]}; // all: ignore mutes and solos
   let oc;
@@ -1982,12 +2167,13 @@ function renderBeat({loops=1, warm=false, warmSecs=Infinity, tail=0, rate=44100,
     if(flags){ muted.clear(); soloed.clear(); }
     oc = ctx = new OAC(2, Math.ceil(total*rate), rate);
     openHatChoke = bassChoke = kickChoke = null; tonalChoke.clear();
-    buildGraph($("masterIn").value/100, lean);
+    buildGraph(masterLvl, lean);
     playing = true; applyVerb(); // the wash riser only runs while playing
-    for(let r=warm?-1:0; r<loops; r++)
+    if(song){ const lv = new Map(); for(let a=0; a<loops*n; a++) withAuto(a, () => { const i = a % n, t = a*sd + (i%2 ? S.swing*sd : 0); scheduleStep(i, t, sd); autoAudio(t, sd, lv); }); }
+    else for(let r=warm?-1:0; r<loops; r++)
       for(let i=0;i<n;i++){ const t = skip + r*loopLen + i*sd + (i%2 ? S.swing*sd : 0); if(t >= 0) scheduleStep(i, t, sd); }
   } finally {
-    ({ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt} = live);
+    ({ctx, master, comp, drumBus, synthBus, noiseBuf, shaper, openHatChoke, bassChoke, kickChoke, drumRoom, chorusIn, flangeIn, duck, duckVerb, verbSend, W, tposeNode, D, lfo, lfoAmt, outFade} = live);
     tonalChoke.clear(); liveChokes.forEach((v,k) => tonalChoke.set(k,v));
     S = liveS; playing = livePlaying;
     if(flags){ flags.m.forEach(x => muted.add(x)); flags.s.forEach(x => soloed.add(x)); }
@@ -2203,14 +2389,15 @@ async function exportWav(){
   if(b.disabled) return;
   b.disabled = true; toast("Rendering the audio…", 60000);
   try {
-    const {buf, from, loopLen} = await renderBeat({loops:1, tail: st.synthReverb > .5 ? 7 : 3.5, st});
-    const end = from + Math.round(loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
+    const song = playMode==="auto" && activeLanes().length > 0, loops = song ? S.songLoops : 1;
+    const {buf, from, loopLen} = await renderBeat({loops, song, tail: st.synthReverb > .5 ? 7 : 3.5, st});
+    const end = from + Math.round(loops*loopLen*buf.sampleRate), d0 = buf.getChannelData(0), d1 = buf.getChannelData(1);
     let last = end; for(let i=buf.length-1; i>end; i--) if(Math.abs(d0[i]) > 1e-4 || Math.abs(d1[i]) > 1e-4){ last = i; break; }
     const to = Math.min(buf.length, last + Math.round(.05*buf.sampleRate));
     // a hot mix can peak over 0 dBFS (speakers clip it too): turn the whole file down just enough instead of clipping it
     const pk = levels(buf, from, to).peak, trim = pk > -.3 ? -.3 - pk : 0;
     const wav = wavBlob(buf, from, to, Math.pow(10, trim/20)), secs = (to-from)/buf.sampleRate;
-    const done = await saveFile(`${name} ${st.bpm}bpm.wav`, wav);
+    const done = await saveFile(`${name} ${st.bpm}bpm${song ? " song" : ""}.wav`, wav);
     if(done) toast(`${done} · ${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,"0")} · ${(wav.size/1048576).toFixed(1)} MB` + (trim < -.05 ? ` · turned down ${(-trim).toFixed(1)} dB so it doesn't clip` : "") + (st.samples.some(s => s.vid) ? " · YouTube samples aren't in it" : ""), 5000);
   } catch(e){ dlog("export: "+(e?.message||e)); toast("Couldn't render the audio. Try again.", 4000); }
   finally { b.disabled = false; }
@@ -2250,8 +2437,10 @@ const q = i => "q"+(Math.floor(i/4)+1) + (i%4===0 && i>0 ? " gs" : "");
 
 function render(){
   if(viewPage >= S.pages) viewPage = S.pages-1;
+  aiMode();
+  if(view==="auto"){ renderAuto(); return; }
   const off = viewPage*PAGE;
-  let h = `<div class="pagebar"><span id="flagSlot"></span><span class="lbl">Pages</span><div class="ptabs" role="tablist">` +
+  let h = `<div class="pagebar">${viewTabs()}<span id="flagSlot"></span><span class="lbl">Pages</span><div class="ptabs" role="tablist">` +
     Array.from({length:S.pages},(_,p) => `<button class="ptab" role="tab" data-act="page" data-p="${p}" aria-current="${p===viewPage}">Page ${p+1}<span class="mini">steps ${p*PAGE+1}-${p*PAGE+PAGE}</span></button>`).join("") +
     `</div><button class="btn" data-act="addpage" ${S.pages>=MAX_PAGES?"disabled":""}>+ Add page</button>` +
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
@@ -2330,6 +2519,7 @@ function renderRest(fb){
   syncTransport();
   syncDeck(); strobePaint();
   syncJson();
+  paintFrame();
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function synthByKey(key){ return S.synths.find(s => "s"+s.uid===key); }
@@ -2431,7 +2621,7 @@ function refreshFlags(){
   $("unmuteAll").querySelector("span").textContent = `Unmute all (${nm})`;
   $("unsoloAll").querySelector("span").textContent = `Unsolo all (${ns})`;
   $("flagbar").hidden = !nm && !ns;
-  smpVols();
+  paintFrame();
   specSoon();
 }
 function clearFlags(kind){ const set = flagSet(kind); flagMemo[kind] = [...set]; set.clear(); refreshFlags(); }
@@ -2839,7 +3029,7 @@ function swipePage(dir){
 }
 let wheelX = 0, wheelLock = false, wheelT = null;
 rack.addEventListener("wheel", e => {
-  if(S.pages < 2 || drag || knobDrag || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  if(view==="auto" || S.pages < 2 || drag || knobDrag || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
   e.preventDefault(); // also keeps the browser's swipe-back gesture from firing over the rack
   // one flick flips one page: stay locked until the scroll (and its inertia) has been quiet for a moment
   clearTimeout(wheelT); wheelT = setTimeout(() => { wheelX = 0; wheelLock = false; }, 220);
@@ -2850,7 +3040,7 @@ rack.addEventListener("wheel", e => {
 let swipe = null;
 rack.addEventListener("pointerdown", e => {
   swipe = null;
-  if(e.pointerType==="mouse" || S.pages < 2 || e.target.closest(".cell,.knob,input,select,button")) return;
+  if(view==="auto" || e.pointerType==="mouse" || S.pages < 2 || e.target.closest(".cell,.knob,input,select,button")) return;
   swipe = {id:e.pointerId, x:e.clientX, y:e.clientY};
 }, true);
 window.addEventListener("pointermove", e => {
@@ -2875,7 +3065,7 @@ function placePop(pop, cell){
   let y = r.bottom + 6; if(y+ph > vh-8) y = Math.max(8, r.top - ph - 6);
   pop.style.left = x+"px"; pop.style.top = y+"px";
 }
-function closePops(){ rack.querySelectorAll('.rmenu[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded","false")); rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; }
+function closePops(){ rack.querySelectorAll('.rmenu[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded","false")); rollPop.hidden = true; pianoPop.hidden = true; pagePop.hidden = true; rowPop.hidden = true; resetPop.hidden = true; lfoPop.hidden = true; $("lfoBtn").setAttribute("aria-expanded","false"); scopeLast = 0; popCell = null; rowMenuId = null; resetTarget = null; $("autoPop").hidden = true; }
 function popsClosed(){ return rollPop.hidden && pianoPop.hidden && pagePop.hidden && rowPop.hidden && resetPop.hidden && lfoPop.hidden; }
 /* Right-click any slider -> Reset to its default */
 document.addEventListener("contextmenu", e => {
@@ -2889,6 +3079,7 @@ document.addEventListener("contextmenu", e => {
   const d = +r.dataset.default, f = r.dataset.fmt;
   $("resetBtn").textContent = `Reset to ${r.dataset.label || (f==="st" ? (d/100)+" st" : d+(f||""))}`;
   $("resetBtn").disabled = +(r.classList.contains("knob") ? r.getAttribute("aria-valuenow") : r.value)===d;
+  $("resetBtn").hidden = false; ctlMenu(r);
   resetPop.hidden = false;
   const vw = document.documentElement.clientWidth, vh = window.innerHeight;
   resetPop.style.left = Math.max(8, Math.min(vw-resetPop.offsetWidth-8, e.clientX)) + "px";
@@ -3204,9 +3395,10 @@ $("verbIn").addEventListener("change", changed);
 const DRIVE_MAX = .6; // the slider's 100% equals the original curve's 60%
 function applyDrive(){
   $("driveOut").textContent = Math.round(S.drumDrive*100) + "%";
-  const d = S.drumDrive * DRIVE_MAX;
-  if(!D) return;
-  const t = ctx.currentTime, k = .03;
+  if(D) driveAudio(S.drumDrive, ctx.currentTime);
+}
+function driveAudio(v, t){
+  const d = v * DRIVE_MAX, k = .03;
   D.drivePre.gain.setTargetAtTime(1 + d*d*18, t, k);          // push harder into the clipper
   D.driveWet.gain.setTargetAtTime(Math.pow(d,.8)*.75, t, k);   // blend the dirty signal in
   D.drumClean.gain.setTargetAtTime(1 - d*.55, t, k);           // and ease the clean one back
@@ -3314,8 +3506,10 @@ function applyVerb(){
   const v = S.synthReverb, w = washAmt(v);
   $("verbWrap").classList.toggle("wash", w>0);
   $("verbOut").textContent = Math.round(v*100) + "%" + (w>0 ? " · wash" : "");
-  if(!verbSend) return;
-  const t = ctx.currentTime, k = .03, live = playing ? 1 : 0;
+  if(verbSend) verbAudio(v, ctx.currentTime);
+}
+function verbAudio(v, t){
+  const w = washAmt(v), k = .03, live = playing ? 1 : 0;
   verbSend.gain.setTargetAtTime(verbLevel(v), t, k);
   W.hallOut.gain.setTargetAtTime(w>0 ? Math.min(1, w*1.6) : 0, t, k);
   // washout: everything goes into a long hall, the low end thins out,
@@ -3327,7 +3521,7 @@ function applyVerb(){
   W.nbp.frequency.setTargetAtTime(600 * Math.pow(15, w), t, k);
   W.nGain.gain.setTargetAtTime(live * .22 * Math.pow(w,1.6), t, playing ? k : .15);
 }
-$("masterIn").addEventListener("input", e => { if(master) master.gain.setTargetAtTime(e.target.value/100, ctx.currentTime, .02); smpVols(); });
+$("masterIn").addEventListener("input", e => { masterLvl = e.target.value/100; if(master) master.gain.setTargetAtTime(masterLvl, ctx.currentTime, .02); smpVols(); });
 $("masterIn").addEventListener("change", persistLocal);
 /* Sliders without a readout show their value in a tip above the thumb while hovered, focused or dragged */
 function valueTip(id, label){
@@ -3383,7 +3577,7 @@ function loadState(st, docId, src){
   const lost = src && unsavedWork();
   S = st;
   if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; viewing = src?.viewing || null; }
-  muted.clear(); soloed.clear(); flagMemo.mute = []; flagMemo.solo = []; viewPage = 0;
+  muted.clear(); soloed.clear(); flagMemo.mute = []; flagMemo.solo = []; viewPage = 0; songCur = 0;
   render(); renderSaved(); commit();
   if(src){ loadedSnap = committed; toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
 }
@@ -3406,7 +3600,506 @@ $("copyJson").addEventListener("click", async () => {
   catch { $("jsonBox").focus(); $("jsonBox").select(); $("jsonStatus").textContent = "Selected. Press Ctrl/Cmd+C to copy."; }
 });
 
-function toast(msg, ms=2200){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.tm); toast.tm = setTimeout(() => t.hidden = true, ms); }
+function toast(msg, ms=2200, act=null){
+  const t = $("toast"); t.textContent = msg;
+  if(act){ const b = document.createElement("button"); b.className = "tact"; b.type = "button"; b.textContent = act.label; b.onclick = () => { t.hidden = true; act.fn(); }; t.append(b); }
+  t.hidden = false; clearTimeout(toast.tm); toast.tm = setTimeout(() => t.hidden = true, ms);
+}
+
+/* ---------- Automation ----------
+   Two switches: the view (loop editor or automation editor) and what Play plays (the loop with its knobs as set,
+   or the song with its lanes). While the song plays, each step is scheduled with the lanes' values swapped into
+   the beat for that moment, so every voice picks them up; the controls on screen follow the playhead. */
+const AUTO_SECS = {global:"Global", drums:"Drums", tonal:"Tonal", synths:"Synths", samples:"Samples"};
+const fmtCents = c => { const st = Math.round(c)/100; return (c>0 ? "+" : "") + (Number.isInteger(st) ? st : st.toFixed(1)) + " st"; };
+let REG = null;
+// every control a lane can drive: {id, label, sec, lo, hi, bin, get(), set(v), fmt(v)}, in display order
+function reg(){
+  const sig = S.synths.map(s => s.uid) + "|" + S.samples.map(s => s.uid);
+  if(REG && REG.S===S && REG.sig===sig) return REG;
+  const list = [], pct = v => Math.round(v*100)+"%", onoff = v => v>.5 ? "On" : "Off";
+  const add = (id, label, sec, get, set, fmt) => { const sp = laneSpec(id); list.push({id, label, sec, ...sp, get, set, fmt: fmt || (sp.bin ? onoff : pct), grp: LANE_GROUPS.includes(id.split(".")[0])}); };
+  add("swing", "Swing", "global", () => S.swing, v => S.swing = v);
+  add("synthTone", "Synth tone", "global", () => S.synthTone, v => S.synthTone = v);
+  add("transpose", "Transpose", "global", () => S.transpose, v => S.transpose = v, fmtCents);
+  add("warble", "Warble", "global", () => +S.warble.on, v => S.warble.on = v>.5);
+  add("synthReverb", "Synth reverb", "global", () => S.synthReverb, v => S.synthReverb = v, v => pct(v) + (v>.5 ? " · wash" : ""));
+  add("sidechain", "Sidechain", "global", () => S.sidechain, v => S.sidechain = v);
+  add("drumDrive", "Drum drive", "global", () => S.drumDrive, v => S.drumDrive = v);
+  add("master", "Master", "global", () => masterLvl, v => masterLvl = v);
+  const flags = (key, name, sec) => { for(const k of ["mute","solo"]){ const set = flagSet(k); add(`${key}.${k}`, `${name} ${k}`, sec, () => +set.has(key), v => v>.5 ? set.add(key) : set.delete(key)); } };
+  const group = (g, name) => { for(const k of ["mute","solo"]){ const set = flagSet(k); add(`${g}.${k}`, `${name} group ${k}`, g, () => +groupAll(set, g), v => { if(v>.5) groupIds(g).forEach(id => set.add(id)); }); } };
+  const row = (s, name, knob, sec) => {
+    add(`s${s.uid}.volume`, `${name} volume`, sec, () => s.volume, v => s.volume = v);
+    add(`s${s.uid}.tone`, `${name} ${knob}`, sec, () => s.timbre, v => s.timbre = v);
+    flags("s"+s.uid, name, sec);
+  };
+  group("drums", "Drums");
+  for(const d of DRUMS){
+    add(`${d.id}.volume`, `${d.name} volume`, "drums", () => S.levels[d.id], v => S.levels[d.id] = v);
+    add(`${d.id}.tone`, `${d.name} ${(TONES[d.id]?.label || "tone").toLowerCase()}`, "drums", () => S.tones[d.id], v => S.tones[d.id] = v);
+    flags(d.id, d.name, "drums");
+  }
+  for(const k of TONAL_IDS){ const s = tonalRow(k); if(s) row(s, k==="808" ? "808" : TONAL[k].name, TONAL[k].label.toLowerCase(), "tonal"); }
+  group("synths", "Synths");
+  userSynths().forEach(s => row(s, s.name, "timbre", "synths"));
+  if(S.samples.length) group("samples", "Samples");
+  S.samples.forEach((s,i) => {
+    const key = smpKey(s), name = `Sample ${i+1}`;
+    add(`${key}.volume`, `${name} volume`, "samples", () => s.volume, v => s.volume = v);
+    flags(key, name, "samples");
+  });
+  return REG = {S, sig, list, map: new Map(list.map(p => [p.id, p]))};
+}
+const regGet = id => reg().map.get(id);
+const laneList = () => reg().list.filter(p => S.lanes[p.id]);
+const activeLanes = () => playMode==="auto" ? reg().list.filter(p => S.lanes[p.id]?.on) : [];
+const songN = () => S.songLoops*stepCount();
+const lockedId = id => !!id && playMode==="auto" && !!S.lanes[id]?.on && !!regGet(id);
+// the lane's value at every step of the song, in its own units
+const denseCache = new WeakMap();
+function laneDense(p){
+  const lane = S.lanes[p.id], n = stepCount(), L = S.songLoops;
+  const c = denseCache.get(lane);
+  if(c && c.pts===lane.pts && c.n===n && c.L===L) return c.d;
+  const N = L*n, d = new Float64Array(N), P = lane.pts.map(([a,v]) => [Math.round(a*n), v]);
+  let j = 0;
+  for(let i=0;i<N;i++){
+    while(j+1 < P.length && P[j+1][0] <= i) j++;
+    const a = P[j], b = P[j+1];
+    d[i] = a[0] > i ? a[1] : !b || p.bin ? a[1] : a[1] + (b[1]-a[1])*(i-a[0])/(b[0]-a[0]);
+  }
+  denseCache.set(lane, {pts:lane.pts, n, L, d});
+  return d;
+}
+const laneAt = (p, abs) => { const d = laneDense(p); return d[Math.max(0, Math.min(d.length-1, abs))]; };
+// run fn with the beat set to how the song is at step abs. Group lanes go last: they mute (or solo) on top of the rows.
+let inAuto = false, autoBase = new Map(); // autoBase: the knob values while a step runs with the lanes'
+function withAuto(abs, fn){
+  if(inAuto) return fn();
+  const act = activeLanes().sort((a,b) => a.grp - b.grp);
+  if(!act.length) return fn();
+  const flag = p => /\.(mute|solo)$/.test(p.id), keep = act.map(p => flag(p) ? null : p.get()), m0 = [...muted], s0 = [...soloed];
+  inAuto = true; act.forEach((p,i) => autoBase.set(p.id, keep[i]));
+  try { for(const p of act) p.set(laneAt(p, abs)); return fn(); }
+  finally {
+    for(let i=act.length-1; i>=0; i--) if(keep[i]!=null) act[i].set(keep[i]);
+    muted.clear(); m0.forEach(x => muted.add(x)); soloed.clear(); s0.forEach(x => soloed.add(x));
+    inAuto = false; autoBase.clear();
+  }
+}
+function frameAbs(){ return playing && playMode==="auto" && phAbs>=0 ? phAbs : Math.min(songCur, songN()-1); }
+function withFrame(fn){ return withAuto(frameAbs(), fn); }
+// the swing k steps ahead of the next one, for the samples, which plan further ahead than the drums
+function swingAhead(k){ const p = playMode==="auto" && S.lanes.swing?.on && regGet("swing"); return p ? laneAt(p, (songAbs + k) % songN()) : S.swing; }
+// audio that isn't read per note: the reverb, drive, transpose, warble and master, set at each step's time
+const autoLast = new Map();
+function autoAudio(t, sd, live=autoLast){
+  const on = id => !!S.lanes[id]?.on;
+  const put = (k, v, fn) => { if(live.get(k)===v) return; live.set(k, v); fn(); };
+  if(on("synthReverb")) put("verb", S.synthReverb, () => verbAudio(S.synthReverb, t));
+  if(on("drumDrive")) put("drive", S.drumDrive, () => driveAudio(S.drumDrive, t));
+  if(on("transpose") && tposeNode) put("tpose", S.transpose, () => tposeNode.offset.setTargetAtTime(S.transpose, t, sd*.3));
+  if(on("warble") && lfoAmt) put("warble", S.warble.on, () => lfoAmt.gain.setTargetAtTime(S.warble.on ? S.warble.depth : 0, t, .04));
+  // the master knob stays put going into the compressor; the lane moves a fader after it, relative to the knob
+  if(on("master") && outFade){ const b = autoBase.get("master") ?? masterLvl; put("master", masterLvl, () => outFade.gain.setTargetAtTime(b > 0 ? masterLvl/b : 0, t, .02)); }
+}
+// back to the knobs as set, cancelling anything a lane has queued
+function autoReset(){
+  autoLast.clear();
+  if(!ctx || !verbSend) return;
+  const t = ctx.currentTime;
+  [verbSend.gain, W.hallOut.gain, W.drumSend.gain, W.hallIn.gain, W.dryHP.frequency, W.dryGain.gain, W.nbp.frequency, W.nGain.gain,
+   D.drivePre.gain, D.driveWet.gain, D.drumClean.gain, D.driveLow.gain, D.driveHigh.gain, D.drumComp.threshold, D.drumComp.ratio, D.drumPost.gain,
+   tposeNode.offset, lfoAmt.gain, outFade.gain].forEach(a => a.cancelScheduledValues(t));
+  applyVerb(); applyDrive(); applyTranspose(); applyWarble();
+  outFade.gain.setTargetAtTime(1, t, .02);
+  paintFrame();
+}
+
+/* What the controls show: in Automation playback, the song's values at the playhead (or the song cursor) */
+let framePainted = false;
+function paintFrame(){
+  const live = playMode==="auto" && activeLanes().length > 0;
+  if(live || framePainted) withFrame(paintControls);
+  framePainted = live;
+  markAuto(); smpVols(); songReadout(); lanesPlayhead();
+}
+function paintControls(){
+  const pc = v => Math.round(v*100);
+  $("swingIn").value = pc(S.swing); $("swingOut").textContent = pc(S.swing)+"%";
+  $("toneIn").value = pc(S.synthTone);
+  const w = washAmt(S.synthReverb);
+  $("verbIn").value = pc(S.synthReverb); $("verbWrap").classList.toggle("wash", w>0); $("verbOut").textContent = pc(S.synthReverb) + "%" + (w>0 ? " · wash" : "");
+  $("scIn").value = pc(S.sidechain); $("scOut").textContent = pc(S.sidechain) + "%";
+  $("driveIn").value = pc(S.drumDrive); $("driveOut").textContent = pc(S.drumDrive) + "%";
+  $("tposeIn").value = Math.round(S.transpose); $("tposeOut").textContent = (S.transpose>0?"+":"") + (Number.isInteger(S.transpose/100) ? `${S.transpose/100} st` : `${Math.round(S.transpose)}¢`);
+  $("lfoBtn").classList.toggle("on", S.warble.on); $("lfoBtn").setAttribute("aria-pressed", S.warble.on);
+  $("masterIn").value = pc(masterLvl);
+  for(const el of rack.querySelectorAll(".vol[data-act]")){
+    const a = el.dataset.act, o = a==="vol" ? null : (a==="svol" ? S.synths : S.samples).find(x => String(x.uid)===el.dataset.uid);
+    const v = a==="vol" ? S.levels[el.dataset.id] : o?.volume;
+    if(v!=null) el.value = pc(v);
+  }
+  for(const k of rack.querySelectorAll(".knob[data-uid]")){
+    if(knobDrag?.k===k) continue;
+    const s = knobObj(k.dataset.uid); if(!s) continue;
+    k.setAttribute("style", knobStyle(s.timbre)); k.setAttribute("aria-valuenow", Math.round(s.timbre*100));
+  }
+  rack.querySelectorAll(".row[data-row]").forEach(r => r.classList.toggle("muted", !audible(r.dataset.row)));
+  rack.querySelectorAll(".mute[data-kind]").forEach(b => b.setAttribute("aria-pressed", flagSet(b.dataset.kind).has(b.dataset.id)));
+  rack.querySelectorAll(".gsolo").forEach(b => b.setAttribute("aria-pressed", groupAll(soloed, b.dataset.g)));
+  rack.querySelectorAll(".gmute").forEach(b => b.setAttribute("aria-pressed", groupAll(muted, b.dataset.g)));
+}
+// the on-screen controls a lane drives, and the lane a control belongs to
+const GLOBAL_CTL = {swing:"swingIn", synthTone:"toneIn", transpose:"tposeIn", synthReverb:"verbIn", sidechain:"scIn", drumDrive:"driveIn", master:"masterIn", warble:"lfoBtn"};
+const CTL_SEL = "#swingIn,#toneIn,#tposeIn,#verbIn,#scIn,#driveIn,#masterIn,#lfoBtn,#lfoOn,.gmute,.gsolo,.mute[data-kind],.vol[data-act],.knob[data-uid]";
+function ctlEls(id){
+  if(GLOBAL_CTL[id]) return [$(GLOBAL_CTL[id])];
+  const [row, k] = id.split("."), q = sel => [...rack.querySelectorAll(sel)];
+  if(LANE_GROUPS.includes(row)) return q(`.g${k}[data-g="${row}"]`);
+  if(k==="mute" || k==="solo") return q(`.mute[data-kind="${k}"][data-id="${row}"]`);
+  const drum = DRUM_IDS.includes(row), uid = row.slice(1);
+  if(k==="volume") return q(drum ? `.vol[data-act="vol"][data-id="${row}"]` : row[0]==="y" ? `.vol[data-act="yvol"][data-uid="${uid}"]` : `.vol[data-act="svol"][data-uid="${uid}"]`);
+  if(k==="tone") return q(`.knob[data-uid="${drum ? "drum:"+row : uid}"]`);
+  return [];
+}
+function ctlParam(el){
+  const g = Object.entries(GLOBAL_CTL).find(([,v]) => v===el.id);
+  if(g) return g[0];
+  if(el.id==="lfoOn") return "warble";
+  const d = el.dataset;
+  if(el.matches(".gmute,.gsolo")) return `${d.g}.${el.matches(".gmute") ? "mute" : "solo"}`;
+  if(el.matches(".mute[data-kind]")) return `${d.id}.${d.kind}`;
+  if(d.act==="vol") return d.id+".volume";
+  if(d.act==="svol") return `s${d.uid}.volume`;
+  if(d.act==="yvol") return `y${d.uid}.volume`;
+  if(el.matches(".knob[data-uid]")) return (d.uid.startsWith("drum:") ? d.uid.slice(5) : "s"+d.uid)+".tone";
+  return null;
+}
+// a dot on every control with a lane: orange while it follows the lane, grey while it's bypassed or Play plays the loop
+function markAuto(){
+  document.querySelectorAll(".autod").forEach(el => el.classList.remove("autod","autoon"));
+  for(const p of laneList()){
+    const on = playMode==="auto" && S.lanes[p.id].on;
+    for(const el of ctlEls(p.id)){
+      const host = el.id==="lfoBtn" ? el : el.closest(".transport .field") || el;
+      host.classList.add("autod"); host.classList.toggle("autoon", on);
+    }
+  }
+}
+// a control that follows its lane stays put: say so, with a way to the lane
+function lockHit(e){
+  const c = e.target.closest?.(CTL_SEL); if(!c) return null;
+  if(c.id==="lfoBtn" && !e.shiftKey) return null; // the warble popover still opens; only on/off is automated
+  const id = ctlParam(c);
+  return lockedId(id) ? id : null;
+}
+function lockToast(id){ const p = regGet(id); toast(`${p.label} follows its automation lane`, 3400, {label:"Edit lane", fn: () => goLane(id)}); }
+document.addEventListener("pointerdown", e => {
+  if(e.pointerType==="mouse" && e.button!==0) return;
+  const id = lockHit(e); if(!id) return;
+  e.stopPropagation(); lockToast(id);
+}, true);
+document.addEventListener("mousedown", e => { if(e.button===0 && lockHit(e)){ e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener("touchstart", e => { if(lockHit(e)){ e.preventDefault(); e.stopPropagation(); } }, {capture:true, passive:false});
+["click","dblclick"].forEach(t => document.addEventListener(t, e => { if(lockHit(e)){ e.preventDefault(); e.stopImmediatePropagation(); } }, true));
+document.addEventListener("keydown", e => {
+  if(!/^(Arrow|Page|Home|End)/.test(e.key) && e.key!==" " && e.key!=="Enter") return;
+  const id = lockHit(e); if(!id || e.key===" ") return;
+  e.preventDefault(); e.stopImmediatePropagation(); lockToast(id);
+}, true);
+["input","change"].forEach(t => document.addEventListener(t, e => { if(e.isTrusted && lockHit(e)){ e.stopImmediatePropagation(); withFrame(paintControls); } }, true));
+
+/* Right-click a control: its lane options join the slider's Reset menu */
+function ctlMenu(el){
+  const id = el && ctlParam(el), p = id && regGet(id), box = $("ctlAuto");
+  $("ctlHead").hidden = box.hidden = $("ctlSep").hidden = !p;
+  if(!p) return false;
+  const l = S.lanes[id];
+  $("ctlName").textContent = p.label;
+  $("ctlSub").textContent = `${AUTO_SECS[p.sec]} · now ${p.fmt(withFrame(() => p.get()))}${l ? l.on ? " · automated" : " · bypassed" : ""}`;
+  const items = l ? [["edit","Edit in automation editor"],["toggle", l.on ? "Bypass automation" : "Enable automation"],["flat","Flatten to loop value", p.fmt(p.get())],["remove","Remove automation"]]
+    : [["add","Add automation lane"],["addopen","Add lane and open editor"]];
+  box.innerHTML = items.map(([a,t,k]) => `<button class="btn${a==="remove" ? " danger" : ""}" role="menuitem" data-la="${a}" data-id="${id}">${t}${k ? `<kbd>${esc(k)}</kbd>` : ""}</button>`).join("");
+  if(lockedId(id)){ $("resetBtn").hidden = true; $("ctlSep").hidden = true; }
+  return true;
+}
+document.addEventListener("contextmenu", e => {
+  if(e.defaultPrevented) return;
+  const b = e.target.closest?.(".mute[data-kind],.gmute,.gsolo,#lfoBtn");
+  if(!b || !ctlParam(b)) return;
+  e.preventDefault(); e.stopPropagation();
+  closePops();
+  $("resetBtn").hidden = true; ctlMenu(b); $("ctlSep").hidden = true;
+  showAt(resetPop, e.clientX, e.clientY+6);
+}, true);
+function showAt(pop, x, y){
+  pop.hidden = false;
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  pop.style.left = Math.max(8, Math.min(vw-pop.offsetWidth-8, x)) + "px";
+  pop.style.top = Math.max(8, Math.min(vh-pop.offsetHeight-8, y)) + "px";
+}
+$("ctlAuto").addEventListener("click", e => { const b = e.target.closest("[data-la]"); if(b){ closePops(); laneAct(b.dataset.la, b.dataset.id); } });
+
+/* Lane actions, shared by the menus, the editor and the AI */
+function autoChanged(){ if(playing) autoReset(); render(); commit(); }
+function addLane(id, open){
+  const p = regGet(id); if(!p) return;
+  if(S.lanes[id]){ goLane(id); return; }
+  S.lanes[id] = {pts: [[0, p.get()]], on: true};
+  autoChanged();
+  if(open) goLane(id);
+  else toast(`Automation lane added · ${p.label}`, 3400, view==="auto" ? null : {label:"Open automation", fn: () => goLane(id)});
+}
+function setPts(id, pts){ S.lanes[id] = {...S.lanes[id], pts}; autoChanged(); }
+function laneAct(a, id, k){
+  const p = regGet(id); if(!p) return;
+  if(a==="add" || a==="addopen") return addLane(id, a==="addopen");
+  const l = S.lanes[id]; if(!l) return;
+  if(a==="edit") return goLane(id);
+  if(a==="toggle"){ l.on = !l.on; autoChanged(); }
+  else if(a==="remove"){ delete S.lanes[id]; autoChanged(); toast(`Removed the ${p.label} lane · Undo brings it back`); }
+  else if(a==="flat") setPts(id, [[0, p.get()]]);
+  else if(a==="shape") setPts(id, shapePts(p, k));
+}
+function goLane(id){
+  closePops(); closeAutoPop();
+  if(view!=="auto"){ view = "auto"; persistLocal(); render(); }
+  const el = rack.querySelector(`.lane[data-lane="${id}"]`); if(!el) return;
+  el.scrollIntoView({block:"nearest", behavior: reduceMotion ? "auto" : "smooth"});
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+function setView(v){ if(v===view) return; view = v; closePops(); closeAutoPop(); persistLocal(); render(); }
+function setPlayMode(m){
+  if(m===playMode) return;
+  playMode = m;
+  if(playing){
+    if(m==="auto"){ const n = stepCount(); songAbs = (Math.floor(Math.min(songCur, songN()-1)/n)*n + stepIx) % songN(); }
+    else { autoReset(); autoWas = false; }
+  }
+  persistLocal(); render();
+}
+function setSongCur(abs){
+  songCur = Math.max(0, Math.min(songN()-1, abs));
+  if(playing && playMode==="auto"){ songAbs = songCur; stepIx = songCur % stepCount(); }
+  paintFrame();
+}
+function setLoops(L){
+  L = Math.round(clamp(L, 1, SONG_MAX, S.songLoops));
+  if(L===S.songLoops) return;
+  S.songLoops = L; songCur = Math.min(songCur, songN()-1);
+  if(playing && playMode==="auto") songAbs %= songN();
+  render(); commit();
+}
+function songReadout(){
+  const el = $("songPos"), n = stepCount(), a = frameAbs();
+  el.textContent = playMode==="auto" ? `loop ${Math.floor(a/n)+1}/${S.songLoops} · step ${String(a%n+1).padStart(2,"0")}` : "loop only";
+  $("pmodeSeg").querySelectorAll("[data-pm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pm===playMode));
+}
+
+/* Shapes and drawing. A drawn stroke is kept as a value per step, then thinned back to a few points. */
+function ptsFromDense(p, d){
+  const n = stepCount(), at = i => +(i/n).toFixed(4), N = d.length;
+  if(p.bin){ const pts = [[0, d[0]]]; for(let i=1;i<N;i++) if(d[i]!==d[i-1]) pts.push([at(i), d[i]]); return pts; }
+  const eps = .006*(p.hi-p.lo), keep = new Uint8Array(N), stack = [[0, N-1]];
+  keep[0] = keep[N-1] = 1;
+  while(stack.length){
+    const [a,b] = stack.pop(); let far = -1, fd = eps;
+    for(let i=a+1;i<b;i++){ const e = Math.abs(d[i] - (d[a] + (d[b]-d[a])*(i-a)/(b-a))); if(e > fd){ fd = e; far = i; } }
+    if(far>=0){ keep[far] = 1; stack.push([a,far],[far,b]); }
+  }
+  const pts = [];
+  for(let i=0;i<N;i++) if(keep[i]) pts.push([at(i), p.id==="transpose" ? Math.round(d[i]) : +d[i].toFixed(4)]);
+  if(pts.length===2 && pts[0][1]===pts[1][1]) pts.pop();
+  return pts;
+}
+function shapePts(p, k){
+  const L = S.songLoops, n = stepCount(), N = L*n, mid = (p.lo+p.hi)/2, amp = (p.hi-p.lo)*.4;
+  const fill = f => ptsFromDense(p, Float64Array.from({length:N}, (_,i) => f(i)));
+  switch(k){
+    case "up": return [[0, p.lo], [L, p.hi]];
+    case "down": return [[0, p.hi], [L, p.lo]];
+    case "wave": return fill(i => mid + amp*Math.sin(i/n*2*Math.PI));
+    case "fwave": return fill(i => mid + amp*Math.sin(i/PAGE*2*Math.PI));
+    case "alt": return Array.from({length:L}, (_,k) => [k, k%2]);
+    case "half": return Array.from({length:2*L}, (_,k) => [k/2, k%2]);
+    case "inv": return S.lanes[p.id].pts.map(([a,v]) => [a, 1-v]);
+    case "clear": return [[0, 0]];
+  }
+  return S.lanes[p.id].pts;
+}
+const norm = (p, v) => (v - p.lo)/(p.hi - p.lo);
+function laneSVG(p, d=laneDense(p)){
+  const N = d.length, Y = v => (4 + (1-norm(p, v))*92).toFixed(1);
+  let g = "";
+  if(p.bin){
+    for(let i=0;i<N;){ if(d[i]>.5){ let j = i; while(j<N && d[j]>.5) j++; g += `<rect x="${i}" y="18" width="${j-i}" height="64"/>`; i = j; } else i++; }
+    return `<svg viewBox="0 0 ${N} 100" preserveAspectRatio="none" aria-hidden="true">${g}</svg>`;
+  }
+  let path = `M0,${Y(d[0])}`;
+  for(let i=1;i<N;i++) if(d[i]!==d[i-1]) path += `H${i}V${Y(d[i])}`;
+  path += `H${N}`;
+  const b = Y(p.get());
+  return `<svg viewBox="0 0 ${N} 100" preserveAspectRatio="none" aria-hidden="true"><line class="lbase" x1="0" x2="${N}" y1="${b}" y2="${b}"/><path class="larea" d="${path}V100H0Z"/><path class="lline" d="${path}"/></svg>`;
+}
+const viewTabs = () => {
+  const nl = laneList().length;
+  return `<div class="vtabs" role="tablist" aria-label="Editor">${[["loop","Loop editor",`${stepCount()} steps · ${S.pages} page${S.pages===1?"":"s"}`],["auto","Automation",`${nl} lane${nl===1?"":"s"}`]].map(([v,t,m]) =>
+    `<button class="vtab" role="tab" data-aact="view" data-v="${v}" aria-selected="${view===v}">${t}<span class="mini">${m}</span></button>`).join("")}</div>`;
+};
+const SNAPS = [["off","Off"],["beat","Beat"],["page","Page"],["loop","Loop"]];
+const snapSteps = () => ({off:1, beat:4, page:PAGE, loop:stepCount()})[laneSnap] || 1;
+function renderAuto(){
+  const n = stepCount(), L = S.songLoops, N = L*n, list = laneList(), secs = Math.round(N*15/S.bpm);
+  const seg = (items, cur, act) => `<div class="seg v">${items.map(([k,t]) => `<button type="button" data-aact="${act}" data-k="${k}" aria-pressed="${k===cur}">${t}</button>`).join("")}</div>`;
+  let h = `<div class="pagebar">${viewTabs()}<span id="flagSlot"></span>
+    <span class="pgrp"><span class="lbl">Length</span><span class="stepper"><button class="btn" data-aact="len" data-d="-1" aria-label="Fewer loops">−</button><input type="number" class="num" id="songLen" min="1" max="${SONG_MAX}" value="${L}" aria-label="Song length in loops"><button class="btn" data-aact="len" data-d="1" aria-label="More loops">+</button></span><span class="lbl">loops</span></span>
+    <span class="vsep" aria-hidden="true"></span><span class="pgrp"><span class="lbl">Tool</span>${seg([["draw","Draw"],["line","Line"]], laneTool, "tool")}</span>
+    <span class="pgrp"><span class="lbl">Snap</span>${seg(SNAPS, laneSnap, "snap")}</span>
+    <div class="spacer"></div><button class="btn" data-aact="pick" aria-haspopup="menu">+ Add lane</button></div>`;
+  h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Drag on a lane to draw · Shift-drag for a straight line · right-click a lane for shapes · the dashed line is the loop value</span></div>`;
+  if(playMode==="loop") h += `<div class="autonote">Play is set to <b>Loop</b>, so these lanes are bypassed: the loop plays with its knobs as set. <button class="btn" data-aact="pmode" data-k="auto">Play automation</button></div>`;
+  h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
+  h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
+    <div class="lt" data-aact="ruler" title="Click or drag to move the song position">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
+  let sec = null;
+  for(const p of list){
+    if(p.sec!==sec){ sec = p.sec; h += `<div class="lanehead"><h2>${AUTO_SECS[sec]}</h2></div>`; }
+    const l = S.lanes[p.id], kind = p.bin ? (p.id.endsWith(".solo") ? "bin solo" : "bin") : "";
+    h += `<div class="lane ${kind} ${l.on ? "" : "off"}" data-lane="${p.id}">
+      <div class="lh"><button class="lled" data-aact="toggle" data-id="${p.id}" aria-pressed="${l.on}" title="${l.on ? "Bypass this lane" : "Turn this lane back on"}" aria-label="${esc(p.label)} lane on"></button>
+        <span class="lname"><b>${esc(p.label)}</b><span class="hint">${p.bin ? "on / off" : p.id==="transpose" ? "−12 to +12 st" : p.id==="swing" ? "0–50%" : "0–100%"}</span></span>
+        <span class="lval num" data-lv="${p.id}"></span>
+        <button class="rmenu" data-aact="lmenu" data-id="${p.id}" title="Shapes and options" aria-haspopup="menu" aria-label="${esc(p.label)} lane options">⋮</button>
+        <button class="del" data-aact="remove" data-id="${p.id}" title="Remove lane" aria-label="Remove the ${esc(p.label)} lane">✕</button></div>
+      <div class="lt" data-lt="${p.id}">${laneSVG(p)}<i class="lph"></i>${p.bin ? "" : `<i class="ldot"></i>`}</div></div>`;
+  }
+  if(!list.length) h += `<div class="laneempty"><h3>No automation yet</h3><p>Right-click any knob, slider or M/S button in the loop editor and choose Add automation lane, or add one here. The AI below can write lanes for you too.</p><div class="rowflex"><button class="btn primary" data-aact="pick" aria-haspopup="menu">+ Add lane</button><button class="btn" data-aact="view" data-v="loop">Back to loop editor</button></div></div>`;
+  h += `</div>`;
+  const fb = $("flagbar"); fb.remove();
+  rack.innerHTML = h;
+  renderRest(fb);
+}
+// playheads and readouts in the editor
+function lanesPlayhead(){
+  if(view!=="auto") return;
+  const N = songN(), a = frameAbs(), left = ((a + .5)/N*100) + "%";
+  rack.querySelectorAll(".lanes .lph").forEach(el => el.style.left = left);
+  for(const p of laneList()){
+    const v = laneAt(p, a), lane = rack.querySelector(`.lane[data-lane="${CSS.escape(p.id)}"]`); if(!lane) continue;
+    lane.querySelector(".lval").textContent = p.fmt(v);
+    const dot = lane.querySelector(".ldot"); if(dot){ dot.style.left = left; dot.style.top = (4 + (1-norm(p, v))*92) + "%"; }
+  }
+}
+let laneDraw = null, rulerDrag = null;
+rack.addEventListener("pointerdown", e => {
+  if(view!=="auto" || (e.pointerType==="mouse" && e.button!==0)) return;
+  const r = e.target.closest('.lt[data-aact="ruler"]');
+  if(r){
+    e.preventDefault();
+    const at = ev => { const b = r.getBoundingClientRect(); return Math.floor((ev.clientX-b.left)/b.width*songN()); };
+    rulerDrag = {pid:e.pointerId, at}; r.setPointerCapture?.(e.pointerId);
+    setSongCur(at(e)); return;
+  }
+  const t = e.target.closest(".lt[data-lt]"); if(!t) return;
+  const p = regGet(t.dataset.lt); if(!p) return;
+  e.preventDefault(); closePops(); closeAutoPop();
+  const N = songN(), box = t.getBoundingClientRect();
+  const pt = ev => ({i: Math.max(0, Math.min(N-1, Math.floor((ev.clientX-box.left)/box.width*N))), u: Math.max(0, Math.min(1, 1 - (((ev.clientY-box.top)/box.height)*100 - 4)/92))});
+  const d0 = laneDense(p), p0 = pt(e), snap = snapSteps();
+  const tgt = p.bin ? (d0[p0.i] > .5 ? 0 : 1) : 0, line = laneTool==="line" || e.shiftKey;
+  const val = u => { const v = p.lo + u*(p.hi-p.lo); return p.id==="transpose" ? Math.round(v/100)*100 : v; };
+  const put = (d, i, u) => { const v = p.bin ? tgt : val(u), b = i - i%snap; for(let k=b; k<Math.min(N, b+snap); k++) d[k] = v; };
+  laneDraw = {pid:e.pointerId, p, t, work: Float64Array.from(d0), last:p0, raf:0};
+  const apply = cur => {
+    const ld = laneDraw;
+    if(line){
+      ld.work = Float64Array.from(d0);
+      const a = Math.min(p0.i, cur.i), z = Math.max(p0.i, cur.i);
+      for(let i=a; i<=z; i++){ if(snap>1 && i!==a && i%snap) continue; const f = cur.i===p0.i ? 1 : (i-p0.i)/(cur.i-p0.i); put(ld.work, i, p0.u + (cur.u-p0.u)*f); }
+    } else {
+      const k = Math.abs(cur.i - ld.last.i);
+      for(let j=0;j<=k;j++){ const f = k ? j/k : 1; put(ld.work, Math.round(ld.last.i + (cur.i-ld.last.i)*f), ld.last.u + (cur.u-ld.last.u)*f); }
+      ld.last = cur;
+    }
+    if(!ld.raf) ld.raf = requestAnimationFrame(() => { ld.raf = 0; const svg = ld.t.querySelector("svg"); if(svg) svg.outerHTML = laneSVG(p, ld.work); });
+  };
+  laneDraw.apply = apply;
+  t.setPointerCapture?.(e.pointerId); t.closest(".lane").classList.add("drawing");
+  apply(p0);
+});
+window.addEventListener("pointermove", e => {
+  if(rulerDrag && e.pointerId===rulerDrag.pid){ setSongCur(rulerDrag.at(e)); return; }
+  if(!laneDraw || e.pointerId!==laneDraw.pid) return;
+  const N = songN(), box = laneDraw.t.getBoundingClientRect();
+  laneDraw.apply({i: Math.max(0, Math.min(N-1, Math.floor((e.clientX-box.left)/box.width*N))), u: Math.max(0, Math.min(1, 1 - (((e.clientY-box.top)/box.height)*100 - 4)/92))});
+});
+["pointerup","pointercancel"].forEach(t => window.addEventListener(t, e => {
+  if(rulerDrag && e.pointerId===rulerDrag.pid) rulerDrag = null;
+  if(!laneDraw || e.pointerId!==laneDraw.pid) return;
+  const {p, work, raf} = laneDraw; laneDraw = null; cancelAnimationFrame(raf);
+  if(t==="pointercancel"){ render(); return; }
+  setPts(p.id, ptsFromDense(p, work));
+}));
+rack.addEventListener("click", e => {
+  const b = e.target.closest("[data-aact]"); if(!b) return;
+  const a = b.dataset.aact, id = b.dataset.id;
+  if(a==="view") setView(b.dataset.v);
+  else if(a==="pmode") setPlayMode(b.dataset.k);
+  else if(a==="tool"){ laneTool = b.dataset.k; render(); }
+  else if(a==="snap"){ laneSnap = b.dataset.k; render(); }
+  else if(a==="len") setLoops(S.songLoops + +b.dataset.d);
+  else if(a==="toggle" || a==="remove") laneAct(a, id);
+  else if(a==="lmenu"){ const r = b.getBoundingClientRect(); laneMenu(id, r.left, r.bottom+4); }
+  else if(a==="pick") lanePicker(b);
+});
+rack.addEventListener("change", e => { if(e.target.id==="songLen") setLoops(+e.target.value); });
+rack.addEventListener("contextmenu", e => {
+  const t = view==="auto" && e.target.closest(".lt[data-lt],.lane[data-lane] .lh");
+  if(!t) return;
+  e.preventDefault(); laneMenu(t.closest(".lane").dataset.lane, e.clientX, e.clientY+4);
+});
+
+/* The lane menu (shapes) and the Add lane picker share one popover */
+const autoPop = $("autoPop");
+function closeAutoPop(){ autoPop.hidden = true; }
+function autoMenu(title, sub, html, x, y, wide){
+  closePops();
+  $("apTitle").textContent = title; $("apSub").textContent = sub; $("apList").innerHTML = html;
+  autoPop.classList.toggle("wide", !!wide);
+  showAt(autoPop, x, y);
+}
+function laneMenu(id, x, y){
+  const p = regGet(id), l = S.lanes[id]; if(!p || !l) return;
+  const it = (k, t, hint) => `<button class="btn" role="menuitem" data-ap="shape" data-k="${k}" data-id="${id}">${t}${hint ? `<kbd>${hint}</kbd>` : ""}</button>`;
+  const shapes = p.bin ? it("alt","Every other loop") + it("half","Second half of each loop") + it("inv","Invert") + it("clear","Clear","all off")
+    : it("up","Ramp up","whole song") + it("down","Ramp down","whole song") + it("wave","Wave","1 per loop") + it("fwave","Fast wave","1 per page") + it("flat","Flatten to loop value", p.fmt(p.get()));
+  autoMenu(p.label, `${AUTO_SECS[p.sec]} · ${p.bin ? "on / off" : "drag to draw"}`, `<span class="lbl">Shapes</span>${shapes}<hr>` +
+    `<button class="btn" role="menuitem" data-ap="toggle" data-id="${id}">${l.on ? "Bypass lane" : "Turn lane back on"}</button><button class="btn danger" role="menuitem" data-ap="remove" data-id="${id}">Remove lane</button>`, x, y);
+}
+function lanePicker(b){
+  let sec = null, h = "";
+  for(const p of reg().list){
+    if(p.sec!==sec){ sec = p.sec; h += `<span class="lbl">${AUTO_SECS[sec]}</span>`; }
+    const has = !!S.lanes[p.id];
+    h += `<button class="btn${has ? " has" : ""}" role="menuitem" data-ap="${has ? "go" : "add"}" data-id="${p.id}">${esc(p.label)}<kbd>${has ? "added" : esc(p.fmt(p.get()))}</kbd></button>`;
+  }
+  const r = b.getBoundingClientRect();
+  autoMenu("Add automation lane", "any knob, slider or button", h, r.right-300, r.bottom+4, true);
+}
+autoPop.addEventListener("click", e => {
+  const b = e.target.closest("[data-ap]"); if(!b) return;
+  const a = b.dataset.ap, id = b.dataset.id;
+  closeAutoPop();
+  if(a==="shape") laneAct("shape", id, b.dataset.k);
+  else if(a==="go") goLane(id);
+  else if(a==="add") addLane(id, false);
+  else laneAct(a, id);
+});
+document.addEventListener("pointerdown", e => { if(!autoPop.hidden && !autoPop.contains(e.target) && !e.target.closest('[data-aact="lmenu"],[data-aact="pick"]')) closeAutoPop(); });
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeAutoPop(); });
+$("pmodeSeg").addEventListener("click", e => { const b = e.target.closest("[data-pm]"); if(b) setPlayMode(b.dataset.pm); });
 
 /* ---------- AI generation (OpenRouter via /api/generate) ---------- */
 const IDEAS = ["Dusty boom bap, swung hats, minor 9 chords","Four-on-the-floor deep house with offbeat bass","Trap at 140 with triplet hat rolls and 808 slides","Funky breakbeat with ghost-note snares","Synthwave drive with arpeggiated bass","Reggaeton dembow with a plucky lead"];
@@ -3528,9 +4221,10 @@ $("genBtn").addEventListener("click", async () => {
   if(!genEnabled) return;
   if(!me?.username){ renderAuth(); return; }
   ensureCtx();
+  if(view==="auto") return genAuto();
   const model = $("tierSel").value, label = modelLabel();
   const req = $("prompt").value.trim(), cur = $("buildOn").checked ? toJSON(S) : null, st0 = S;
-  if(cur) delete cur.samples;
+  if(cur){ delete cur.samples; delete cur.song; }
   let hear = null;
   genCtl = new AbortController();
   $("genBtn").disabled = true; $("stopGen").hidden = false;
@@ -3558,6 +4252,7 @@ $("genBtn").addEventListener("click", async () => {
     let data;
     try { data = parseReply(res.text); } catch { throw {code:"invalid_json", tierNote}; }
     const st = fromJSON(data);
+    if(cur && !data.song) parseSong({song: songJSON(S)}, st); // building on this beat keeps its automation
     if(!st.samples.length && S.samples.length) st.samples = fitSamples(S.samples, st.pages*PAGE);
     loadState(st, null, {msg:`AI wrote “${st.name}” as a new beat. Save it to keep it`});
     compFinish(true, `“${st.name}” is in`);
@@ -3576,6 +4271,93 @@ $("genBtn").addEventListener("click", async () => {
     if(me?.ai?.limit!=null) refreshMe();
   }
 });
+/* ---------- AI for automation: in the automation view, the model writes the song's lanes ---------- */
+const AUTO_IDEAS = ["A full song: intro, build, drop, breakdown, outro","Filter the synths in from dark over the first 4 loops","Drop the kick for the loop before each drop","Wash out into a breakdown, then slam back in","Fade in, then fade out at the end","Lift the last two loops up a whole step"];
+function aiMode(){
+  const a = view==="auto";
+  $("aiDetails").classList.toggle("autoai", a);
+  $("aiTitle").textContent = a ? "Use AI to create automations" : "Ask AI for a beat";
+  $("aiHint").textContent = a ? "describe how the song should evolve and a model draws the lanes" : "describe a groove and a model writes it";
+  $("aiIntro").textContent = a ? "Describe how the song should move. The model writes automation lanes for this beat and they load straight into the editor." : "Describe a groove. The model writes the pattern and it loads straight into the grid.";
+  $("prompt").placeholder = a ? "Build over 4 loops with the reverb rising and the kick out, drop on loop 5, breakdown with just chords on loop 9, fade out by loop 12" : "Dusty boom bap at 90 BPM with a lazy swung hat, a walking bassline and Rhodes-style minor 9 chords";
+  const ideas = a ? AUTO_IDEAS : IDEAS;
+  if($("ideas").dataset.mode!==String(a)){ $("ideas").dataset.mode = a; $("ideas").innerHTML = ideas.map(t => `<button class="chip" type="button">${t}</button>`).join(""); }
+}
+function buildAutoPrompt(req){
+  const beat = toJSON(S); delete beat.song;
+  const n = stepCount(), L = S.songLoops, loopSecs = +(n*15/S.bpm).toFixed(1), cur = songJSON(S);
+  const lanes = laneIds(S).map(([id, name]) => {
+    const p = regGet(id); if(!p) return null;
+    const v = p.get(), now = p.bin ? String(v>.5) : id==="transpose" ? Math.round(v) : +v.toFixed(2);
+    return `${name} (${p.label}): ${p.bin ? "true/false" : id==="transpose" ? "-1200 to 1200 cents" : `${p.lo}-${p.hi}`}, loop value ${now}`;
+  }).filter(Boolean).join("\n");
+  return `You arrange songs on a TR-808-style drum machine. A song here is one pattern that loops; automation lanes move its knobs, mutes and solos over the loops to give the song an arc. Write the automation.
+
+Request: ${req || "Turn this loop into a full song with an intro, a build, a drop, a breakdown and an outro."}
+
+The pattern repeats every loop and stays as it is (you only automate it): ${n} sixteenth-note steps (${S.pages} bar${S.pages===1?"":"s"}) at ${S.bpm} BPM, so one loop lasts ${loopSecs} s.
+${JSON.stringify(beat)}
+
+${cur ? `Current automation (change it or build on it as the request asks):\n${JSON.stringify(cur)}` : "There's no automation yet."}
+
+LANES you can write, with their range and the value they have in the loop:
+${lanes}
+
+FORMAT (reply with only this JSON object):
+{
+  "loops": 12,
+  "lanes": {
+    "synthTone": [[0, 0.2], [4, 0.6]],
+    "synthReverb": [[0, 0.15], [3, 0.15], [4, 0.85], [4, 0.15]],
+    "kick.mute": [[0, true], [4, false], [8, true], [10, false]],
+    "synth1.volume": [[0, 0], [2, 0.8]]
+  }
+}
+RULES:
+- "loops" is the song length in loops, 1-${SONG_MAX} (it's ${L} now). A full song is usually 8-32 loops; keep the current length unless the request needs another.
+- A lane is a list of [at, value] points in order. "at" counts loops from the start of the song: 0 is the start of loop 1, 1.5 is halfway through loop 2, and the song ends at "loops". One step is 1/${n} of a loop${S.pages>1 ? `, one bar is ${+(1/S.pages).toFixed(4)} of a loop` : ""}.
+- Values ramp in a straight line between points. The first value holds until the first point and the last value holds to the end. Two points at the same "at" make an instant jump, like the reverb above.
+- mute, solo and warble are true or false and switch instantly at each point. A group lane (drums.mute, synths.solo…) acts on every row in the group on top of the rows' own lanes.
+- A row's "tone" is its knob: tone for drums, drive for bass808, size for tom, tone for conga and cowbell, timbre for synths.
+- Lanes you leave out play at their loop value all song. Your lanes replace all the current automation, so repeat any current lane you want to keep.
+- Use only the lanes the request needs, with few points (2-12 per lane is typical). Put changes on loop or bar boundaries.
+TIPS: Intros: mute the kick or drums, bring synths in with volume, start synthTone dark and open it up. Builds: raise synthReverb toward 0.5, sidechain and drumDrive, open synthTone; mute the kick for the last loop or bar before a drop. Drops: bring everything back at once with jumps, reverb back down. Breakdowns: mute the drums group, or solo the chords. Outros: fade master or the volumes down, or close synthTone. synthReverb above 0.5 is a washout (everything drowns over a noise riser), good just before a drop and then jump it back down. transpose can lift a final chorus a whole step (200).`;
+}
+async function genAuto(){
+  const model = $("tierSel").value, label = modelLabel(), req = $("prompt").value.trim();
+  genCtl = new AbortController();
+  $("genBtn").disabled = true; $("stopGen").hidden = false;
+  $("genStatus").textContent = "Planning the song…";
+  try {
+    const onText = ({text}) => {
+      const names = [...text.matchAll(/"([A-Za-z0-9]+(?:\.[a-z]+)?)"\s*:\s*[\[{]/g)].map(m => m[1]).filter(x => x!=="lanes");
+      $("genStatus").textContent = names.length ? `Drawing lane ${names.length} · ${names.at(-1)}` : "Planning the song…";
+    };
+    const res = await generate(buildAutoPrompt(req), {model, signal: genCtl.signal, onText});
+    if(!res.text.trim()) throw {code:"empty_completion", tierNote:label};
+    if(res.truncated) throw {code:"invalid_json", tierNote:label};
+    let data;
+    try { data = parseReply(res.text); } catch { throw {code:"invalid_json", tierNote:label}; }
+    const tmp = {...S};
+    parseSong({song: data?.song && typeof data.song==="object" ? data.song : data}, tmp);
+    const nl = Object.keys(tmp.lanes).length;
+    if(!nl) throw {code:"invalid_json", tierNote:label};
+    S.lanes = tmp.lanes; S.songLoops = tmp.songLoops; songCur = 0;
+    if(playMode!=="auto") setPlayMode("auto");
+    if(playing){ autoReset(); songAbs = 0; stepIx = 0; }
+    render(); commit();
+    $("genStatus").textContent = `${label} · Wrote ${nl} lane${nl===1?"":"s"} over ${S.songLoops} loop${S.songLoops===1?"":"s"}. Undo brings back what was there.`;
+    if(!playing) startPlay();
+  } catch(e){
+    if(e?.code==="signed_out" || e?.code==="needs_username") refreshMe();
+    if(e?.code==="cancelled") $("genStatus").textContent = "Stopped.";
+    else if(HIDE_CODES.includes(e?.code)) disableGen(e.message || "AI generation is off on this server.");
+    else $("genStatus").textContent = (e?.tierNote ? e.tierNote+" · " : "") + (SAMPLE_ERR[e?.code] || e?.message && (e.code ? e.message : "That reply couldn't be loaded: "+e.message) || SAMPLE_ERR.upstream_error);
+  } finally {
+    $("genBtn").disabled = !genEnabled; $("stopGen").hidden = true; genCtl = null;
+    if(me?.ai?.limit!=null) refreshMe();
+  }
+}
 /* ---------- Composer view: shows the beat being written as the model streams it ---------- */
 const THINKING = ["Listening to the brief","Choosing a tempo","Finding the pocket","Picking a key","Sketching the groove","Counting it in"];
 const KEY_PHASE = {name:"Naming it", bpm:"Setting the tempo", swing:"Dialing in swing", bass808:"Tuning the 808", synthTone:"Shaping the synth", synthReverb:"Adding space", transpose:"Setting the key", warble:"Bending the tape", sidechain:"Pumping the synths", drumDrive:"Adding grit", tones:"Shaping the drums", pages:"Planning the bars",
