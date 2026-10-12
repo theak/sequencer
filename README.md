@@ -67,14 +67,14 @@ To check which build you're running, open `/api/version`. Its `commit` should ma
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | unset | Turns on AI beat generation. Without it, everything else still works. |
 | `OPENROUTER_MODELS` | Sonnet, Haiku, GPT Luna, Gemini Flash | The models offered in the picker, as comma-separated `slug=Label` pairs. Only these can be requested. |
-| `OPENROUTER_PREMIUM_MODELS` | GPT Sol | Bigger models offered only to accounts whose own AI limit is over 10 (see Accounts). Same `slug=Label` format; empty turns them off. |
+| `OPENROUTER_PREMIUM_MODELS` | GPT Astra | Bigger models offered only to accounts whose own AI limit is over 10 (see Accounts). Same `slug=Label` format; empty turns them off. |
 | `OPENROUTER_SEARCH_MODELS` | Gemini Flash | Model slugs that can search the web while they write, through OpenRouter's web search tool. Comma-separated; empty turns search off. |
 | `GOOGLE_CLIENT_ID` | unset | Turns on Google sign-in. Without it, there's no sign-in and everyone shares one `local` account (see below). |
 | `AI_DAILY_LIMIT` | `10` | AI generations per account per day (UTC). Only applies with sign-in on. |
 | `DATA_DIR` | `/data` | Where the database (`sequencer.db`) lives. |
 | `PORT` | `42716` | Port to listen on. |
 
-The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically. GPT Sol is `~openai/gpt-sol-latest`.
+The default models use OpenRouter's `~…-latest` aliases (`~anthropic/claude-sonnet-latest`, `~anthropic/claude-haiku-latest`, `~openai/gpt-luna-latest` and `~google/gemini-flash-latest`), so they track the newest release in each family automatically. GPT Astra is `~openai/gpt-astra-latest`.
 
 Gemini Flash can look things up while it writes (a song you name, a genre's usual tempo). It uses OpenRouter's `openrouter:web_search` tool, so OpenRouter runs the searches with Google's own search, and the model decides when to search. Searches cost extra on your OpenRouter bill (a cent or two per request that searches). If OpenRouter won't run the tool for a request, the server sends it again without search.
 
@@ -140,7 +140,7 @@ docker compose exec sequencer /sequencer set-ai-limit akshay 1000
 docker compose exec sequencer /sequencer set-ai-limit akshay default
 ```
 
-An account whose own limit is over 10 also gets the premium models (`OPENROUTER_PREMIUM_MODELS`, GPT Sol by default) in its model picker. Changing `ai_limit` in the `users` table directly works too, and it applies on the next page load, with no restart. That also holds without sign-in, for the `local` account.
+An account whose own limit is over 10 also gets the premium models (`OPENROUTER_PREMIUM_MODELS`, GPT Astra by default) in its model picker. Changing `ai_limit` in the `users` table directly works too, and it applies on the next page load, with no restart. That also holds without sign-in, for the `local` account.
 
 Without `GOOGLE_CLIENT_ID`, there's no sign-in. Everyone is one built-in `local` account that saves to the server, with unmetered AI. That's fine on your own network, but don't expose it to the internet like that.
 
