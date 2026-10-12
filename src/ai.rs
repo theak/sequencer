@@ -36,6 +36,9 @@ const MAX_TOKENS: u32 = 16000;
 const UPSTREAM_TIMEOUT: Duration = Duration::from_secs(300);
 /// A spectrogram JPEG is ~100-300 kB; anything much bigger isn't one of ours.
 const MAX_IMAGE_BYTES: usize = 1_500_000;
+/// The prompt's text. The app's own prompt, with the biggest beat it can build on, is
+/// well under this; the cap stops someone sending a huge (and costly) prompt by hand.
+pub const MAX_PROMPT_BYTES: usize = 64 * 1024;
 
 /// Is this a base64 data URL for an image type the models take?
 pub fn valid_image(url: &str) -> bool {
@@ -151,6 +154,13 @@ pub async fn generate(
     }
     if b.prompt.trim().is_empty() {
         return err(StatusCode::BAD_REQUEST, "invalid_argument", "empty prompt");
+    }
+    if b.prompt.len() > MAX_PROMPT_BYTES {
+        return err(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "too_large",
+            "The prompt is over 64 KB.",
+        );
     }
     if b.image.as_deref().is_some_and(|i| !valid_image(i)) {
         return err(

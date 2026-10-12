@@ -930,3 +930,43 @@ async fn generate_reports_image_rejected() {
     assert_eq!(s, StatusCode::BAD_GATEWAY);
     assert_eq!(v["code"], "upstream_error");
 }
+
+/// A prompt over 64 KB is turned away before it reaches the model or counts against the limit.
+#[tokio::test]
+async fn generate_caps_the_prompt() {
+    let upstream = serve(Router::new().route(
+        "/chat/completions",
+        post(|| async {
+            let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            ([("content-type", "text/event-stream")], sse)
+        }),
+    ))
+    .await;
+    let app = google_app(temp_dir(), Some("k"), &upstream).await;
+    let cookie = member(&app, "g-cap", "capper").await;
+    let big = "x".repeat(crate::ai::MAX_PROMPT_BYTES + 1);
+    let (s, v) = call_as(
+        &app,
+        &cookie,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":big})),
+    )
+    .await;
+    assert_eq!(
+        (s, v["code"].as_str()),
+        (StatusCode::PAYLOAD_TOO_LARGE, Some("too_large"))
+    );
+    let (_, me) = call_as(&app, &cookie, "GET", "/api/me", None).await;
+    assert_eq!(me["user"]["ai"]["used"], 0);
+    let ok = "x".repeat(crate::ai::MAX_PROMPT_BYTES);
+    let resp = send(
+        &app,
+        "POST",
+        "/api/generate",
+        Some(json!({"model":"test/model","prompt":ok})),
+        Some(&cookie),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+}

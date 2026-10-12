@@ -219,6 +219,18 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .smpcard{display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px}
 .smpcard.flash{border-color:var(--sample);box-shadow:0 0 0 1px var(--sample)}
 .smph{display:flex;align-items:center;gap:8px;min-width:0}
+.strobe{flex:none;display:inline-flex;width:16px;height:16px;color:var(--ink-faint);opacity:.55;transition:color .3s,opacity .3s}
+.strobe svg{width:100%;height:100%;overflow:visible}
+.strobe circle{fill:currentColor}
+.strobe[data-sync="wait"]{opacity:.9;animation:strobewait 1.1s ease-in-out infinite}
+.strobe[data-sync="align"]{color:var(--orange);opacity:1}
+.strobe[data-sync="lock"]{color:var(--sample);opacity:1;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--sample) 60%,transparent))}
+.smph .strobe{width:18px;height:18px}
+.rh .strobe{width:14px;height:14px;margin:0 -1px}
+@keyframes strobewait{50%{opacity:.35}}
+.synclbl{flex:none;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+.synclbl[data-sync="align"]{color:var(--orange)}
+.synclbl[data-sync="lock"]{color:var(--sample)}
 .smpt{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
 .smpt.empty{color:var(--ink-faint);font-weight:500}
 .yt{position:relative;width:100%;aspect-ratio:16/9;min-height:200px;max-width:100%;background:#0c0b0d;border-radius:4px;overflow:hidden}
@@ -388,6 +400,15 @@ details.spec summary .hint{text-transform:none;letter-spacing:0;font-weight:500;
 .mi:disabled{opacity:.45;cursor:not-allowed}
 .mi svg{width:15px;height:15px;flex:none;color:var(--ink-dim)}
 .mi kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+.mi .chev{width:10px;height:10px;margin-left:auto;color:var(--ink-faint)}
+.mi[aria-expanded="true"]{background:var(--panel-2)}
+.recentpop{max-width:min(320px,calc(100vw - 16px))}
+#recentList{display:flex;flex-direction:column;gap:2px}
+.mi.ri{flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px}
+.mi.ri .t{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mi.ri .s{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--ink-faint)}
+.mi.ri.cur .t::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-left:7px;vertical-align:middle}
+.mempty{font-size:12px;color:var(--ink-faint);padding:8px 10px}
 .msep{height:1px;background:var(--line);margin:4px 2px}
 .mlbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;padding:6px 10px 2px}
 .mi.dl{border:1px solid color-mix(in srgb,var(--synth) 55%,var(--line));background:color-mix(in srgb,var(--synth) 9%,transparent);margin:2px 0}
@@ -530,8 +551,8 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <label class="field"><span class="lbl">model</span>
         <select id="tierSel" class="num"></select>
       </label>
-      <label class="check"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
-      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn" checked> <span id="hearTxt">Share spectrogram</span></label>
+      <label class="check"><input type="checkbox" id="buildOn"> Build on the current beat</label>
+      <label class="check" id="hearLbl" hidden><input type="checkbox" id="hearOn"> <span id="hearTxt">Share spectrogram</span></label>
       <div class="spacer"></div>
       <span class="quota" id="aiQuota"></span>
       <button class="btn primary" id="genBtn">Generate</button>
@@ -566,6 +587,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
 <div class="pop filepop" id="filePop" hidden role="menu" aria-label="File">
   <button class="mi" role="menuitem" data-file="new"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4.5C3.7 2 3 2.7 3 3.5v9c0 .8.7 1.5 1.5 1.5h7c.8 0 1.5-.7 1.5-1.5V6z"/><path d="M9 2v4h4M8 8.5v3.5M6.25 10.25h3.5"/></svg>New</button>
   <button class="mi" role="menuitem" data-file="open"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5v-8C2 3.7 2.7 3 3.5 3h3l1.5 1.5h4.5c.8 0 1.5.7 1.5 1.5v1"/><path d="M2 12.5 4 8h10.5l-2 4.5z"/></svg>Open…<kbd class="k-open"></kbd></button>
+  <button class="mi" role="menuitem" data-file="recent" id="recentBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="recentPop"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.75"/><path d="M8 4.75V8l2.25 1.5"/></svg>Open recent<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <button class="mi" role="menuitem" data-file="save"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.5h8l2.5 2.5v8c0 .3-.2.5-.5.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5z"/><path d="M5 2.5v3h5v-3M5 13.5V9.5h6v4"/></svg>Save<kbd class="k-save"></kbd></button>
   <button class="mi" role="menuitem" data-file="saveas"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5H3c-.3 0-.5-.2-.5-.5V3c0-.3.2-.5.5-.5h8l2.5 2.5v3"/><path d="M5 2.5v3h5v-3M10.5 10.5h4M12.5 8.5v4"/></svg>Save as…<kbd class="k-saveas"></kbd></button>
   <button class="mi" role="menuitem" data-file="rename"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3z"/></svg>Rename…</button>
@@ -574,6 +596,12 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
   <button class="mi dl" role="menuitem" data-file="json" title="Download this beat as a JSON file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.75 8 9.75l3-3M2.75 10.5v1.75c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V10.5"/></svg>Download JSON<kbd>.json</kbd></button>
   <button class="mi" role="menuitem" data-file="wav" id="exportBtn" title="Render one loop, ringing out at the end, to a WAV file"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v2M4.75 5v6M7.5 2.5v11M10.25 5v6M13 6.5v3"/></svg>Export audio<kbd>.wav</kbd></button>
   <div class="mnote" id="fileNote"></div>
+</div>
+
+<div class="pop filepop recentpop" id="recentPop" hidden role="menu" aria-label="Open recent">
+  <div id="recentList"></div>
+  <div class="msep" role="separator"></div>
+  <button class="mi" role="menuitem" data-all>All beats…<kbd class="k-open"></kbd></button>
 </div>
 
 <div class="pop acctpop" id="acctPop" hidden role="dialog" aria-label="Your account">
@@ -1600,7 +1628,7 @@ function smpFire(d, at){
   p.playVideo(); d.cuedAt = null;
   d.runAt = at; d.chk = at + 2500;
   d.meas = {at, start:s.start, rate:s.rate, kind: cued ? "play" : "seek", t:performance.now()};
-  smpMeasure(d);
+  smpMeasure(d); strobeGo();
 }
 // once it's playing, read back where the video is to see how late it really started, and lead by that next time
 function smpMeasure(d){
@@ -1614,24 +1642,112 @@ function smpMeasure(d){
       if(v0==null) v0 = v;
       else if(v!==v0){
         const began = now - (v - m.start)/m.rate*1000, err = began - m.at; // > 0: it started late
-        if(v >= m.start && Math.abs(err) < 700) d.lead[m.kind] = Math.min(.45, Math.max(.02, d.lead[m.kind] + err/1000*.6));
-        d.meas = null; return;
+        d.meas = null;
+        if(v >= m.start && Math.abs(err) < 700){ smpLearn(d, m.kind, err); smpSynced(d, err); }
+        return;
       }
     }
     requestAnimationFrame(poll);
   };
   requestAnimationFrame(poll);
 }
-// an ∞ sample that stalls to buffer gets pulled back to where it should be, at most every few seconds
+// Each player's start delay ("lead") is learned from every hit. Until it has one, it takes the first
+// reading whole; after that big misses move it most of the way and small ones a little, so it settles
+// in a hit or two without chasing jitter. One wild reading (a buffering stall) only counts once a second
+// one agrees. What it settles on is kept in this browser, so after a reload it starts close.
+const LS_LEAD = "ak16:ytlead:v1";
+function leadMem(){ try { const o = JSON.parse(localStorage.getItem(LS_LEAD) || "null"); return o && typeof o==="object" ? o : {}; } catch { return {}; } }
+const newSync = () => ({state:"none", err:0, ew:0, errs:[], ph:0});
+// a new player starts from what this browser learned before (play and seek are learned separately)
+function newLead(d){
+  const m = leadMem(), ok = k => m[k]>.01 && m[k]<=.45;
+  d.lead = {play: ok("play") ? m.play : .15, seek: ok("seek") ? m.seek : .25};
+  d.mem = {play: ok("play"), seek: ok("seek")};
+}
+function smpLearn(d, kind, err){
+  if(Math.abs(err) > 250 && !(d.big && Math.sign(d.big)===Math.sign(err))){ d.big = err; return; }
+  d.big = 0;
+  const g = !d.n[kind] && !d.mem[kind] ? 1 : Math.abs(err) > 50 ? .8 : .4;
+  d.n[kind]++;
+  d.lead[kind] = Math.min(.45, Math.max(.02, d.lead[kind] + err/1000*g));
+  if(Math.abs(err) < 40) try { const o = JSON.parse(localStorage.getItem(LS_LEAD) || "{}") || {}; o[kind] = +d.lead[kind].toFixed(3); localStorage.setItem(LS_LEAD, JSON.stringify(o)); } catch {}
+}
+// an ∞ or long sample is checked every couple of seconds while it plays: one that's drifted (or stalled
+// to buffer) gets pulled back with a seek, and the seek is measured like any other start
 function smpDrift(){
   const now = performance.now();
   for(const d of decks.values()){
-    if(d.runAt==null || d.st!==1 || now < d.chk) continue;
+    if(d.runAt==null || d.st!==1 || now < d.chk || d.meas) continue;
     const s = smpOf(d); if(!s) continue;
     d.chk = now + 2000;
     const want = s.start + (now - d.runAt)/1000*s.rate, have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
-    if(want < dur - 1 && Math.abs(have - want) > .25){ d.player.seekTo(want + d.lead.seek*s.rate, true); d.chk = now + 4000; }
+    if(want >= dur - 1) continue;
+    const err = (want - have)/s.rate*1000; // > 0: it's behind
+    smpSynced(d, err);
+    if(Math.abs(err) > 80){
+      const to = want + d.lead.seek*s.rate;
+      d.player.seekTo(to, true); d.chk = now + 4000;
+      d.meas = {at: now + d.lead.seek*1000, start: to, rate: s.rate, kind: "seek", t: now};
+      smpMeasure(d);
+    }
   }
+}
+/* Sync status. Every reading of how far off a player is lands here: "lock" once two in a row are within
+   30 ms (or one, when the delays came from an earlier visit), "align" while it's still lining up, "wait"
+   while the beat plays but the video hasn't started. Each sample shows it as a strobe ring, like the dots
+   on a turntable's platter: they drift (backwards when it's late) until it's locked, then stand still. */
+const SYNC_OK = 30;
+function smpSynced(d, err){
+  const y = d.sync;
+  y.err = err; y.errs = [...y.errs.slice(-2), err];
+  const last2 = y.errs.slice(-2);
+  y.state = (last2.length===2 || d.mem.play || d.mem.seek) && last2.every(e => Math.abs(e) <= SYNC_OK) ? "lock"
+    : y.state==="lock" && Math.abs(err) <= SYNC_OK*1.5 ? "lock" : "align";
+  smpSyncShow(d); strobeGo();
+}
+function syncOf(d){
+  const y = d.sync;
+  if(!d.vid || !d.ready || d.err) return "none";
+  // the beat's playing and this player should be too, but it's still loading or buffering
+  if(playing && d.meas && d.st!==1 && performance.now() - d.meas.at > 300) return "wait";
+  if(playing && y.state==="none" && (d.run || d.meas || d.runAt!=null)) return "wait";
+  return y.state;
+}
+const SYNC_TXT = {none:"", wait:"Waiting for the video…", align:"Lining up", lock:"In sync"};
+function smpSyncShow(d){
+  const st = syncOf(d), y = d.sync, ms = Math.round(Math.abs(y.err));
+  const tip = st==="lock" ? `In sync with the beat (last start ${ms} ms ${y.err>0?"late":"early"})`
+    : st==="align" ? `Lining up with the beat: the last start was ${ms} ms ${y.err>0?"late":"early"}. It learns from every hit, so give it a loop or two before you judge the timing.`
+    : st==="wait" ? "Waiting for YouTube to start the video" : "Shows how well it's lined up with the beat once it plays";
+  const lbl = d.card.querySelector('[data-f="sync"]');
+  lbl.textContent = st==="align" ? `Lining up · ${ms} ms ${y.err>0?"late":"early"}` : SYNC_TXT[st];
+  lbl.dataset.sync = st; lbl.title = tip;
+  for(const el of document.querySelectorAll(`.strobe[data-uid="${d.uid}"]`)){ el.dataset.sync = st; el.title = tip; el.setAttribute("aria-label", tip); }
+}
+const STROBE = `<svg viewBox="-10 -10 20 20" aria-hidden="true"><g>${Array.from({length:12}, (_, i) => `<circle cx="${(7*Math.cos(i*Math.PI/6)).toFixed(2)}" cy="${(7*Math.sin(i*Math.PI/6)).toFixed(2)}" r="${i%3 ? 1.1 : 1.6}"/>`).join("")}</g></svg>`;
+let strobeRaf = 0, strobeT = 0;
+function strobePaint(){
+  for(const d of decks.values()) for(const el of document.querySelectorAll(`.strobe[data-uid="${d.uid}"]`)){
+    el.querySelector("g").style.transform = `rotate(${d.sync.ph.toFixed(1)}deg)`;
+    if(el.dataset.sync!==syncOf(d) || !el.title) smpSyncShow(d);
+  }
+}
+function strobeGo(){ if(!strobeRaf){ strobeT = performance.now(); strobeRaf = requestAnimationFrame(strobeFrame); } }
+function strobeFrame(now){
+  const dt = Math.min(.1, (now - strobeT)/1000); strobeT = now;
+  let more = false;
+  for(const d of decks.values()){
+    const st = syncOf(d), y = d.sync;
+    if(st!==(d.shown || "")){ d.shown = st; smpSyncShow(d); }
+    y.ew += (y.err - y.ew)*Math.min(1, dt*3);
+    // late drifts backwards, early forwards, about 1.2°/s per ms off; locked stands still
+    const w = !playing ? 0 : st==="wait" ? 160 : st==="align" ? Math.max(-360, Math.min(360, -y.ew*1.2)) : 0;
+    if(w){ y.ph = (y.ph + w*dt) % 360; more = true; }
+    if(playing && (st==="wait" || d.meas)) more = true;
+    const tf = `rotate(${y.ph.toFixed(1)}deg)`;
+    for(const g of document.querySelectorAll(`.strobe[data-uid="${d.uid}"] g`)) g.style.transform = tf;
+  }
+  strobeRaf = more ? requestAnimationFrame(strobeFrame) : 0;
 }
 // pause and park on the start point, ready for the next hit
 function smpStop(d){
@@ -1714,7 +1830,8 @@ function ytError(d, code){
   smpMsg(d, esc(d.err), true);
 }
 function smpLoad(d, s){
-  d.vid = s.vid; d.ready = false; d.err = ""; d.cuedAt = null; smpHalt(d);
+  if(d.vid!==s.vid){ newLead(d); d.n = {play:0, seek:0}; d.big = 0; d.sync = newSync(); }
+  d.vid = s.vid; d.ready = false; d.err = ""; d.cuedAt = null; smpHalt(d); smpSyncShow(d);
   if(!YT_OK){
     smpMsg(d, s.vid ? `YouTube can't play inside this Claude page. The sample's settings save with the beat and play in the self-hosted AK-16.<a href="https://www.youtube.com/watch?v=${s.vid}" target="_blank" rel="noopener">Open the video on YouTube ↗</a>`
       : "YouTube can't play inside this Claude page. You can still set up the sample here, and it plays in the self-hosted AK-16.");
@@ -1737,7 +1854,7 @@ function smpLoad(d, s){
 function smpCardHTML(s){
   const id = f => `smp${s.uid}${f}`;
   return `<div class="smpcard" data-uid="${s.uid}">
-    <div class="smph"><span class="abbr ytb" data-f="tag"></span><span class="smpt" data-f="title"></span></div>
+    <div class="smph"><span class="abbr ytb" data-f="tag"></span><span class="smpt" data-f="title"></span><span class="synclbl" data-f="sync"></span><span class="strobe" data-uid="${s.uid}" role="img">${STROBE}</span></div>
     <div class="yt"><div class="ytmount"></div><div class="ytmsg" hidden></div></div>
     <label class="smpl"><span class="lbl">YouTube link</span><input type="text" id="${id("link")}" data-f="link" placeholder="Paste a link, like https://youtu.be/…" spellcheck="false" autocomplete="off"></label>
     <div class="smpf">
@@ -1763,7 +1880,7 @@ function smpPreviewBtn(d){ const b = d.card.querySelector('[data-f="preview"]');
 // a load, undo or compare hands an old card to the new row with the same video, so the player doesn't reload
 function syncDeck(){
   $("smpDeck").hidden = !S.samples.length;
-  $("smpHint").textContent = YT_OK ? "They play in YouTube's own player, so they follow the beat loosely (each one learns its start delay as it plays) and aren't in WAV exports."
+  $("smpHint").textContent = YT_OK ? "They play in YouTube's own player, so each one learns its start delay over its first hit or two. The ring by each sample drifts while it's lining up and stands still once it's in sync. They aren't in WAV exports."
     : "YouTube can't play inside this Claude page, but samples save with the beat and play in the self-hosted AK-16.";
   const live = new Set(S.samples.map(s => s.uid));
   for(const s of S.samples) if(!decks.has(s.uid) && s.vid){
@@ -1775,7 +1892,7 @@ function syncDeck(){
     let d = decks.get(s.uid);
     if(!d){
       $("smpGrid").insertAdjacentHTML("beforeend", smpCardHTML(s));
-      d = {uid:s.uid, card:$("smpGrid").lastElementChild, player:null, ready:false, vid:null, st:-1, err:"", lead:{play:.15, seek:.25}, cuedAt:null, run:false};
+      d = {uid:s.uid, card:$("smpGrid").lastElementChild, player:null, ready:false, vid:null, st:-1, err:"", n:{play:0, seek:0}, big:0, sync:newSync(), cuedAt:null, run:false}; newLead(d);
       decks.set(s.uid, d);
     }
     d.card.style.order = i;
@@ -2188,7 +2305,7 @@ function synRow(s, off){
 function smpRow(s, i, off){
   const key = smpKey(s);
   let h = `<div class="row smp ${audible(key)?"":"muted"}" data-row="${key}">
-    <div class="rh"><span class="abbr ytb">YT${i+1}</span><span class="rname" data-act="smpgo" data-uid="${s.uid}" title="${esc(smpName(s, i))} (click to show its video)">${esc(smpName(s, i))}</span>
+    <div class="rh"><span class="abbr ytb">YT${i+1}</span>${YT_OK ? `<span class="strobe" data-uid="${s.uid}" data-sync="${(d => d ? syncOf(d) : "none")(decks.get(s.uid))}" role="img">${STROBE}</span>` : ""}<span class="rname" data-act="smpgo" data-uid="${s.uid}" title="${esc(smpName(s, i))} (click to show its video)">${esc(smpName(s, i))}</span>
     <button class="mute" data-act="mute" data-kind="mute" data-id="${key}" aria-pressed="${muted.has(key)}" title="Mute (drag to mute several)">M</button>
     <button class="mute solo" data-act="mute" data-kind="solo" data-id="${key}" aria-pressed="${soloed.has(key)}" title="Solo (drag to solo several)">S</button>
     <span class="knob-sp" aria-hidden="true"></span>
@@ -2210,7 +2327,7 @@ function renderRest(fb){
   rack.querySelectorAll(".cell").forEach(el => { columns[+el.dataset.step % PAGE].push(el); paintCell(el); });
   phShown = -1; if(playing && phStep>=0) setPlayhead(phStep);
   syncTransport();
-  syncDeck();
+  syncDeck(); strobePaint();
   syncJson();
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -3435,7 +3552,7 @@ $("genBtn").addEventListener("click", async () => {
     try { data = parseReply(res.text); } catch { throw {code:"invalid_json", tierNote}; }
     const st = fromJSON(data);
     if(!st.samples.length && S.samples.length) st.samples = fitSamples(S.samples, st.pages*PAGE);
-    loadState(st, null);
+    loadState(st, null, {msg:`AI wrote “${st.name}” as a new beat. Save it to keep it`});
     compFinish(true, `“${st.name}” is in`);
     revealRack();
     $("genStatus").textContent = `${tierNote} · Loaded “${st.name}” · ${st.bpm} BPM · ${st.pages} page${st.pages===1?"":"s"} · ${userSynths(st).length} synth channel${userSynths(st).length===1?"":"s"}${tonalRow("808", st).steps.some(x => x) ? " + 808" : ""}${st.synths.some(x => x.poly) ? " (with chords)" : ""}.`;
@@ -3656,6 +3773,7 @@ function relTime(ms){
 function renderSaved(){
   const ul = $("savedList");
   if(!db) return;
+  renderRecent();
   if(listErr){ ul.innerHTML = `<li class="empty">Your saved beats couldn't load. Close this and try again.</li>`; return; }
   if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Press ${SAVE_KEY} to save the one you're on.</li>`; return; }
   const link = db===cloudDb && me?.username;
@@ -3672,11 +3790,7 @@ $("savedList").addEventListener("click", async e => {
   const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
   if(b.dataset.act==="load"){
     if(id===currentDocId){ closeDlg("openDlg"); if(saveState()==="dirty") revertToSaved(); return; }
-    try {
-      if(!d.beat) Object.assign(d, await db.get(id));
-      const st = fromJSON(d.beat);
-      closeDlg("openDlg"); loadState(st, id, {name:d.name});
-    } catch(err){ toast("That beat couldn't be opened. Try again."); }
+    openSaved(d);
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
     try {
@@ -3687,6 +3801,39 @@ $("savedList").addEventListener("click", async e => {
     catch(err){ toast("Couldn't delete that beat. Try again."); }
   }
 });
+async function openSaved(d){
+  const from = db;
+  try {
+    if(!d.beat) Object.assign(d, await from.get(d.id));
+    const st = fromJSON(d.beat);
+    if(db!==from) return;
+    closeDlg("openDlg"); loadState(st, d.id, {name:d.name}); markOpened(d.id);
+  } catch(err){ toast("That beat couldn't be opened. Try again."); }
+}
+// File > Open recent: the 5 beats you last opened or saved. When you opened them is kept in this browser.
+const LS_OPENED = "ak16:opened:v1";
+const openedScope = () => db===cloudDb ? "u:" + (me?.username || "") : "local";
+function openedMap(){ try { const o = JSON.parse(localStorage.getItem(LS_OPENED) || "{}"); return o && typeof o==="object" ? o : {}; } catch { return {}; } }
+function markOpened(id){
+  const all = openedMap(), k = openedScope(), m = all[k] && typeof all[k]==="object" ? all[k] : {};
+  m[id] = Date.now();
+  all[k] = Object.fromEntries(Object.entries(m).sort((a,b) => b[1]-a[1]).slice(0,50));
+  try { localStorage.setItem(LS_OPENED, JSON.stringify(all)); } catch {}
+}
+function recentDocs(){
+  const m = openedMap()[openedScope()] || {}, at = d => Math.max(+m[d.id] || 0, d.updatedAt || 0);
+  return savedDocs.map(d => ({d, at: at(d)})).sort((a,b) => b.at-a.at).slice(0,5);
+}
+function renderRecent(){
+  const el = $("recentList");
+  if(listErr){ el.innerHTML = `<div class="mempty">Your saved beats couldn't load.</div>`; return; }
+  if(!docsLoaded){ el.innerHTML = `<div class="mempty">Loading…</div>`; return; }
+  const r = recentDocs();
+  if(!r.length){ el.innerHTML = `<div class="mempty">No saved beats yet.</div>`; return; }
+  const focused = document.activeElement?.closest?.("#recentList [data-id]")?.dataset.id;
+  el.innerHTML = r.map(({d, at}) => `<button class="mi ri${d.id===currentDocId?" cur":""}" role="menuitem" data-id="${esc(d.id)}" title="${esc(d.name||"Untitled")}${d.id===currentDocId?" (open now)":""}"><span class="t">${esc(d.name||"Untitled")}</span><span class="s">${Math.round(d.bpm||0)} BPM · ${relTime(at)}</span></button>`).join("");
+  if(focused) el.querySelector(`[data-id="${CSS.escape(focused)}"]`)?.focus();
+}
 const saveErrMsg = err => err?.code==="local_full" ? "This browser is out of room for beats. Delete a few, or sign in to save them to your account."
   : err?.code==="quota_exceeded" ? "You're at the limit for saved beats. Delete a few, then save again."
   : err?.code==="too_large" ? "That beat is too big to save."
@@ -3775,7 +3922,7 @@ const MOD = SAVE_KEY.startsWith("⌘") ? "⌘" : "Ctrl+";
 filePopKeys();
 function filePopKeys(){
   const f = $("filePop");
-  f.querySelector(".k-open").textContent = MOD + "O";
+  document.querySelectorAll(".k-open").forEach(k => k.textContent = MOD + "O");
   f.querySelector(".k-save").textContent = SAVE_KEY;
   f.querySelector(".k-saveas").textContent = MOD==="⌘" ? "⇧⌘S" : "Ctrl+Shift+S";
 }
@@ -3783,31 +3930,70 @@ function fileMenu(open){
   const f = $("filePop"), b = $("fileBtn");
   if(open===!f.hidden) return;
   f.hidden = !open; b.setAttribute("aria-expanded", String(open));
-  if(!open) return;
+  if(!open){ recentMenu(false); return; }
   $("acctPop").hidden = true;
   f.querySelector('[data-file="save"]').disabled = saving;
   placeMenus();
   f.querySelector(".mi")?.focus();
 }
+// Open recent flies out beside the File menu (or drops over it where there's no room)
+function recentMenu(open, focus){
+  const p = $("recentPop"), b = $("recentBtn");
+  if(open!==!p.hidden){
+    p.hidden = !open; b.setAttribute("aria-expanded", String(open));
+    if(open){ renderRecent(); refreshSaved(); placeMenus(); }
+  }
+  if(open && focus) p.querySelector(".mi")?.focus();
+}
 // the menus hang off their buttons, and follow them when the page scrolls
 function placeMenus(){
-  const f = $("filePop"), p = $("acctPop");
+  const f = $("filePop"), p = $("acctPop"), rp = $("recentPop");
   if(!f.hidden){ const r = $("fileBtn").getBoundingClientRect(); f.style.left = Math.max(8, Math.min(r.left, innerWidth - f.offsetWidth - 8)) + "px"; f.style.top = (r.bottom + 6) + "px"; }
+  if(!f.hidden && !rp.hidden){
+    const m = f.getBoundingClientRect(), r = $("recentBtn").getBoundingClientRect(), w = rp.offsetWidth, h = rp.offsetHeight;
+    let left = m.right + 4, top = r.top - 6;
+    if(left + w > innerWidth - 8) left = m.left - w - 4;
+    if(left < 8){ left = Math.max(8, Math.min(m.left + 28, innerWidth - w - 8)); top = r.bottom + 2; }
+    rp.style.left = left + "px"; rp.style.top = Math.max(8, Math.min(top, innerHeight - h - 8)) + "px";
+  }
   if(!p.hidden && $("acctBtn")){ const r = $("acctBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.right - p.offsetWidth, innerWidth - p.offsetWidth - 8)) + "px"; p.style.top = (r.bottom + 6) + "px"; }
 }
 $("fileBtn").addEventListener("click", () => fileMenu($("filePop").hidden));
 $("filePop").addEventListener("click", e => {
   const b = e.target.closest("[data-file]"); if(!b || b.disabled) return;
+  if(b.dataset.file==="recent"){ recentMenu($("recentPop").hidden, e.detail===0); return; }
   fileMenu(false);
   ({new: newBeat, open: () => openOpen(), save: saveCmd, saveas: () => askName("saveas"), rename: () => askName("rename"), json: downloadJson, wav: exportWav})[b.dataset.file]();
 });
 $("filePop").addEventListener("keydown", e => {
   const items = [...$("filePop").querySelectorAll(".mi:not(:disabled)")], i = items.indexOf(document.activeElement);
-  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); recentMenu(false); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  else if(e.key==="ArrowRight" && document.activeElement===$("recentBtn")){ e.preventDefault(); recentMenu(true, true); }
   else if(e.key==="Escape" || e.key==="Tab"){ fileMenu(false); if(e.key==="Escape") $("fileBtn").focus(); }
 });
+// with a mouse, hovering Open recent opens it and hovering another item closes it
+$("filePop").addEventListener("pointerover", e => {
+  if(e.pointerType!=="mouse") return;
+  const b = e.target.closest(".mi"); if(!b) return;
+  clearTimeout(recentMenu.tm);
+  recentMenu.tm = setTimeout(() => recentMenu(b===$("recentBtn")), b===$("recentBtn") ? 80 : 200);
+});
+$("recentPop").addEventListener("pointerover", () => clearTimeout(recentMenu.tm));
+$("recentPop").addEventListener("click", e => {
+  const b = e.target.closest(".mi"); if(!b) return;
+  if(b.hasAttribute("data-all")){ fileMenu(false); openOpen(); return; }
+  const d = savedDocs.find(x => x.id===b.dataset.id);
+  fileMenu(false);
+  if(d && d.id!==currentDocId) openSaved(d);
+});
+$("recentPop").addEventListener("keydown", e => {
+  const items = [...$("recentPop").querySelectorAll(".mi")], i = items.indexOf(document.activeElement);
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){ e.preventDefault(); items[(i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+  else if(e.key==="ArrowLeft" || e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); recentMenu(false); $("recentBtn").focus(); }
+  else if(e.key==="Tab") fileMenu(false);
+});
 document.addEventListener("pointerdown", e => {
-  if(!$("filePop").hidden && !e.target.closest("#filePop, #fileBtn")) fileMenu(false);
+  if(!$("filePop").hidden && !e.target.closest("#filePop, #fileBtn, #recentPop")) fileMenu(false);
   if(!$("acctPop").hidden && !e.target.closest("#acctPop, #acctBtn")) $("acctPop").hidden = true;
 });
 addEventListener("resize", () => { fileMenu(false); $("acctPop").hidden = true; });
@@ -4072,7 +4258,7 @@ function setDoc(id){
 }
 // the saved list arrived: pick up the baseline after a reload, or a newer save from another tab
 function syncBaseline(){
-  docsLoaded = true;
+  docsLoaded = true; renderRecent();
   const d = currentDocId && savedDocs.find(x => x.id===currentDocId);
   if(d && (baseline==null || (d.updatedAt||0) > baselineAt)){ baseline = snapOf(d.beat); baselineAt = d.updatedAt||0; }
   updateSaveBar();
