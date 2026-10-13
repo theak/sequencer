@@ -32,7 +32,8 @@ pub const DEFAULT_MODELS: &str = "~anthropic/claude-sonnet-latest=Claude Sonnet,
 ~openai/gpt-luna-latest=GPT Luna,\
 ~google/gemini-flash-latest=Gemini Flash";
 /// Bigger models, offered only to accounts whose own AI limit is over `PREMIUM_MIN_LIMIT`.
-pub const DEFAULT_PREMIUM_MODELS: &str = "~openai/gpt-astra-latest=GPT Astra";
+pub const DEFAULT_PREMIUM_MODELS: &str =
+    "~openai/gpt-astra-latest=GPT Astra,~anthropic/claude-opus-latest=Claude Opus";
 pub const PREMIUM_MIN_LIMIT: i64 = 10;
 /// Models that get OpenRouter's web search tool, so they can look things up (a song, a genre).
 pub const DEFAULT_SEARCH_MODELS: &str = "~google/gemini-flash-latest";

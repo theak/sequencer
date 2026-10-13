@@ -1091,3 +1091,19 @@ async fn local_account_sees_limit_changes_live() {
         json!([{"id":"test/premium","label":"Premium"}])
     );
 }
+
+#[test]
+fn default_premium_models_are_astra_and_opus() {
+    let m = parse_models(crate::DEFAULT_PREMIUM_MODELS);
+    let got: Vec<(&str, &str)> = m
+        .iter()
+        .map(|m| (m.id.as_str(), m.label.as_str()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            ("~openai/gpt-astra-latest", "GPT Astra"),
+            ("~anthropic/claude-opus-latest", "Claude Opus")
+        ]
+    );
+}
