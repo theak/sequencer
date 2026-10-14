@@ -1727,7 +1727,7 @@ function tick(){
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1;
+  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
   if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
@@ -1786,6 +1786,7 @@ function draw(){
 const decks = new Map();  // sample uid -> its card and player
 const smpQ = [];          // timed player commands, by performance.now()
 let smpDone = -1;         // the last step (counted from Play) that samples were planned for
+let smpResync = false;    // the song just started or jumped: pick each sample up where the song has it
 const SMP_AHEAD = .5;
 const smpOf = d => S.samples.find(s => s.uid===d.uid);
 function smpDue(){
@@ -1806,32 +1807,77 @@ function smpTick(){
     const abs = stepAbs + k; if(abs <= smpDone) continue;
     smpDone = abs;
     const step = (stepIx + k) % n, t = nextTime + k*sd + (step%2 ? swingAhead(k)*sd : 0);
-    for(const s of S.samples) if(s.steps[step]) smpTrigger(s, t);
+    if(S.playMode!=="auto"){ for(const s of S.samples) if(s.steps[step]) smpTrigger(s, t); continue; }
+    if(smpResync && t < now + .3) continue; // far enough ahead for a seek to land on time
+    const a = (songAbs + k) % songN();
+    // at the start, after a jump and each time the song comes back round, every sample joins mid-hit if it's in one
+    if(smpResync || a===0){ smpResync = false; for(const s of S.samples) smpJoin(s, a, t); }
+    else for(const s of S.samples) if(s.steps[step] && smpHits(s).has(a)) smpTrigger(s, t, 0, true);
   }
   smpDrift();
 }
+/* In the song, each sample plays as if the song had played from the top: a hit while a longer sample is still
+   playing out is skipped, a shorter one is cut by the next hit, and ∞ starts on the first hit and keeps going.
+   So starting mid-song, jumping, or going round again picks each sample up mid-way, the same on every pass. */
+const smpPlans = new Map();
+function smpHits(s){
+  const n = stepCount(), N = songN(), len = s.beats ? s.beats*4 : Infinity;
+  const key = s.steps.map(x => x ? 1 : 0).join("") + "|" + len + "|" + N;
+  let c = smpPlans.get(s.uid);
+  if(!c || c.key!==key){
+    const hits = []; let free = 0;
+    for(let i=0;i<N;i++) if(s.steps[i%n] && i >= free){ hits.push(i); free = len > n ? i + len : len===Infinity ? N : i; }
+    c = {key, len, hits, set: new Set(hits)}; smpPlans.set(s.uid, c);
+  }
+  return c.set;
+}
+// the hit that's sounding at song step a, as {at, len} in steps, or null
+function smpSpan(s, a){
+  smpHits(s); const c = smpPlans.get(s.uid);
+  let h = -1; for(const x of c.hits){ if(x > a) break; h = x; }
+  return h >= 0 && a < h + c.len ? {at:h, len:c.len} : null;
+}
+function smpJoin(s, a, t){
+  const d = decks.get(s.uid); if(!d?.ready || d.err) return;
+  const sp = smpSpan(s, a);
+  d.run = false; d.busyTill = 0;
+  if(sp){ smpTrigger(s, t, a - sp.at, true); return; }
+  // nothing of it plays here: whatever it was playing stops on the beat
+  if(d.runAt!=null || d.st===1 || d.st===3){ smpCancel(d.endE); d.endE = smpAt(performance.now() + (t - ctx.currentTime)*1000, () => smpStop(d), d); }
+}
+// the song moved under the samples (a jump, an insert or delete, a switch to the song): drop what was planned
+// for the old position and plan again from the next step
+function smpRejoin(){
+  if(!playing || S.playMode!=="auto") return;
+  for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d) smpQ.splice(i,1);
+  for(const d of decks.values()){ d.endE = null; d.meas = null; }
+  smpDone = stepAbs - 1; smpResync = true;
+}
 function smpCued(d, s){ return d.st!==1 && d.st!==3 && d.cuedAt!=null && Math.abs(d.cuedAt - s.start) < .05; }
-function smpTrigger(s, t){
+// off: how many steps into the hit it starts (joining mid-way). In the song the hits are already decided (song).
+function smpTrigger(s, t, off=0, song=false){
   const d = decks.get(s.uid); if(!d?.ready || d.err) return;
   const at = performance.now() + (t - ctx.currentTime)*1000; // when this step is heard
+  const stepMs = 15000/S.bpm, rest = s.beats ? (s.beats*4 - off)*stepMs : 0;
   if(!s.beats){ if(d.run) return; d.run = true; }            // ∞ starts once and keeps going through every loop
-  else if(s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
-  if(s.beats) d.busyTill = at + s.beats*60000/S.bpm;
+  else if(!song && s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
+  if(s.beats) d.busyTill = at + rest;
   if(d.endE && d.endE.at > at - 30){ smpCancel(d.endE); d.endE = null; } // a retrigger cuts the last hit short
-  smpAt(at - Math.max(d.lead.play, d.lead.seek)*1000, () => smpFire(d, at), d);
-  if(s.beats) d.endE = smpAt(at + s.beats*60000/S.bpm, () => smpStop(d), d);
+  const into = off*stepMs/1000; // seconds of the beat it's already played
+  smpAt(at - Math.max(d.lead.play, d.lead.seek)*1000, () => smpFire(d, at, into), d);
+  if(s.beats) d.endE = smpAt(at + rest, () => smpStop(d), d);
 }
-function smpFire(d, at){
+function smpFire(d, at, into=0){
   const s = smpOf(d), p = d.player;
   if(!playing || !s || !d.ready || !p) return;
-  const cued = smpCued(d, s), lead = (cued ? d.lead.play : d.lead.seek)*1000;
-  if(at - lead - performance.now() > 4){ smpAt(at - lead, () => smpFire(d, at), d); return; } // it's already parked on the start: go a little later
+  const cued = !into && smpCued(d, s), lead = (cued ? d.lead.play : d.lead.seek)*1000, from = s.start + into*s.rate;
+  if(at - lead - performance.now() > 4){ smpAt(at - lead, () => smpFire(d, at, into), d); return; } // it's already parked on the start: go a little later
   if(d.priming){ d.priming = false; p.unMute(); }
   smpVol(d, s);
-  if(!cued) p.seekTo(s.start, true);
+  if(!cued) p.seekTo(from, true);
   p.playVideo(); d.cuedAt = null;
-  d.runAt = at; d.chk = at + 2500;
-  d.meas = {at, start:s.start, rate:s.rate, kind: cued ? "play" : "seek", t:performance.now()};
+  d.runAt = at - into*1000; d.chk = at + 2500;
+  d.meas = {at, start:from, rate:s.rate, kind: cued ? "play" : "seek", t:performance.now()};
   smpMeasure(d); strobeGo();
 }
 // once it's playing, read back where the video is to see how late it really started, and lead by that next time
@@ -3907,14 +3953,14 @@ function setPlayMode(m){
   S.playMode = m;
   if(m==="loop") view = "loop";
   if(playing){
-    if(m==="auto"){ const n = stepCount(); songAbs = (Math.floor(Math.min(songCur, songN()-1)/n)*n + stepIx) % songN(); }
+    if(m==="auto"){ const n = stepCount(); songAbs = (Math.floor(Math.min(songCur, songN()-1)/n)*n + stepIx) % songN(); smpRejoin(); }
     else { autoReset(); autoWas = false; }
   }
   render(); commit();
 }
 function setSongCur(abs){
   songCur = Math.max(0, Math.min(songN()-1, abs));
-  if(playing && S.playMode==="auto"){ songAbs = songCur; stepIx = songCur % stepCount(); }
+  if(playing && S.playMode==="auto"){ songAbs = songCur; stepIx = songCur % stepCount(); smpRejoin(); }
   paintFrame();
 }
 function setLoops(L){
@@ -3946,6 +3992,7 @@ function insertLoops(b, k){
   S.songLoops += k;
   if(songCur >= at) songCur += k*n;
   if(playing && S.playMode==="auto" && songAbs >= at) songAbs += k*n;
+  smpRejoin();
   if(playing) autoReset();
   render(); commit();
   toast(`Inserted ${k} loop${k===1?"":"s"} ${b ? `after loop ${b}` : "at the start"} · ${S.songLoops} loops now · Undo takes ${k===1?"it":"them"} out`);
@@ -3972,7 +4019,7 @@ function deleteLoop(b){
   const n = stepCount(), at = c*n, cut = pos => pos >= at+n ? pos-n : pos >= at ? at : pos;
   S.songLoops = L-1;
   songCur = Math.min(cut(songCur), songN()-1);
-  if(playing && S.playMode==="auto"){ songAbs = Math.min(cut(songAbs), songN()-1); stepIx = songAbs % n; }
+  if(playing && S.playMode==="auto"){ songAbs = Math.min(cut(songAbs), songN()-1); stepIx = songAbs % n; smpRejoin(); }
   if(playing) autoReset();
   render(); commit();
   toast(`Deleted loop ${b} · ${S.songLoops} loop${S.songLoops===1?"":"s"} now · Undo brings it back`);
@@ -4066,7 +4113,7 @@ function renderAuto(){
   h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Click a lane to add a point, drag points to move them, right-click one to delete it · click just beside a point for a jump · on/off lanes: drag to paint, or over a block to erase · right-click a lane for shapes · dashed line: the loop value</span></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
   h += `<div class="lane ruler"><div class="lh"><button class="btn iconbtn lhome" data-aact="home" title="Back to the start of the song (Enter)" aria-label="Back to the start of the song"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2.5v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M11.5 2.8v8.4L5 7z" fill="currentColor"/></svg></button><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
-    <div class="lt" data-aact="ruler" title="Click or drag to move the song position · right-click between loops to insert loops">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
+    <div class="lt" data-aact="ruler" title="Click or drag to move the song position to a loop's start · right-click between loops to insert or delete loops">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
   let sec = null;
   for(const p of list){
     if(p.sec!==sec){ sec = p.sec; h += `<div class="lanehead"><h2>${AUTO_SECS[sec]}</h2></div>`; }
@@ -4102,8 +4149,9 @@ rack.addEventListener("pointerdown", e => {
   const r = e.target.closest('.lt[data-aact="ruler"]');
   if(r){
     e.preventDefault();
-    const at = ev => { const b = r.getBoundingClientRect(); return Math.floor((ev.clientX-b.left)/b.width*songN()); };
-    rulerDrag = {pid:e.pointerId, at}; r.setPointerCapture?.(e.pointerId);
+    // the song position goes to the nearest loop line (the last loop's start at most)
+    const at = ev => { const b = r.getBoundingClientRect(), L = S.songLoops; return Math.max(0, Math.min(L-1, Math.round((ev.clientX-b.left)/b.width*L)))*stepCount(); };
+    rulerDrag = {pid:e.pointerId, at, last:at(e)}; r.setPointerCapture?.(e.pointerId);
     setSongCur(at(e)); return;
   }
   const t = e.target.closest(".lt[data-lt]"); if(!t) return;
@@ -4188,7 +4236,7 @@ rack.addEventListener("pointermove", e => {
   t.classList.toggle("erase", d[Math.max(0, Math.min(d.length-1, i))] > .5);
 });
 window.addEventListener("pointermove", e => {
-  if(rulerDrag && e.pointerId===rulerDrag.pid){ setSongCur(rulerDrag.at(e)); return; }
+  if(rulerDrag && e.pointerId===rulerDrag.pid){ const a = rulerDrag.at(e); if(a!==rulerDrag.last){ rulerDrag.last = a; setSongCur(a); } return; }
   if(laneDraw && e.pointerId===laneDraw.pid) laneDraw.move(e);
 });
 ["pointerup","pointercancel"].forEach(t => window.addEventListener(t, e => {
@@ -4533,7 +4581,7 @@ async function genAuto(){
     if(!nl) throw {code:"invalid_json", tierNote:label};
     S.lanes = tmp.lanes; S.songLoops = tmp.songLoops; songCur = 0;
     if(S.playMode!=="auto") setPlayMode("auto");
-    if(playing){ autoReset(); songAbs = 0; stepIx = 0; }
+    if(playing){ autoReset(); songAbs = 0; stepIx = 0; smpRejoin(); }
     render(); commit();
     $("genStatus").textContent = `${label} · Wrote ${nl} lane${nl===1?"":"s"} over ${S.songLoops} loop${S.songLoops===1?"":"s"}. Undo brings back what was there.`;
     if(!playing) startPlay();

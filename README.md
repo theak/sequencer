@@ -86,6 +86,7 @@ Turn a loop into a song. Right-click any knob, slider, M/S button or the warble 
   - For a jump, click just beside a point. On its right, the line leaves from the new value; on its left, the line arrives at the new value and then jumps.
   - On/off lanes (mute, solo, warble) paint: drag on empty steps to turn them on. Over a block the cursor becomes an eraser, and dragging there turns it off.
   - Right-click a lane for shapes like ramps, waves or every other loop.
+  - Click or drag the song ruler to move the song position. It always lands on a loop line (the nearest one), whatever Snap is set to.
   - Right-click the song ruler between two loops to insert loops there (1, 2, 4, 8 or any number, up to 64 loops in all). Every lane after that point moves later, and the gap holds the value each lane had arriving there, so ramps and jumps carry on unchanged after it.
   - The same menu deletes the loop on the left (between loop 3 and 4, **Delete loop 3**). Hovering it shades that loop on every lane. Everything after it moves one loop earlier, and what played before and after the cut plays as it did. Undo brings it back.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
@@ -118,6 +119,8 @@ Lane names:
 ## YouTube samples
 
 Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
+
+In Automation playback, a sample plays where the song has it, as if the song had played from the top. Start mid-song, jump with the ruler or the arrow keys, or let the song come round again, and a sample that's mid-hit there picks up mid-way. Starting at loop 8 with a 16-beat sample that hit on loop 5, for example, starts the video 12 beats in.
 
 Samples play in YouTube's own embedded player, not through the audio engine. So:
 
