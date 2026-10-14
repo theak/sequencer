@@ -1300,7 +1300,9 @@ const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.use
 let viewPage = 0, followPlay = true;
 // which editor is open and the master level (a setting of this browser, not of the beat)
 let view = saved0?.view==="auto" ? "auto" : "loop", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
-let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false, laneTool = "draw", laneSnap = "off"; // songCur: where the song plays from; songAbs: the next step the song schedules
+let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the song plays from; songAbs: the next step the song schedules
+// the automation editor's snap: remembered in this browser, Page until you pick another
+let laneSnap = ["off","beat","page","loop"].includes(saved0?.snap) ? saved0.snap : "page";
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
   followPlay = saved0.followPlay !== false;
@@ -1311,7 +1313,7 @@ function persistLocal(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
-      master: Math.round(masterLvl*100), view, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
+      master: Math.round(masterLvl*100), view, snap: laneSnap, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
 }
@@ -4163,7 +4165,7 @@ rack.addEventListener("click", e => {
   const b = e.target.closest("[data-aact]"); if(!b) return;
   const a = b.dataset.aact, id = b.dataset.id;
   if(a==="view") setView(b.dataset.v);
-  else if(a==="snap"){ laneSnap = b.dataset.k; render(); }
+  else if(a==="snap"){ laneSnap = b.dataset.k; persistLocal(); render(); }
   else if(a==="len") setLoops(S.songLoops + +b.dataset.d);
   else if(a==="toggle" || a==="remove") laneAct(a, id);
   else if(a==="lmenu"){ const r = b.getBoundingClientRect(); laneMenu(id, r.left, r.bottom+4); }

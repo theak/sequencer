@@ -81,7 +81,7 @@ Gemini Flash can look things up while it writes (a song you name, a genre's usua
 ## Automation
 
 Turn a loop into a song. Right-click any knob, slider, M/S button or the warble button and pick **Add automation lane**, or use **+ Add lane** in the Automation tab. The tab has a lane per control over a song of 1 to 64 loops:
-- **Editing:** Snap (off, beat, page or loop) applies to everything below.
+- **Editing:** Snap (off, beat, page or loop) applies to everything below. It starts on Page and your browser remembers what you pick.
   - Continuous lanes are points joined by straight lines. Click a lane to add a point, drag a point to move it, and right-click one to delete it.
   - For a jump, click just beside a point. On its right, the line leaves from the new value; on its left, the line arrives at the new value and then jumps.
   - On/off lanes (mute, solo, warble) paint: drag on empty steps to turn them on. Over a block the cursor becomes an eraser, and dragging there turns it off.
