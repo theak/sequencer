@@ -87,10 +87,11 @@ Turn a loop into a song. Right-click any knob, slider, M/S button or the warble 
   - On/off lanes (mute, solo, warble) paint: drag on empty steps to turn them on. Over a block the cursor becomes an eraser, and dragging there turns it off.
   - Right-click a lane for shapes like ramps, waves or every other loop.
   - Right-click the song ruler between two loops to insert loops there (1, 2, 4, 8 or any number, up to 64 loops in all). Every lane after that point moves later, and the gap holds the value each lane had arriving there, so ramps and jumps carry on unchanged after it.
+  - The same menu deletes the loop on the left (between loop 3 and 4, **Delete loop 3**). Hovering it shades that loop on every lane. Everything after it moves one loop earlier, and what played before and after the cut plays as it did. Undo brings it back.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
   - The choice is saved with the beat. A beat opens on Loop unless it was saved on Automation, and adding a beat's first lane switches it to Automation.
   - The automation editor always plays the automation: opening it switches Play to Automation, and switching Play to Loop goes back to the loop editor. Automation playback works in either editor.
-- **Keys:** L flips Plays between Loop and Automation, and A flips between the loop editor and the automation editor.
+- **Keys:** L flips Plays between Loop and Automation, and A flips between the loop editor and the automation editor. In the automation editor, ← and → move the song position a loop back or on (to the start of a loop, and the playback jumps with it), and Enter goes back to the start. So does the button at the left of the song ruler.
 - **AI:** in the Automation tab, the AI writes lanes for the beat on screen ("build for 4 loops, drop on loop 5, fade out").
 - **Export:** with Automation playback on, Export audio renders the whole song.
 
