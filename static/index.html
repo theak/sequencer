@@ -1289,7 +1289,7 @@ const toggleGroup = (set, g) => { const on = !groupAll(set, g); groupIds(g).forE
 let currentDocId = null;
 // who's signed in (from /api/me), what the server can do, and a beat opened from someone else's link
 let me = null, cfg = null, booted = false;
-let viewing = saved0?.viewing?.user && saved0?.viewing?.id ? {user:String(saved0.viewing.user), id:String(saved0.viewing.id)} : null;
+let viewing = saved0?.viewing?.user && saved0?.viewing?.id ? {user:String(saved0.viewing.user), id:String(saved0.viewing.id), h:String(saved0.viewing.h || "")} : null;
 const HOST = location.host;
 // beats saved in this browser have ids like "l…"; beats on the server are numbered 1, 2, 3…
 function isLocalId(id){ return typeof id==="string" && id[0]==="l"; }
@@ -2583,6 +2583,8 @@ function changed(){ clearTimeout(cs); syncJson(); commit(); }
 const undoStack = [];
 let committed = null, committedDoc = null; // committedDoc: which saved beat that state belonged to, so Undo across a load reopens the right one
 const snapStr = () => JSON.stringify(toJSON(S));
+// a short fingerprint of a beat: a draft of someone else's beat keeps the one of the version it started from
+const snapHash = t => { let h = 0x811c9dc5; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0).toString(36); };
 function commit(){
   if(peek) return;
   const now = snapStr();
@@ -3595,7 +3597,7 @@ function loadState(st, docId, src){
   if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; viewing = src?.viewing || null; }
   muted.clear(); soloed.clear(); flagMemo.mute = []; flagMemo.solo = []; viewPage = 0; songCur = 0;
   render(); renderSaved(); commit();
-  if(src){ loadedSnap = committed; toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
+  if(src){ loadedSnap = committed; if(viewing && src.viewing) viewing.h = snapHash(committed); persistLocal(); updateSaveBar(); toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
 }
 
 /* ---------- JSON panel ---------- */
@@ -4981,7 +4983,8 @@ async function openPacked(t){
 // /<username>/<n>: your own beat opens as itself; anyone else's opens for you to play and save a copy of
 async function openLink(user, id, pending){
   const mine = db===cloudDb && me?.username===user;
-  if(mine ? currentDocId===id : viewing?.user===user && viewing?.id===id) return; // already open (maybe with unsaved edits)
+  if(mine && currentDocId===id) return; // already open (maybe with unsaved edits)
+  const again = !mine && viewing?.user===user && viewing?.id===id; // their beat, which you had open already
   const b = await pending;
   if(!b){ toast("That beat isn't there anymore. It may have been deleted.", 4500); return; }
   let st; try { st = fromJSON(b.beat); } catch { toast("That beat couldn't be read."); return; }
@@ -4989,7 +4992,28 @@ async function openLink(user, id, pending){
     const d = savedDocs.find(x => x.id===id);
     if(d) Object.assign(d, b); else savedDocs.unshift(b);
     loadState(st, id, {name:b.name});
-  } else loadState(st, null, {viewing:{user, id}, msg:`Opened “${b.name}” by ${user}`});
+  } else if(again) rejoinViewing(st, b);
+  else loadState(st, null, {viewing:{user, id}, msg:`Opened “${b.name}” by ${user}`});
+}
+// back on the link of someone else's beat you had open: untouched, it catches up to their latest.
+// With your edits, the draft stays; if they've changed it since, you're offered theirs (Revert gets it any time too).
+function rejoinViewing(st, b){
+  const theirs = JSON.stringify(toJSON(st)), draft = snapStr(), {user, id, h} = viewing;
+  const latest = msg => loadState(st, null, {viewing:{user, id}, msg});
+  if(draft===theirs){ loadedSnap = theirs; viewing.h = snapHash(theirs); persistLocal(); return; }
+  if(h && snapHash(draft)===h){ latest(`Opened the latest of “${b.name}” by ${user}`); return; }
+  loadedSnap = theirs; updateSaveBar(); // your edits count as edits now, so Share sends your copy and Revert is on
+  if(!h || snapHash(theirs)!==h)
+    toast(`${user} has changed “${b.name}” since you opened it. You're on your edited copy`, 10000, {label:"Get theirs", fn:() => latest(`Opened ${user}'s latest`)});
+}
+// Revert on someone else's beat: drop your edits for their latest version (Undo brings your edits back)
+async function revertViewing(){
+  const {user, id} = viewing;
+  const b = await fetch(`/api/u/${user}/${id}`).then(r => r.ok ? r.json() : null).catch(() => null);
+  if(!b){ toast(`Couldn't get ${user}'s version. It may have been deleted.`, 4500); return; }
+  let st; try { st = fromJSON(b.beat); } catch { toast("That beat couldn't be read."); return; }
+  if(viewing?.user!==user || viewing?.id!==id) return; // you moved on while it loaded
+  loadState(st, null, {viewing:{user, id}, msg:`Back to ${user}'s latest`});
 }
 // the address bar follows the open beat, so it can be copied or bookmarked
 function syncUrl(){
@@ -5219,8 +5243,9 @@ function updateSaveBar(){
   }[st];
   p.disabled = st==="wait" || st==="saving";
   const r = $("revertBtn");
-  r.disabled = st!=="dirty" && st!=="peek";
-  r.title = r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
+  const theirEdits = st==="new" && viewing && unsavedWork();
+  r.disabled = st!=="dirty" && st!=="peek" && !theirEdits;
+  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
   const c = $("cmpBtn");
   c.disabled = st!=="dirty" && st!=="peek";
   c.title = st==="peek" ? "Back to your edits (C or Esc)"
@@ -5238,6 +5263,7 @@ function flashPill(){ const p = $("savePill"); p.classList.remove("ok"); void p.
 function revertToSaved(){
   if(peek) endPeek();
   liveSnap = snapStr();
+  if(saveState()==="new" && viewing && unsavedWork()){ revertViewing(); return; }
   if(saveState()!=="dirty") return;
   let st; try { st = fromJSON(JSON.parse(baseline)); } catch { toast("The last save couldn't be read."); return; }
   const keep = [baseline, baselineAt];

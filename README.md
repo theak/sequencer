@@ -137,6 +137,7 @@ With `GOOGLE_CLIENT_ID` set (how 16.aks.zone runs):
 - **Signed in**, beats save to the account. Each one gets the next number, and its own link at `/<username>/<n>`. Numbers are never reused, so an old link never opens a different beat.
 - **Share** gives that link (saving first if needed). Signed out, it packs the whole beat into a long link instead, and suggests signing up.
 - **Links are public.** Anyone with a link can open the beat, play it and save their own copy. The numbers count up, so treat beats as public.
+- **Their updates reach you.** Coming back to someone else's link you didn't edit gets their latest version. If you edited it, your draft stays, and if they've changed it since, you're offered theirs. Revert also swaps your edits for their latest at any time, and Undo brings your edits back.
 - **AI** needs an account, with `AI_DAILY_LIMIT` generations per day. A generation that fails before the model writes anything doesn't count.
 
 To give one account its own AI limit:
