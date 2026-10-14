@@ -1872,7 +1872,7 @@ function smpFire(d, at, into=0){
   if(!playing || !s || !d.ready || !p) return;
   const cued = !into && smpCued(d, s), lead = (cued ? d.lead.play : d.lead.seek)*1000, from = s.start + into*s.rate;
   if(at - lead - performance.now() > 4){ smpAt(at - lead, () => smpFire(d, at, into), d); return; } // it's already parked on the start: go a little later
-  if(d.priming){ d.priming = false; p.unMute(); }
+  if(d.priming){ d.priming = false; smpUnmute(d); }
   smpVol(d, s);
   if(!cued) p.seekTo(from, true);
   p.playVideo(); d.cuedAt = null;
@@ -2018,6 +2018,8 @@ function smpVol(d, s=smpOf(d)){
   try { d.player.setVolume(v); d.vol = v; } catch {}
 }
 function smpVols(){ for(const d of decks.values()) smpVol(d); }
+// YouTube's unMute() puts a player that was at volume 0 back at 5, so after it the volume is always sent again
+function smpUnmute(d){ try { d.player.unMute(); } catch {} d.vol = null; }
 
 let ytLoad = null;
 function ytApi(){
@@ -2065,12 +2067,12 @@ function smpPrime(d){
   const s = smpOf(d), p = d.player; if(!s || !p) return;
   d.priming = true;
   try { p.mute(); p.seekTo(s.start, true); p.playVideo(); } catch {}
-  setTimeout(() => { if(d.priming){ d.priming = false; try { p.unMute(); } catch {} smpVol(d); } }, 4000);
+  setTimeout(() => { if(d.priming){ d.priming = false; smpUnmute(d); smpVol(d); } }, 4000);
 }
 function ytState(d, st){
   d.st = st;
   const s = smpOf(d), p = d.player;
-  if(st===1 && d.priming){ d.priming = false; p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } p.unMute(); smpVol(d); smpTitle(d); return; }
+  if(st===1 && d.priming){ d.priming = false; p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } smpUnmute(d); smpVol(d); smpTitle(d); return; }
   if(st===5 && d.cueing){ d.cueing = false; ytReady(d); }
   if(st===0){ d.run = false; d.runAt = null; d.preview = false; smpPreviewBtn(d); }
   if(st===1 || st===5) smpTitle(d);
@@ -2210,7 +2212,7 @@ $("smpGrid").addEventListener("click", e => {
     if(playing){ smpStat(d, "Stop the beat to preview on its own."); return; }
     if(d.preview){ smpCancel(d.endE); smpStop(d); return; }
     d.preview = true; d.priming = false; smpPreviewBtn(d);
-    try { d.player.unMute(); } catch {}
+    smpUnmute(d);
     smpVol(d, s); d.player.seekTo(s.start, true); d.player.playVideo(); d.cuedAt = null;
     smpCancel(d.endE); d.endE = smpAt(performance.now() + (s.beats || 8)*60000/S.bpm, () => smpStop(d), d);
   }
