@@ -350,6 +350,9 @@ details.json[open] summary{margin-bottom:10px}
 .lane.ruler .lt{height:26px;cursor:pointer;background:var(--panel-2)}
 .lmark{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding-left:6px;border-left:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden}
 .lmark:first-child{border-left:0}
+.lane .lins{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1.5px;background:var(--orange);box-shadow:0 0 8px var(--orange);pointer-events:none}
+.insn{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim)}
+.insn input{width:56px}
 .laneempty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:8px;color:var(--ink-dim)}
 .laneempty h3{margin:0 0 6px;font-size:15px;color:var(--ink)}
 .laneempty p{margin:0 auto 14px;max-width:470px;font-size:12.5px}
@@ -3912,6 +3915,44 @@ function setLoops(L){
   if(playing && S.playMode==="auto") songAbs %= songN();
   render(); commit();
 }
+// Insert k loops at loop boundary b (0 = the start). Every lane's points from b on move k loops later,
+// and the gap holds the value the lane had arriving at b, so ramps and jumps carry on unchanged after it.
+function laneBefore(pts, b, bin){
+  let i = -1; for(let j=0;j<pts.length && pts[j][0] < b;j++) i = j;
+  if(i<0) return pts[0][1];
+  const a = pts[i], z = pts[i+1];
+  return bin || !z ? a[1] : a[1] + (z[1]-a[1])*(b-a[0])/(z[0]-a[0]);
+}
+function insertLoops(b, k){
+  k = Math.min(Math.round(k), SONG_MAX - S.songLoops);
+  if(!(k > 0)){ toast(`A song tops out at ${SONG_MAX} loops`); return; }
+  for(const [id, l] of Object.entries(S.lanes)){
+    const sp = laneSpec(id); if(!sp || !l.pts.length) continue;
+    const v = laneBefore(l.pts, b, sp.bin), r = x => +x.toFixed(4);
+    const left = l.pts.filter(([a]) => a < b), right = l.pts.filter(([a]) => a >= b).map(([a,w]) => [r(a+k), w]);
+    const same = right[0] && right[0][0]===r(b+k) && right[0][1]===v; // the lane already starts there with that value
+    S.lanes[id] = {...l, pts: [...left, ...(left.length ? [[b, v]] : []), ...(same ? [] : [[r(b+k), v]]), ...right]};
+  }
+  const n = stepCount(), at = b*n;
+  S.songLoops += k;
+  if(songCur >= at) songCur += k*n;
+  if(playing && S.playMode==="auto" && songAbs >= at) songAbs += k*n;
+  if(playing) autoReset();
+  render(); commit();
+  toast(`Inserted ${k} loop${k===1?"":"s"} ${b ? `after loop ${b}` : "at the start"} · ${S.songLoops} loops now · Undo takes ${k===1?"it":"them"} out`);
+}
+// the ruler's menu: right-click near a loop boundary
+function rulerMenu(e){
+  const r = e.target.closest('.lt[data-aact="ruler"]'), box = r.getBoundingClientRect(), L = S.songLoops;
+  const b = Math.max(0, Math.min(L, Math.round((e.clientX-box.left)/box.width*L)));
+  const where = b===0 ? "At the start of the song" : b===L ? `After the last loop (${L})` : `Between loop ${b} and loop ${b+1}`;
+  const room = SONG_MAX - L, it = k => `<button class="btn" role="menuitem" data-ap="ins" data-b="${b}" data-k="${k}" ${k>room ? "disabled" : ""}>Insert ${k} loop${k===1?"":"s"}</button>`;
+  autoMenu(where, room ? `the lanes after it move later · up to ${room} more` : `the song is at its ${SONG_MAX}-loop limit`,
+    [1,2,4,8].map(it).join("") + `<hr><label class="insn"><span>Insert</span><input type="number" class="num" id="insN" min="1" max="${Math.max(1, room)}" value="${Math.min(4, Math.max(1, room))}" ${room ? "" : "disabled"}><span>loops</span><button class="btn" data-ap="insn" data-b="${b}" ${room ? "" : "disabled"}>Insert</button></label>`,
+    e.clientX, e.clientY+4);
+  const mk = r.querySelector(".lins") || r.appendChild(Object.assign(document.createElement("i"), {className:"lins"}));
+  mk.style.left = (b/L*100) + "%";
+}
 function songReadout(){
   const el = $("songPos"), n = stepCount(), a = frameAbs();
   el.textContent = S.playMode==="auto" ? `loop ${Math.floor(a/n)+1}/${S.songLoops} · step ${String(a%n+1).padStart(2,"0")}` : "loop only";
@@ -3986,7 +4027,7 @@ function renderAuto(){
   h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Click a lane to add a point, drag points to move them, right-click one to delete it · click just beside a point for a jump · on/off lanes: drag to paint, or over a block to erase · right-click a lane for shapes · dashed line: the loop value</span></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
   h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
-    <div class="lt" data-aact="ruler" title="Click or drag to move the song position">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
+    <div class="lt" data-aact="ruler" title="Click or drag to move the song position · right-click between loops to insert loops">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
   let sec = null;
   for(const p of list){
     if(p.sec!==sec){ sec = p.sec; h += `<div class="lanehead"><h2>${AUTO_SECS[sec]}</h2></div>`; }
@@ -4130,6 +4171,7 @@ rack.addEventListener("click", e => {
 });
 rack.addEventListener("change", e => { if(e.target.id==="songLen") setLoops(+e.target.value); });
 rack.addEventListener("contextmenu", e => {
+  if(view==="auto" && e.target.closest('.lt[data-aact="ruler"]')){ e.preventDefault(); rulerMenu(e); return; }
   const t = view==="auto" && e.target.closest(".lt[data-lt],.lane[data-lane] .lh");
   if(!t) return;
   e.preventDefault(); laneMenu(t.closest(".lane").dataset.lane, e.clientX, e.clientY+4);
@@ -4137,7 +4179,7 @@ rack.addEventListener("contextmenu", e => {
 
 /* The lane menu (shapes) and the Add lane picker share one popover */
 const autoPop = $("autoPop");
-function closeAutoPop(){ autoPop.hidden = true; }
+function closeAutoPop(){ autoPop.hidden = true; rack.querySelectorAll(".lins").forEach(x => x.remove()); }
 function autoMenu(title, sub, html, x, y, wide){
   closePops();
   $("apTitle").textContent = title; $("apSub").textContent = sub; $("apList").innerHTML = html;
@@ -4162,11 +4204,14 @@ function lanePicker(b){
   const r = b.getBoundingClientRect();
   autoMenu("Add automation lane", "any knob, slider or button", h, r.right-300, r.bottom+4, true);
 }
+autoPop.addEventListener("keydown", e => { if(e.key==="Enter" && e.target.id==="insN"){ e.preventDefault(); autoPop.querySelector('[data-ap="insn"]')?.click(); } });
 autoPop.addEventListener("click", e => {
   const b = e.target.closest("[data-ap]"); if(!b) return;
   const a = b.dataset.ap, id = b.dataset.id;
   closeAutoPop();
-  if(a==="shape") laneAct("shape", id, b.dataset.k);
+  if(a==="ins") insertLoops(+b.dataset.b, +b.dataset.k);
+  else if(a==="insn") insertLoops(+b.dataset.b, +$("insN").value);
+  else if(a==="shape") laneAct("shape", id, b.dataset.k);
   else if(a==="go") goLane(id);
   else if(a==="add") addLane(id, false);
   else laneAct(a, id);

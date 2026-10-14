@@ -86,6 +86,7 @@ Turn a loop into a song. Right-click any knob, slider, M/S button or the warble 
   - For a jump, click just beside a point. On its right, the line leaves from the new value; on its left, the line arrives at the new value and then jumps.
   - On/off lanes (mute, solo, warble) paint: drag on empty steps to turn them on. Over a block the cursor becomes an eraser, and dragging there turns it off.
   - Right-click a lane for shapes like ramps, waves or every other loop.
+  - Right-click the song ruler between two loops to insert loops there (1, 2, 4, 8 or any number, up to 64 loops in all). Every lane after that point moves later, and the gap holds the value each lane had arriving there, so ramps and jumps carry on unchanged after it.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
   - The choice is saved with the beat. A beat opens on Loop unless it was saved on Automation, and adding a beat's first lane switches it to Automation.
   - The automation editor always plays the automation: opening it switches Play to Automation, and switching Play to Loop goes back to the loop editor. Automation playback works in either editor.
