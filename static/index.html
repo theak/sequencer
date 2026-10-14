@@ -1964,7 +1964,8 @@ function smpHalt(d){
 function smpVol(d, s=smpOf(d)){
   if(!d.ready || !s || d.priming || !d.player) return;
   const v = withFrame(() => audible(smpKey(s)) ? Math.round(s.volume * masterLvl * 100) : 0); // as the song has it right now
-  try { d.player.setVolume(v); } catch {}
+  if(v===d.vol) return; // the player only hears about changes: it's sent nothing while the volume holds
+  try { d.player.setVolume(v); d.vol = v; } catch {}
 }
 function smpVols(){ for(const d of decks.values()) smpVol(d); }
 
@@ -2003,7 +2004,7 @@ function smpTitle(d){
 }
 function ytReady(d){
   const s = smpOf(d); if(!s || !d.player) return;
-  d.ready = true; d.err = "";
+  d.ready = true; d.err = ""; d.vol = null;
   smpMsg(d, "");
   try { d.player.setPlaybackRate(s.rate); } catch {}
   smpVol(d, s); smpTitle(d);
