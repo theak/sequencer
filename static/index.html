@@ -350,6 +350,10 @@ details.json[open] summary{margin-bottom:10px}
 .lane.ruler .lt{height:26px;cursor:pointer;background:var(--panel-2)}
 .lmark{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding-left:6px;border-left:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden}
 .lmark:first-child{border-left:0}
+.lane .ldel{position:absolute;top:0;bottom:0;pointer-events:none;opacity:0;transition:opacity .12s;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--danger) 30%,transparent) 0 6px,color-mix(in srgb,var(--danger) 14%,transparent) 6px 12px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--danger) 70%,transparent)}
+.delhot .lane .ldel{opacity:1}
+.lane.ruler .lhome{width:24px;height:24px;flex:none;padding:0;display:grid;place-items:center}
+.lane.ruler .lhome svg{width:12px;height:12px}
 .lane .lins{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1.5px;background:var(--orange);box-shadow:0 0 8px var(--orange);pointer-events:none}
 .insn{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim)}
 .insn input{width:56px}
@@ -384,7 +388,7 @@ details.json[open] summary{margin-bottom:10px}
 .autoai .beatonly{display:none!important}
 @media (max-width:640px){
   .lane{grid-template-columns:minmax(0,1fr);row-gap:4px}
-  .lane.ruler .lh{display:none}
+  .lane.ruler .lh > :not(.lhome){display:none}
   .vsep{display:none}
 }
 
@@ -1964,7 +1968,8 @@ function smpHalt(d){
 function smpVol(d, s=smpOf(d)){
   if(!d.ready || !s || d.priming || !d.player) return;
   const v = withFrame(() => audible(smpKey(s)) ? Math.round(s.volume * masterLvl * 100) : 0); // as the song has it right now
-  try { d.player.setVolume(v); } catch {}
+  if(v===d.vol) return; // the player only hears about changes: it's sent nothing while the volume holds
+  try { d.player.setVolume(v); d.vol = v; } catch {}
 }
 function smpVols(){ for(const d of decks.values()) smpVol(d); }
 
@@ -2003,7 +2008,7 @@ function smpTitle(d){
 }
 function ytReady(d){
   const s = smpOf(d); if(!s || !d.player) return;
-  d.ready = true; d.err = "";
+  d.ready = true; d.err = ""; d.vol = null;
   smpMsg(d, "");
   try { d.player.setPlaybackRate(s.rate); } catch {}
   smpVol(d, s); smpTitle(d);
@@ -3945,6 +3950,33 @@ function insertLoops(b, k){
   render(); commit();
   toast(`Inserted ${k} loop${k===1?"":"s"} ${b ? `after loop ${b}` : "at the start"} · ${S.songLoops} loops now · Undo takes ${k===1?"it":"them"} out`);
 }
+// the lane's value from b on (the far side of a jump right on b)
+function laneFrom(pts, b, bin){
+  let i = -1; for(let j=0;j<pts.length && pts[j][0] <= b;j++) i = j;
+  if(i<0) return pts[0][1];
+  const a = pts[i], z = pts[i+1];
+  return bin || !z || a[0]===b ? a[1] : a[1] + (z[1]-a[1])*(b-a[0])/(z[0]-a[0]);
+}
+// Delete loop b (1-based: the one ending at boundary b). The lanes close the gap: what played before it and
+// after it plays exactly as before, meeting at the cut (a jump there when the two sides differ).
+function deleteLoop(b){
+  const L = S.songLoops; if(L<=1 || b<1 || b>L) return;
+  const c = b-1, r = x => +x.toFixed(4);
+  for(const [id, l] of Object.entries(S.lanes)){
+    const sp = laneSpec(id); if(!sp || !l.pts.length) continue;
+    const left = l.pts.filter(([a]) => a < c), right = l.pts.filter(([a]) => a > b).map(([a,w]) => [r(a-1), w]);
+    const vL = laneBefore(l.pts, c, sp.bin), vR = laneFrom(l.pts, b, sp.bin);
+    const pts = [...left, ...((left.length || c>0) && vL!==vR ? [[c, vL]] : []), [c, vR], ...right];
+    S.lanes[id] = {...l, pts: pts.filter((q, i) => !i || q[0]!==pts[i-1][0] || q[1]!==pts[i-1][1])};
+  }
+  const n = stepCount(), at = c*n, cut = pos => pos >= at+n ? pos-n : pos >= at ? at : pos;
+  S.songLoops = L-1;
+  songCur = Math.min(cut(songCur), songN()-1);
+  if(playing && S.playMode==="auto"){ songAbs = Math.min(cut(songAbs), songN()-1); stepIx = songAbs % n; }
+  if(playing) autoReset();
+  render(); commit();
+  toast(`Deleted loop ${b} · ${S.songLoops} loop${S.songLoops===1?"":"s"} now · Undo brings it back`);
+}
 // the ruler's menu: right-click near a loop boundary
 function rulerMenu(e){
   const r = e.target.closest('.lt[data-aact="ruler"]'), box = r.getBoundingClientRect(), L = S.songLoops;
@@ -3952,8 +3984,11 @@ function rulerMenu(e){
   const where = b===0 ? "At the start of the song" : b===L ? `After the last loop (${L})` : `Between loop ${b} and loop ${b+1}`;
   const room = SONG_MAX - L, it = k => `<button class="btn" role="menuitem" data-ap="ins" data-b="${b}" data-k="${k}" ${k>room ? "disabled" : ""}>Insert ${k} loop${k===1?"":"s"}</button>`;
   autoMenu(where, room ? `the lanes after it move later · up to ${room} more` : `the song is at its ${SONG_MAX}-loop limit`,
-    [1,2,4,8].map(it).join("") + `<hr><label class="insn"><span>Insert</span><input type="number" class="num" id="insN" min="1" max="${Math.max(1, room)}" value="${Math.min(4, Math.max(1, room))}" ${room ? "" : "disabled"}><span>loops</span><button class="btn" data-ap="insn" data-b="${b}" ${room ? "" : "disabled"}>Insert</button></label>`,
+    [1,2,4,8].map(it).join("") + `<hr><label class="insn"><span>Insert</span><input type="number" class="num" id="insN" min="1" max="${Math.max(1, room)}" value="${Math.min(4, Math.max(1, room))}" ${room ? "" : "disabled"}><span>loops</span><button class="btn" data-ap="insn" data-b="${b}" ${room ? "" : "disabled"}>Insert</button></label>`
+    + (b ? `<hr><button class="btn danger" role="menuitem" data-ap="del" data-b="${b}" ${L>1 ? "" : "disabled"} title="${L>1 ? `Take loop ${b} out of the song: everything after it moves 1 loop earlier` : "A song needs at least one loop"}">Delete loop ${b}</button>` : ""),
     e.clientX, e.clientY+4);
+  // while Delete is hovered or focused, the loop it takes out is shaded on every lane
+  if(b) for(const t of rack.querySelectorAll(".lanes .lt")) t.appendChild(Object.assign(document.createElement("i"), {className:"ldel"})).style.cssText = `left:${(b-1)/L*100}%;width:${100/L}%`;
   const mk = r.querySelector(".lins") || r.appendChild(Object.assign(document.createElement("i"), {className:"lins"}));
   mk.style.left = (b/L*100) + "%";
 }
@@ -4030,7 +4065,7 @@ function renderAuto(){
     <div class="spacer"></div><button class="btn" data-aact="pick" aria-haspopup="menu">+ Add lane</button></div>`;
   h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Click a lane to add a point, drag points to move them, right-click one to delete it · click just beside a point for a jump · on/off lanes: drag to paint, or over a block to erase · right-click a lane for shapes · dashed line: the loop value</span></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
-  h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
+  h += `<div class="lane ruler"><div class="lh"><button class="btn iconbtn lhome" data-aact="home" title="Back to the start of the song (Enter)" aria-label="Back to the start of the song"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2.5v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M11.5 2.8v8.4L5 7z" fill="currentColor"/></svg></button><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
     <div class="lt" data-aact="ruler" title="Click or drag to move the song position · right-click between loops to insert loops">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
   let sec = null;
   for(const p of list){
@@ -4172,6 +4207,7 @@ rack.addEventListener("click", e => {
   else if(a==="toggle" || a==="remove") laneAct(a, id);
   else if(a==="lmenu"){ const r = b.getBoundingClientRect(); laneMenu(id, r.left, r.bottom+4); }
   else if(a==="pick") lanePicker(b);
+  else if(a==="home") setSongCur(0);
 });
 rack.addEventListener("change", e => { if(e.target.id==="songLen") setLoops(+e.target.value); });
 rack.addEventListener("contextmenu", e => {
@@ -4183,7 +4219,10 @@ rack.addEventListener("contextmenu", e => {
 
 /* The lane menu (shapes) and the Add lane picker share one popover */
 const autoPop = $("autoPop");
-function closeAutoPop(){ autoPop.hidden = true; rack.querySelectorAll(".lins").forEach(x => x.remove()); }
+function closeAutoPop(){ autoPop.hidden = true; rack.querySelectorAll(".lins,.ldel").forEach(x => x.remove()); }
+["pointerover","pointerout","focusin","focusout"].forEach(t => autoPop.addEventListener(t, e => {
+  if(e.target.closest?.('[data-ap="del"]')) rack.classList.toggle("delhot", t==="pointerover" || t==="focusin");
+}));
 function autoMenu(title, sub, html, x, y, wide){
   closePops();
   $("apTitle").textContent = title; $("apSub").textContent = sub; $("apList").innerHTML = html;
@@ -4215,6 +4254,7 @@ autoPop.addEventListener("click", e => {
   closeAutoPop();
   if(a==="ins") insertLoops(+b.dataset.b, +b.dataset.k);
   else if(a==="insn") insertLoops(+b.dataset.b, +$("insN").value);
+  else if(a==="del"){ rack.classList.remove("delhot"); deleteLoop(+b.dataset.b); }
   else if(a==="shape") laneAct("shape", id, b.dataset.k);
   else if(a==="go") goLane(id);
   else if(a==="add") addLane(id, false);
@@ -4229,6 +4269,25 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if(k==="l"){ e.preventDefault(); setPlayMode(S.playMode==="auto" ? "loop" : "auto"); toast(S.playMode==="auto" ? "Play plays the automation" : "Play plays the loop"); }
   else if(k==="a"){ e.preventDefault(); setView(view==="auto" ? "loop" : "auto"); }
+});
+// in the automation editor: ← / → step the song a loop back or on (to a loop's start), Enter goes back to the start.
+// A button that has focus because it was clicked doesn't take Enter; one reached with Tab still presses on it.
+let lastInput = "", focusByPointer = false;
+document.addEventListener("pointerdown", () => lastInput = "pointer", true);
+document.addEventListener("keydown", () => lastInput = "key", true);
+document.addEventListener("focusin", () => focusByPointer = lastInput==="pointer", true);
+document.addEventListener("keydown", e => {
+  if(view!=="auto" || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || typingTarget(e.target) || document.body.classList.contains("peeking")) return;
+  const t = e.target, d = {ArrowLeft:-1, ArrowRight:1}[e.key];
+  if(t.closest?.(".pop,select,input,textarea,.knob,[role=slider]")) return;
+  if(e.key==="Enter"){
+    if(e.repeat || t.closest?.("button,a") && !focusByPointer) return;
+    e.preventDefault(); setSongCur(0); return;
+  }
+  if(!d) return;
+  e.preventDefault();
+  const n = stepCount();
+  setSongCur(Math.max(0, Math.min(S.songLoops-1, Math.floor(frameAbs()/n) + d))*n);
 });
 
 /* ---------- AI generation (OpenRouter via /api/generate) ---------- */
