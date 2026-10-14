@@ -866,9 +866,11 @@ function parseTime(v){
   if(!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(s)) return null;
   return s.split(":").reduce((a,x) => a*60 + parseFloat(x), 0);
 }
+// always at least one decimal (0:12.0), so it's clear tenths and hundredths work
 function fmtTime(t){
-  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = t%60;
-  const ss = (sec < 10 ? "0" : "") + (+sec.toFixed(2)).toString();
+  t = Math.round((+t || 0)*100)/100; // to the hundredth first, so 59.999 s can't show as :60
+  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = +(t%60).toFixed(2);
+  const ss = (sec < 10 ? "0" : "") + (Number.isInteger(sec*10) ? sec.toFixed(1) : String(sec));
   return (h ? h+":"+String(m).padStart(2,"0") : m) + ":" + ss;
 }
 const nearest = (list, v) => list.reduce((a,x) => Math.abs(x-v) < Math.abs(a-v) ? x : a);
@@ -2052,7 +2054,7 @@ function smpCardHTML(s){
     <div class="yt"><div class="ytmount"></div><div class="ytmsg" hidden></div></div>
     <label class="smpl"><span class="lbl">YouTube link</span><input type="text" id="${id("link")}" data-f="link" placeholder="Paste a link, like https://youtu.be/…" spellcheck="false" autocomplete="off"></label>
     <div class="smpf">
-      <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" title="Minutes:seconds, like 1:23.5"></label>
+      <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" placeholder="0:00.0" title="Minutes:seconds, like 1:23.5"></label>
       <label><span class="lbl">Speed</span><select id="${id("rate")}" data-f="rate" class="num">${YT_RATES.map(r => `<option value="${r}">${r}×</option>`).join("")}</select></label>
       <label><span class="lbl">Play for</span><select id="${id("beats")}" data-f="beats">${BEAT_OPTS.map(b => `<option value="${b}">${beatLabel(b)}</option>`).join("")}</select></label>
     </div>
