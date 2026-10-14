@@ -81,11 +81,12 @@ Gemini Flash can look things up while it writes (a song you name, a genre's usua
 ## Automation
 
 Turn a loop into a song. Right-click any knob, slider, M/S button or the warble button and pick **Add automation lane**, or use **+ Add lane** in the Automation tab. The tab has a lane per control over a song of 1 to 64 loops:
-- **Editing:** Snap (off, beat, page or loop) applies to everything below.
+- **Editing:** Snap (off, beat, page or loop) applies to everything below. It starts on Page and your browser remembers what you pick.
   - Continuous lanes are points joined by straight lines. Click a lane to add a point, drag a point to move it, and right-click one to delete it.
   - For a jump, click just beside a point. On its right, the line leaves from the new value; on its left, the line arrives at the new value and then jumps.
   - On/off lanes (mute, solo, warble) paint: drag on empty steps to turn them on. Over a block the cursor becomes an eraser, and dragging there turns it off.
   - Right-click a lane for shapes like ramps, waves or every other loop.
+  - Right-click the song ruler between two loops to insert loops there (1, 2, 4, 8 or any number, up to 64 loops in all). Every lane after that point moves later, and the gap holds the value each lane had arriving there, so ramps and jumps carry on unchanged after it.
 - **Playback:** **Plays: Loop / Automation** next to Play picks what you hear. Loop plays the pattern with the knobs as set. Automation plays the song, and the knobs move with their lanes. A knob that follows a lane stays locked until you bypass or remove the lane.
   - The choice is saved with the beat. A beat opens on Loop unless it was saved on Automation, and adding a beat's first lane switches it to Automation.
   - The automation editor always plays the automation: opening it switches Play to Automation, and switching Play to Loop goes back to the loop editor. Automation playback works in either editor.
@@ -136,6 +137,7 @@ With `GOOGLE_CLIENT_ID` set (how 16.aks.zone runs):
 - **Signed in**, beats save to the account. Each one gets the next number, and its own link at `/<username>/<n>`. Numbers are never reused, so an old link never opens a different beat.
 - **Share** gives that link (saving first if needed). Signed out, it packs the whole beat into a long link instead, and suggests signing up.
 - **Links are public.** Anyone with a link can open the beat, play it and save their own copy. The numbers count up, so treat beats as public.
+- **Their updates reach you.** Coming back to someone else's link you didn't edit gets their latest version. If you edited it, your draft stays, and if they've changed it since, you're offered theirs. Revert also swaps your edits for their latest at any time, and Undo brings your edits back.
 - **AI** needs an account, with `AI_DAILY_LIMIT` generations per day. A generation that fails before the model writes anything doesn't count.
 
 To give one account its own AI limit:

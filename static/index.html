@@ -350,6 +350,9 @@ details.json[open] summary{margin-bottom:10px}
 .lane.ruler .lt{height:26px;cursor:pointer;background:var(--panel-2)}
 .lmark{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding-left:6px;border-left:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden}
 .lmark:first-child{border-left:0}
+.lane .lins{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1.5px;background:var(--orange);box-shadow:0 0 8px var(--orange);pointer-events:none}
+.insn{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim)}
+.insn input{width:56px}
 .laneempty{padding:28px 16px;text-align:center;border:1px dashed var(--line);border-radius:8px;color:var(--ink-dim)}
 .laneempty h3{margin:0 0 6px;font-size:15px;color:var(--ink)}
 .laneempty p{margin:0 auto 14px;max-width:470px;font-size:12.5px}
@@ -866,9 +869,11 @@ function parseTime(v){
   if(!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(s)) return null;
   return s.split(":").reduce((a,x) => a*60 + parseFloat(x), 0);
 }
+// always at least one decimal (0:12.0), so it's clear tenths and hundredths work
 function fmtTime(t){
-  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = t%60;
-  const ss = (sec < 10 ? "0" : "") + (+sec.toFixed(2)).toString();
+  t = Math.round((+t || 0)*100)/100; // to the hundredth first, so 59.999 s can't show as :60
+  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = +(t%60).toFixed(2);
+  const ss = (sec < 10 ? "0" : "") + (Number.isInteger(sec*10) ? sec.toFixed(1) : String(sec));
   return (h ? h+":"+String(m).padStart(2,"0") : m) + ":" + ss;
 }
 const nearest = (list, v) => list.reduce((a,x) => Math.abs(x-v) < Math.abs(a-v) ? x : a);
@@ -1284,7 +1289,7 @@ const toggleGroup = (set, g) => { const on = !groupAll(set, g); groupIds(g).forE
 let currentDocId = null;
 // who's signed in (from /api/me), what the server can do, and a beat opened from someone else's link
 let me = null, cfg = null, booted = false;
-let viewing = saved0?.viewing?.user && saved0?.viewing?.id ? {user:String(saved0.viewing.user), id:String(saved0.viewing.id)} : null;
+let viewing = saved0?.viewing?.user && saved0?.viewing?.id ? {user:String(saved0.viewing.user), id:String(saved0.viewing.id), h:String(saved0.viewing.h || "")} : null;
 const HOST = location.host;
 // beats saved in this browser have ids like "l…"; beats on the server are numbered 1, 2, 3…
 function isLocalId(id){ return typeof id==="string" && id[0]==="l"; }
@@ -1295,7 +1300,9 @@ const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.use
 let viewPage = 0, followPlay = true;
 // which editor is open and the master level (a setting of this browser, not of the beat)
 let view = saved0?.view==="auto" ? "auto" : "loop", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
-let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false, laneTool = "draw", laneSnap = "off"; // songCur: where the song plays from; songAbs: the next step the song schedules
+let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the song plays from; songAbs: the next step the song schedules
+// the automation editor's snap: remembered in this browser, Page until you pick another
+let laneSnap = ["off","beat","page","loop"].includes(saved0?.snap) ? saved0.snap : "page";
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
   followPlay = saved0.followPlay !== false;
@@ -1306,7 +1313,7 @@ function persistLocal(){
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
-      master: Math.round(masterLvl*100), view, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
+      master: Math.round(masterLvl*100), view, snap: laneSnap, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
 }
@@ -2052,7 +2059,7 @@ function smpCardHTML(s){
     <div class="yt"><div class="ytmount"></div><div class="ytmsg" hidden></div></div>
     <label class="smpl"><span class="lbl">YouTube link</span><input type="text" id="${id("link")}" data-f="link" placeholder="Paste a link, like https://youtu.be/…" spellcheck="false" autocomplete="off"></label>
     <div class="smpf">
-      <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" title="Minutes:seconds, like 1:23.5"></label>
+      <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" placeholder="0:00.0" title="Minutes:seconds, like 1:23.5"></label>
       <label><span class="lbl">Speed</span><select id="${id("rate")}" data-f="rate" class="num">${YT_RATES.map(r => `<option value="${r}">${r}×</option>`).join("")}</select></label>
       <label><span class="lbl">Play for</span><select id="${id("beats")}" data-f="beats">${BEAT_OPTS.map(b => `<option value="${b}">${beatLabel(b)}</option>`).join("")}</select></label>
     </div>
@@ -2576,6 +2583,8 @@ function changed(){ clearTimeout(cs); syncJson(); commit(); }
 const undoStack = [];
 let committed = null, committedDoc = null; // committedDoc: which saved beat that state belonged to, so Undo across a load reopens the right one
 const snapStr = () => JSON.stringify(toJSON(S));
+// a short fingerprint of a beat: a draft of someone else's beat keeps the one of the version it started from
+const snapHash = t => { let h = 0x811c9dc5; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0).toString(36); };
 function commit(){
   if(peek) return;
   const now = snapStr();
@@ -3588,7 +3597,7 @@ function loadState(st, docId, src){
   if(src || docId!==currentDocId){ setDoc(docId); saveErr = false; viewing = src?.viewing || null; }
   muted.clear(); soloed.clear(); flagMemo.mute = []; flagMemo.solo = []; viewPage = 0; songCur = 0;
   render(); renderSaved(); commit();
-  if(src){ loadedSnap = committed; toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
+  if(src){ loadedSnap = committed; if(viewing && src.viewing) viewing.h = snapHash(committed); persistLocal(); updateSaveBar(); toast((src.msg || `Loaded “${src.name}”`) + (lost ? ". Undo brings your changes back" : "")); }
 }
 
 /* ---------- JSON panel ---------- */
@@ -3910,6 +3919,44 @@ function setLoops(L){
   if(playing && S.playMode==="auto") songAbs %= songN();
   render(); commit();
 }
+// Insert k loops at loop boundary b (0 = the start). Every lane's points from b on move k loops later,
+// and the gap holds the value the lane had arriving at b, so ramps and jumps carry on unchanged after it.
+function laneBefore(pts, b, bin){
+  let i = -1; for(let j=0;j<pts.length && pts[j][0] < b;j++) i = j;
+  if(i<0) return pts[0][1];
+  const a = pts[i], z = pts[i+1];
+  return bin || !z ? a[1] : a[1] + (z[1]-a[1])*(b-a[0])/(z[0]-a[0]);
+}
+function insertLoops(b, k){
+  k = Math.min(Math.round(k), SONG_MAX - S.songLoops);
+  if(!(k > 0)){ toast(`A song tops out at ${SONG_MAX} loops`); return; }
+  for(const [id, l] of Object.entries(S.lanes)){
+    const sp = laneSpec(id); if(!sp || !l.pts.length) continue;
+    const v = laneBefore(l.pts, b, sp.bin), r = x => +x.toFixed(4);
+    const left = l.pts.filter(([a]) => a < b), right = l.pts.filter(([a]) => a >= b).map(([a,w]) => [r(a+k), w]);
+    const same = right[0] && right[0][0]===r(b+k) && right[0][1]===v; // the lane already starts there with that value
+    S.lanes[id] = {...l, pts: [...left, ...(left.length ? [[b, v]] : []), ...(same ? [] : [[r(b+k), v]]), ...right]};
+  }
+  const n = stepCount(), at = b*n;
+  S.songLoops += k;
+  if(songCur >= at) songCur += k*n;
+  if(playing && S.playMode==="auto" && songAbs >= at) songAbs += k*n;
+  if(playing) autoReset();
+  render(); commit();
+  toast(`Inserted ${k} loop${k===1?"":"s"} ${b ? `after loop ${b}` : "at the start"} · ${S.songLoops} loops now · Undo takes ${k===1?"it":"them"} out`);
+}
+// the ruler's menu: right-click near a loop boundary
+function rulerMenu(e){
+  const r = e.target.closest('.lt[data-aact="ruler"]'), box = r.getBoundingClientRect(), L = S.songLoops;
+  const b = Math.max(0, Math.min(L, Math.round((e.clientX-box.left)/box.width*L)));
+  const where = b===0 ? "At the start of the song" : b===L ? `After the last loop (${L})` : `Between loop ${b} and loop ${b+1}`;
+  const room = SONG_MAX - L, it = k => `<button class="btn" role="menuitem" data-ap="ins" data-b="${b}" data-k="${k}" ${k>room ? "disabled" : ""}>Insert ${k} loop${k===1?"":"s"}</button>`;
+  autoMenu(where, room ? `the lanes after it move later · up to ${room} more` : `the song is at its ${SONG_MAX}-loop limit`,
+    [1,2,4,8].map(it).join("") + `<hr><label class="insn"><span>Insert</span><input type="number" class="num" id="insN" min="1" max="${Math.max(1, room)}" value="${Math.min(4, Math.max(1, room))}" ${room ? "" : "disabled"}><span>loops</span><button class="btn" data-ap="insn" data-b="${b}" ${room ? "" : "disabled"}>Insert</button></label>`,
+    e.clientX, e.clientY+4);
+  const mk = r.querySelector(".lins") || r.appendChild(Object.assign(document.createElement("i"), {className:"lins"}));
+  mk.style.left = (b/L*100) + "%";
+}
 function songReadout(){
   const el = $("songPos"), n = stepCount(), a = frameAbs();
   el.textContent = S.playMode==="auto" ? `loop ${Math.floor(a/n)+1}/${S.songLoops} · step ${String(a%n+1).padStart(2,"0")}` : "loop only";
@@ -3984,7 +4031,7 @@ function renderAuto(){
   h += `<div class="sec"><div class="sech"><h2>Automation</h2></div><span class="hint">Click a lane to add a point, drag points to move them, right-click one to delete it · click just beside a point for a jump · on/off lanes: drag to paint, or over a block to erase · right-click a lane for shapes · dashed line: the loop value</span></div>`;
   h += `<div class="lanes" style="--L:${L};--beats:${N/4};--pages:${N/PAGE}">`;
   h += `<div class="lane ruler"><div class="lh"><span class="lbl">Song</span><span class="hint">${L} loop${L===1?"":"s"} · ${N} steps · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}</span></div>
-    <div class="lt" data-aact="ruler" title="Click or drag to move the song position">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
+    <div class="lt" data-aact="ruler" title="Click or drag to move the song position · right-click between loops to insert loops">${Array.from({length:L}, (_,k) => `<span class="lmark" style="left:${k/L*100}%;width:${100/L}%">${L<=8 && rack.clientWidth > 700 ? "Loop "+(k+1) : k+1}</span>`).join("")}<i class="lph"></i></div></div>`;
   let sec = null;
   for(const p of list){
     if(p.sec!==sec){ sec = p.sec; h += `<div class="lanehead"><h2>${AUTO_SECS[sec]}</h2></div>`; }
@@ -4120,7 +4167,7 @@ rack.addEventListener("click", e => {
   const b = e.target.closest("[data-aact]"); if(!b) return;
   const a = b.dataset.aact, id = b.dataset.id;
   if(a==="view") setView(b.dataset.v);
-  else if(a==="snap"){ laneSnap = b.dataset.k; render(); }
+  else if(a==="snap"){ laneSnap = b.dataset.k; persistLocal(); render(); }
   else if(a==="len") setLoops(S.songLoops + +b.dataset.d);
   else if(a==="toggle" || a==="remove") laneAct(a, id);
   else if(a==="lmenu"){ const r = b.getBoundingClientRect(); laneMenu(id, r.left, r.bottom+4); }
@@ -4128,6 +4175,7 @@ rack.addEventListener("click", e => {
 });
 rack.addEventListener("change", e => { if(e.target.id==="songLen") setLoops(+e.target.value); });
 rack.addEventListener("contextmenu", e => {
+  if(view==="auto" && e.target.closest('.lt[data-aact="ruler"]')){ e.preventDefault(); rulerMenu(e); return; }
   const t = view==="auto" && e.target.closest(".lt[data-lt],.lane[data-lane] .lh");
   if(!t) return;
   e.preventDefault(); laneMenu(t.closest(".lane").dataset.lane, e.clientX, e.clientY+4);
@@ -4135,7 +4183,7 @@ rack.addEventListener("contextmenu", e => {
 
 /* The lane menu (shapes) and the Add lane picker share one popover */
 const autoPop = $("autoPop");
-function closeAutoPop(){ autoPop.hidden = true; }
+function closeAutoPop(){ autoPop.hidden = true; rack.querySelectorAll(".lins").forEach(x => x.remove()); }
 function autoMenu(title, sub, html, x, y, wide){
   closePops();
   $("apTitle").textContent = title; $("apSub").textContent = sub; $("apList").innerHTML = html;
@@ -4160,11 +4208,14 @@ function lanePicker(b){
   const r = b.getBoundingClientRect();
   autoMenu("Add automation lane", "any knob, slider or button", h, r.right-300, r.bottom+4, true);
 }
+autoPop.addEventListener("keydown", e => { if(e.key==="Enter" && e.target.id==="insN"){ e.preventDefault(); autoPop.querySelector('[data-ap="insn"]')?.click(); } });
 autoPop.addEventListener("click", e => {
   const b = e.target.closest("[data-ap]"); if(!b) return;
   const a = b.dataset.ap, id = b.dataset.id;
   closeAutoPop();
-  if(a==="shape") laneAct("shape", id, b.dataset.k);
+  if(a==="ins") insertLoops(+b.dataset.b, +b.dataset.k);
+  else if(a==="insn") insertLoops(+b.dataset.b, +$("insN").value);
+  else if(a==="shape") laneAct("shape", id, b.dataset.k);
   else if(a==="go") goLane(id);
   else if(a==="add") addLane(id, false);
   else laneAct(a, id);
@@ -4932,7 +4983,8 @@ async function openPacked(t){
 // /<username>/<n>: your own beat opens as itself; anyone else's opens for you to play and save a copy of
 async function openLink(user, id, pending){
   const mine = db===cloudDb && me?.username===user;
-  if(mine ? currentDocId===id : viewing?.user===user && viewing?.id===id) return; // already open (maybe with unsaved edits)
+  if(mine && currentDocId===id) return; // already open (maybe with unsaved edits)
+  const again = !mine && viewing?.user===user && viewing?.id===id; // their beat, which you had open already
   const b = await pending;
   if(!b){ toast("That beat isn't there anymore. It may have been deleted.", 4500); return; }
   let st; try { st = fromJSON(b.beat); } catch { toast("That beat couldn't be read."); return; }
@@ -4940,7 +4992,28 @@ async function openLink(user, id, pending){
     const d = savedDocs.find(x => x.id===id);
     if(d) Object.assign(d, b); else savedDocs.unshift(b);
     loadState(st, id, {name:b.name});
-  } else loadState(st, null, {viewing:{user, id}, msg:`Opened “${b.name}” by ${user}`});
+  } else if(again) rejoinViewing(st, b);
+  else loadState(st, null, {viewing:{user, id}, msg:`Opened “${b.name}” by ${user}`});
+}
+// back on the link of someone else's beat you had open: untouched, it catches up to their latest.
+// With your edits, the draft stays; if they've changed it since, you're offered theirs (Revert gets it any time too).
+function rejoinViewing(st, b){
+  const theirs = JSON.stringify(toJSON(st)), draft = snapStr(), {user, id, h} = viewing;
+  const latest = msg => loadState(st, null, {viewing:{user, id}, msg});
+  if(draft===theirs){ loadedSnap = theirs; viewing.h = snapHash(theirs); persistLocal(); return; }
+  if(h && snapHash(draft)===h){ latest(`Opened the latest of “${b.name}” by ${user}`); return; }
+  loadedSnap = theirs; updateSaveBar(); // your edits count as edits now, so Share sends your copy and Revert is on
+  if(!h || snapHash(theirs)!==h)
+    toast(`${user} has changed “${b.name}” since you opened it. You're on your edited copy`, 10000, {label:"Get theirs", fn:() => latest(`Opened ${user}'s latest`)});
+}
+// Revert on someone else's beat: drop your edits for their latest version (Undo brings your edits back)
+async function revertViewing(){
+  const {user, id} = viewing;
+  const b = await fetch(`/api/u/${user}/${id}`).then(r => r.ok ? r.json() : null).catch(() => null);
+  if(!b){ toast(`Couldn't get ${user}'s version. It may have been deleted.`, 4500); return; }
+  let st; try { st = fromJSON(b.beat); } catch { toast("That beat couldn't be read."); return; }
+  if(viewing?.user!==user || viewing?.id!==id) return; // you moved on while it loaded
+  loadState(st, null, {viewing:{user, id}, msg:`Back to ${user}'s latest`});
 }
 // the address bar follows the open beat, so it can be copied or bookmarked
 function syncUrl(){
@@ -5170,8 +5243,9 @@ function updateSaveBar(){
   }[st];
   p.disabled = st==="wait" || st==="saving";
   const r = $("revertBtn");
-  r.disabled = st!=="dirty" && st!=="peek";
-  r.title = r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
+  const theirEdits = st==="new" && viewing && unsavedWork();
+  r.disabled = st!=="dirty" && st!=="peek" && !theirEdits;
+  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
   const c = $("cmpBtn");
   c.disabled = st!=="dirty" && st!=="peek";
   c.title = st==="peek" ? "Back to your edits (C or Esc)"
@@ -5189,6 +5263,7 @@ function flashPill(){ const p = $("savePill"); p.classList.remove("ok"); void p.
 function revertToSaved(){
   if(peek) endPeek();
   liveSnap = snapStr();
+  if(saveState()==="new" && viewing && unsavedWork()){ revertViewing(); return; }
   if(saveState()!=="dirty") return;
   let st; try { st = fromJSON(JSON.parse(baseline)); } catch { toast("The last save couldn't be read."); return; }
   const keep = [baseline, baselineAt];
