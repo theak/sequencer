@@ -484,7 +484,7 @@ details.json[open] summary{margin-bottom:10px}
 .iconbtn svg,.cmpbtn svg{width:14px;height:14px}
 .cmpbtn[aria-pressed="true"]{background:var(--cream);border-color:var(--cream);color:#1a1814}
 .cmphint{font-size:12px;font-style:italic;color:var(--ink-faint);white-space:nowrap}
-.cmpbtn:disabled + .cmphint{opacity:.5}
+#revertBtn[hidden],#cmpBtn[hidden],#cmpBtn[hidden] + .cmphint{display:none}
 @media (hover:none),(max-width:1100px){ .cmphint{display:none} }
 @media (hover:none){ .savepill kbd{display:none} .savepill{padding-right:12px} }
 /* while comparing, the page shows the last save and can't be edited */
@@ -624,8 +624,8 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <button class="btn" id="newBtn">New</button>
       <div class="filebar" id="filebar">
         <button class="savepill" id="savePill" data-state="wait" aria-live="polite"><i class="sdot" aria-hidden="true"></i><span class="sname" id="saveName"></span><span class="sstate" id="saveStateTxt"></span><kbd id="saveKey" aria-hidden="true">⌘S</kbd></button>
-        <button class="btn iconbtn" id="revertBtn" disabled aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
+        <button class="btn iconbtn" id="revertBtn" disabled hidden aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn cmpbtn" id="cmpBtn" disabled hidden aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
       </div>
       <div class="spacer"></div>
       <button class="btn ic sharebtn" id="shareBtn" title="Get a link to this beat"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.4 4.6 8.6 3.4a2.6 2.6 0 0 1 3.7 3.7L11.1 8.3"/><path d="M8.6 11.4 7.4 12.6a2.6 2.6 0 0 1-3.7-3.7L4.9 7.7"/></svg><span>Share</span></button>
@@ -1341,7 +1341,7 @@ function docOwner(){ return isLocalId(currentDocId) ? null : me ? me.username : 
 // save tracking: baseline is the last saved version of the open beat (as a JSON string), liveSnap is what's on screen now
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
 const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘S" : "Ctrl+S";
-let viewPage = 0, followPlay = true;
+let viewPage = 0;
 // which editor is open and the master level (a setting of this browser, not of the beat)
 let view = saved0?.view==="auto" ? "auto" : "loop", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
 let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the song plays from; songAbs: the next step the song schedules
@@ -1349,14 +1349,13 @@ let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the
 let laneSnap = ["off","beat","page","loop"].includes(saved0?.snap) ? saved0.snap : "page";
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
-  followPlay = saved0.followPlay !== false;
   currentDocId = typeof saved0.docId==="string" ? saved0.docId : null;
 }
 function persistLocal(){
   if(peek) return; // never autosave the version you're only comparing against
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
-      beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
+      beat: toJSON(S), viewPage, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
       master: Math.round(masterLvl*100), view, snap: laneSnap, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
@@ -1767,7 +1766,7 @@ function tick(){
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
+  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
   if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
@@ -1800,8 +1799,8 @@ function setPlayhead(s){
   if(s >= stepCount()) s = -1; // a step from a longer beat that was just replaced: no playhead until the next one
   if(s===phStep && s===phShown) return;
   const pg = s>=0 ? Math.floor(s/PAGE) : -1;
-  if(s>=0 && followPlay && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
-  if(s>=0 && followPlay && pg!==viewPage && !drag && !rangeHeld && popsClosed()){ viewPage = pg; phStep = s; render(); return; }
+  if(s>=0 && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
+  if(s>=0 && pg!==viewPage && !drag && !rangeHeld && popsClosed()){ viewPage = pg; phStep = s; render(); return; }
   if(phShown>=0 && columns[phShown]) columns[phShown].forEach(el => el.classList.remove("ph"));
   phStep = s;
   const local = s>=0 && pg===viewPage ? s%PAGE : -1;
@@ -2573,7 +2572,7 @@ function render(){
     Array.from({length:S.pages},(_,p) => `<button class="ptab" role="tab" data-act="page" data-p="${p}" aria-current="${p===viewPage}">Page ${p+1}<span class="mini">steps ${p*PAGE+1}-${p*PAGE+PAGE}</span></button>`).join("") +
     `</div><button class="btn" data-act="addpage" ${S.pages>=MAX_PAGES?"disabled":""}>+ Add page</button>` +
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
-    `<div class="spacer"></div><label class="check"><input type="checkbox" data-act="follow" ${followPlay?"checked":""}> Follow playhead</label>` +
+    `<div class="spacer"></div>` +
     `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages${S.pages>1 ? " · swipe sideways to switch" : ""}</span></div>`;
   const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupAll(muted, g)}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupAll(soloed, g)}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
   h += `<div class="sec"><div class="sech"><h2>Drums</h2>${gm("drums")}</div><span class="hint">Click or drag in any direction to paint · right-click or long-press for rolls</span></div>`;
@@ -3110,7 +3109,6 @@ rack.addEventListener("input", e => {
 });
 rack.addEventListener("change", e => {
   const t = e.target;
-  if(t.dataset.act==="follow"){ followPlay = t.checked; persistLocal(); return; }
   if(["vol","svol","rename","yvol"].includes(t.dataset.act)){ changed(); return; }
 });
 function insertPage(copy){
@@ -5448,13 +5446,11 @@ function updateSaveBar(){
   p.disabled = st==="wait" || st==="saving";
   const r = $("revertBtn");
   const theirEdits = st==="new" && viewing && unsavedWork();
-  r.disabled = st!=="dirty" && st!=="peek" && !theirEdits;
-  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
+  r.disabled = r.hidden = st!=="dirty" && st!=="peek" && !theirEdits; // nothing to go back to: not there at all
+  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : "Revert to the last save (Undo brings your changes back)";
   const c = $("cmpBtn");
-  c.disabled = st!=="dirty" && st!=="peek";
-  c.title = st==="peek" ? "Back to your edits (C or Esc)"
-    : st==="dirty" ? "Compare: flip to the last save to hear and see it, click again to come back (C)"
-    : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then you can compare your changes against it";
+  c.disabled = c.hidden = st!=="dirty" && st!=="peek";
+  c.title = st==="peek" ? "Back to your edits (C or Esc)" : "Compare: flip to the last save to hear and see it, click again to come back (C)";
   const rb = $("savedList").querySelector("li.cur [data-act=revert]");
   if(rb) rb.hidden = st!=="dirty";
   const t = (currentDocId && baseline!=null ? name + " · " : viewing ? `${name} by ${viewing.user} · ` : "") + "16.AKS.ZONE";
