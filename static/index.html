@@ -56,6 +56,26 @@ input[type=number]{width:64px;background:var(--panel-2);border:1px solid var(--l
 input[type=text],select,textarea{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
 input[type=range]{accent-color:var(--orange);width:110px}
 .spacer{flex:1}
+/* More controls: the feel and mix sliders, folded under the play row */
+.morectl{flex-basis:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-top:14px;border-top:1px dashed var(--line)}
+.morectl[hidden]{display:none}
+.mgrp{display:flex;flex-direction:column;gap:12px;padding:0 22px;min-width:0}
+.mgrp:first-child{padding-left:0}
+.mgrp:last-child{padding-right:0}
+.mgrp + .mgrp{border-left:1px solid var(--line)}
+.morectl .field{display:grid;grid-template-columns:104px minmax(0,1fr) 80px;column-gap:12px;align-items:center;min-height:24px}
+.morectl .field input[type=range]{width:100%;margin:0}
+.morectl .ticked,.morectl .notched{width:100%}
+.morectl .field > .num,.morectl #tposeOut,.morectl #verbOut{min-width:0;white-space:nowrap;text-align:right}
+.morectl .lfo-btn{grid-column:2;justify-self:start;margin-top:4px}
+.moretog{flex-basis:calc(100% + 28px);margin:0 -14px -12px;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 14px;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0 0 7px 7px;color:var(--ink-faint);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;font-stretch:112%}
+.moretog:hover{color:var(--ink-dim);background:var(--panel-2)}
+.moretog svg{width:10px;height:10px;flex:none;transition:transform .15s}
+.moretog[aria-expanded="true"] svg{transform:rotate(180deg)}
+.mtw{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--orange);font-weight:600;font-size:11.5px}
+.mtw:empty{display:none}
+@media (max-width:1000px){ .morectl{grid-template-columns:minmax(0,1fr);row-gap:12px} .mgrp,.mgrp:first-child,.mgrp:last-child{padding:0} .mgrp + .mgrp{border-left:0;border-top:1px dashed var(--line);padding-top:12px} }
+@media (max-width:420px){ .morectl .field{grid-template-columns:86px minmax(0,1fr) 76px;column-gap:8px} .morectl .field > .num{font-size:12px} }
 .btn{background:var(--panel-3);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-weight:600;font-size:12.5px;letter-spacing:.02em}
 .btn:hover{border-color:var(--ink-faint)}
 .btn.primary{background:var(--orange);border-color:var(--orange);color:#1c1006}
@@ -614,23 +634,32 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
     <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays" aria-keyshortcuts="L" title="What Play plays (L)"><button type="button" data-pm="loop" aria-pressed="true" title="Loop the pattern with the knobs as set (L)">Loop</button><button type="button" data-pm="auto" aria-pressed="false" title="Play the song with its automation lanes (L)">Automation</button></div><span class="num songpos" id="songPos"></span></div>
     <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="1"><span class="lbl">BPM</span></label>
-    <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
-    <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
-    <div class="field"><label class="lbl" for="tposeIn" title="Double-click the slider to reset">Transpose</label>
-      <span class="ticked"><input type="range" id="tposeIn" min="-1200" max="1200" step="1" value="0" data-default="0" data-fmt="st" aria-describedby="tposeOut" title="Double-click to reset"></span>
-      <span class="num" id="tposeOut">0 st</span>
-      <button class="lfo-btn" id="lfoBtn" aria-pressed="false" aria-expanded="false" aria-controls="lfoPop" title="Warble: LFO on transpose (shift-click to toggle)"><i class="led" aria-hidden="true"></i><svg viewBox="0 0 22 12" aria-hidden="true"><path class="wv" d="M-1 6 Q2 0 5 6 T11 6 T17 6 T23 6 T29 6 T35 6"/></svg></button></div>
-    <label class="field"><span class="lbl">Synth reverb</span>
-      <span class="notched" id="verbWrap"><input type="range" id="verbIn" min="0" max="100" step="1" value="15" data-default="15" data-fmt="%" aria-describedby="verbOut"><i class="notch" aria-hidden="true"></i><span class="washlbl" aria-hidden="true">WASH</span></span>
-      <span class="num" id="verbOut">15%</span></label>
-    <label class="field"><span class="lbl">Sidechain</span><input type="range" id="scIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%" title="How far the synths duck on every kick"><span class="num" id="scOut">0%</span></label>
-    <label class="field"><span class="lbl">Drum drive</span><input type="range" id="driveIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%"><span class="num" id="driveOut">0%</span></label>
-    <label class="field"><span class="lbl">Master</span><input type="range" id="masterIn" min="0" max="100" step="1" value="80" data-default="80" data-fmt="%"></label>
     <div class="spacer"></div>
     <div class="flagbar" id="flagbar" hidden>
       <button class="flagbtn" id="unmuteAll" hidden title="Shortcut: M" aria-keyshortcuts="M"><b>M</b><span></span></button>
       <button class="flagbtn" id="unsoloAll" hidden title="Shortcut: S" aria-keyshortcuts="S"><b>S</b><span></span></button>
     </div>
+    <div class="morectl" id="moreCtl" hidden>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
+        <div class="field"><label class="lbl" for="tposeIn" title="Double-click the slider to reset">Transpose</label>
+          <span class="ticked"><input type="range" id="tposeIn" min="-1200" max="1200" step="1" value="0" data-default="0" data-fmt="st" aria-describedby="tposeOut" title="Double-click to reset"></span>
+          <span class="num" id="tposeOut">0 st</span>
+          <button class="lfo-btn" id="lfoBtn" aria-pressed="false" aria-expanded="false" aria-controls="lfoPop" title="Warble: LFO on transpose (shift-click to toggle)"><i class="led" aria-hidden="true"></i><svg viewBox="0 0 22 12" aria-hidden="true"><path class="wv" d="M-1 6 Q2 0 5 6 T11 6 T17 6 T23 6 T29 6 T35 6"/></svg></button></div>
+      </div>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
+        <label class="field"><span class="lbl">Synth reverb</span>
+          <span class="notched" id="verbWrap"><input type="range" id="verbIn" min="0" max="100" step="1" value="15" data-default="15" data-fmt="%" aria-describedby="verbOut"><i class="notch" aria-hidden="true"></i><span class="washlbl" aria-hidden="true">WASH</span></span>
+          <span class="num" id="verbOut">15%</span></label>
+      </div>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Sidechain</span><input type="range" id="scIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%" title="How far the synths duck on every kick"><span class="num" id="scOut">0%</span></label>
+        <label class="field"><span class="lbl">Drum drive</span><input type="range" id="driveIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%"><span class="num" id="driveOut">0%</span></label>
+        <label class="field"><span class="lbl">Master</span><input type="range" id="masterIn" min="0" max="100" step="1" value="80" data-default="80" data-fmt="%"></label>
+      </div>
+    </div>
+    <button type="button" class="moretog" id="moreTog" aria-expanded="false" aria-controls="moreCtl"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="mtl">More controls</span><span class="mtw" id="moreTw"></span></button>
   </section>
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
@@ -3694,7 +3723,7 @@ function loadState(st, docId, src){
 
 /* ---------- JSON panel ---------- */
 function syncJson(){
-  specSoon();
+  specSoon(); moreHint();
   if(peek) return;
   const j = toJSON(S); liveSnap = JSON.stringify(j);
   if(document.activeElement!==$("jsonBox")) $("jsonBox").value = pretty(j);
@@ -3833,7 +3862,7 @@ function paintFrame(){
   const live = S.playMode==="auto" && activeLanes().length > 0;
   if(live || framePainted) withFrame(paintControls);
   framePainted = live;
-  markAuto(); smpVols(); songReadout(); lanesPlayhead();
+  markAuto(); smpVols(); songReadout(); lanesPlayhead(); moreHint();
 }
 function paintControls(){
   const pc = v => Math.round(v*100);
@@ -3863,6 +3892,30 @@ function paintControls(){
 }
 // the on-screen controls a lane drives, and the lane a control belongs to
 const GLOBAL_CTL = {swing:"swingIn", synthTone:"toneIn", transpose:"tposeIn", synthReverb:"verbIn", sidechain:"scIn", drumDrive:"driveIn", master:"masterIn", warble:"lfoBtn"};
+/* More controls: shut by default so a first visit sees Play, what it plays and the tempo; open or shut sticks in this browser */
+const LS_MORE = "ak16:morectl:v1";
+function setMore(open, keep){
+  $("moreCtl").hidden = !open; $("moreTog").setAttribute("aria-expanded", open);
+  $("moreTog").querySelector(".mtl").textContent = open ? "Fewer controls" : "More controls";
+  if(!open && (!lfoPop.hidden || !$("autoPop").hidden)) closePops(); // nothing left pointing at a folded-away slider
+  if(keep) try { localStorage.setItem(LS_MORE, open ? "1" : "0"); } catch {}
+  moreHint();
+}
+// shut, the bar says how many of the folded sliders are off their defaults or have a lane, so nothing changed hides unannounced
+function moreHint(){
+  const el = $("moreTw");
+  if(!S || !$("moreCtl").hidden){ el.textContent = ""; return; }
+  const off = (k, v) => Math.round(v * (k==="transpose" ? 1 : 100)) !== +$(GLOBAL_CTL[k]).dataset.default;
+  let n = 0, a = 0;
+  for(const k of Object.keys(GLOBAL_CTL)){
+    if(k==="warble" ? S.warble?.on : off(k, k==="master" ? masterLvl : S[k])) n++;
+    if(S.lanes?.[k]) a++;
+  }
+  el.textContent = [n && `${n} tweaked`, a && `${a} automated`].filter(Boolean).join(" · ");
+}
+$("moreTog").addEventListener("click", () => setMore($("moreCtl").hidden, true));
+$("masterIn").addEventListener("input", moreHint);
+setMore((() => { try { return localStorage.getItem(LS_MORE)==="1"; } catch { return false; } })(), false);
 const CTL_SEL = "#swingIn,#toneIn,#tposeIn,#verbIn,#scIn,#driveIn,#masterIn,#lfoBtn,#lfoOn,.gmute,.gsolo,.mute[data-kind],.vol[data-act],.knob[data-uid]";
 function ctlEls(id){
   if(GLOBAL_CTL[id]) return [$(GLOBAL_CTL[id])];
