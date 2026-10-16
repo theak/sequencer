@@ -1866,7 +1866,8 @@ function smpTrigger(s, t, off=0, song=false){
   else if(!song && s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
   if(s.beats) d.busyTill = at + rest;
   // a retrigger cuts the last hit short: any stop still queued from after this one can start is dropped, not just d.endE.
-  // A hit that comes in late (timers slowed in a background tab) would otherwise be stopped just after it starts.
+  // Otherwise a stop that lands after this hit's fire stops it just after it starts: one from a sample that ends
+  // inside the next hit's start delay, or one whose time was set before the audio and page clocks slipped (a background tab).
   const fireAt = at - Math.max(d.lead.play, d.lead.seek)*1000;
   for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d===d && smpQ[i].stop && smpQ[i].at > fireAt - 30) smpQ.splice(i,1);
   if(d.endE && !smpQ.includes(d.endE)) d.endE = null;
