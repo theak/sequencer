@@ -289,7 +289,12 @@ textarea{width:100%;resize:vertical}
 .saved{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
 .saved li{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
 .saved li.cur{border-color:var(--orange)}
-.saved .meta{flex:1;min-width:0}
+.saved .meta{flex:1;min-width:0;display:block;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.saved .meta > span{display:block}
+.saved li:not(.empty){cursor:pointer;transition:border-color .12s,background .12s}
+.saved li:not(.empty):not(.cur):hover{border-color:var(--ink-faint);background:color-mix(in srgb,var(--panel-2) 60%,var(--panel-3))}
+.saved li:has(.meta:focus-visible){outline:2px solid var(--orange);outline-offset:2px}
+.saved .meta:focus-visible{outline:none}
 .saved .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .saved .s{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono)}
 .empty{color:var(--ink-faint);font-size:12.5px}
@@ -4826,18 +4831,21 @@ function renderSaved(){
   if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Press ${SAVE_KEY} to save the one you're on.</li>`; return; }
   const link = db===cloudDb && me?.username;
   ul.innerHTML = savedDocs.map(d => `<li class="${d.id===currentDocId?"cur":""}" data-id="${esc(d.id)}">
-      <div class="meta"><div class="t">${esc(d.name||"Untitled")}</div><div class="s">${Math.round(d.bpm||0)} BPM · ${d.pages||1} pg · ${d.synths||0} synth · ${relTime(d.updatedAt||0)}${link ? ` · /${esc(me.username)}/${esc(d.id)}` : ""}</div></div>
-      <button class="btn" data-act="load">Open</button>
+      <button class="meta" data-act="load" aria-label="${d.id===currentDocId ? `${esc(d.name||"Untitled")} (open now)` : `Open ${esc(d.name||"Untitled")}`}"><span class="t">${esc(d.name||"Untitled")}</span><span class="s">${Math.round(d.bpm||0)} BPM · ${d.pages||1} pg · ${d.synths||0} synth · ${relTime(d.updatedAt||0)}${link ? ` · /${esc(me.username)}/${esc(d.id)}` : ""}</span></button>
+      ${d.id===currentDocId ? `<button class="btn" data-act="revert" hidden title="Go back to the saved version (Undo brings your changes back)">Revert</button>` : ""}
       <button class="btn" data-act="del" aria-label="Delete ${esc(d.name||"beat")}">Delete</button>
     </li>`).join("");
   updateSaveBar();
 }
+// a click anywhere on a card opens it, except on its own buttons. The open one just closes the dialog; its Revert button
+// (shown only while it has unsaved changes) goes back to the save
 $("savedList").addEventListener("click", async e => {
-  const b = e.target.closest("[data-act]") || (e.target.closest(".meta") && e.target.closest("li")?.querySelector("[data-act=load]"));
-  if(!b) return;
-  const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
+  const li = e.target.closest("li[data-id]"); if(!li) return;
+  const b = e.target.closest("[data-act]") || li.querySelector("[data-act=load]"); if(!b) return;
+  const id = li.dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
+  if(b.dataset.act==="revert"){ closeDlg("openDlg"); revertToSaved(); return; }
   if(b.dataset.act==="load"){
-    if(id===currentDocId){ closeDlg("openDlg"); if(saveState()==="dirty") revertToSaved(); return; }
+    if(id===currentDocId){ closeDlg("openDlg"); return; }
     openSaved(d);
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
@@ -5380,8 +5388,8 @@ function updateSaveBar(){
   c.title = st==="peek" ? "Back to your edits (C or Esc)"
     : st==="dirty" ? "Compare: flip to the last save to hear and see it, click again to come back (C)"
     : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then you can compare your changes against it";
-  const lb = $("savedList").querySelector("li.cur [data-act=load]");
-  if(lb){ lb.textContent = st==="dirty" ? "Revert" : "Open"; lb.title = st==="dirty" ? "Go back to the saved version (Undo brings your changes back)" : ""; }
+  const rb = $("savedList").querySelector("li.cur [data-act=revert]");
+  if(rb) rb.hidden = st!=="dirty";
   const t = (currentDocId && baseline!=null ? name + " · " : viewing ? `${name} by ${viewing.user} · ` : "") + "16.AKS.ZONE";
   document.title = (st==="dirty" || st==="peek" ? "• " : "") + t;
   syncUrl();
