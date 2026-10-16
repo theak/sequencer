@@ -56,6 +56,26 @@ input[type=number]{width:64px;background:var(--panel-2);border:1px solid var(--l
 input[type=text],select,textarea{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
 input[type=range]{accent-color:var(--orange);width:110px}
 .spacer{flex:1}
+/* More controls: the feel and mix sliders, folded under the play row */
+.morectl{flex-basis:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-top:14px;border-top:1px dashed var(--line)}
+.morectl[hidden]{display:none}
+.mgrp{display:flex;flex-direction:column;gap:12px;padding:0 22px;min-width:0}
+.mgrp:first-child{padding-left:0}
+.mgrp:last-child{padding-right:0}
+.mgrp + .mgrp{border-left:1px solid var(--line)}
+.morectl .field{display:grid;grid-template-columns:104px minmax(0,1fr) 80px;column-gap:12px;align-items:center;min-height:24px}
+.morectl .field input[type=range]{width:100%;margin:0}
+.morectl .ticked,.morectl .notched{width:100%}
+.morectl .field > .num,.morectl #tposeOut,.morectl #verbOut{min-width:0;white-space:nowrap;text-align:right}
+.morectl .lfo-btn{grid-column:2;justify-self:start;margin-top:4px}
+.moretog{flex-basis:calc(100% + 28px);margin:0 -14px -12px;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 14px;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0 0 7px 7px;color:var(--ink-faint);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;font-stretch:112%}
+.moretog:hover{color:var(--ink-dim);background:var(--panel-2)}
+.moretog svg{width:10px;height:10px;flex:none;transition:transform .15s}
+.moretog[aria-expanded="true"] svg{transform:rotate(180deg)}
+.mtw{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--orange);font-weight:600;font-size:11.5px}
+.mtw:empty{display:none}
+@media (max-width:1000px){ .morectl{grid-template-columns:minmax(0,1fr);row-gap:12px} .mgrp,.mgrp:first-child,.mgrp:last-child{padding:0} .mgrp + .mgrp{border-left:0;border-top:1px dashed var(--line);padding-top:12px} }
+@media (max-width:420px){ .morectl .field{grid-template-columns:86px minmax(0,1fr) 76px;column-gap:8px} .morectl .field > .num{font-size:12px} }
 .btn{background:var(--panel-3);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-weight:600;font-size:12.5px;letter-spacing:.02em}
 .btn:hover{border-color:var(--ink-faint)}
 .btn.primary{background:var(--orange);border-color:var(--orange);color:#1c1006}
@@ -215,6 +235,11 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .rmenu-sp{flex:none;width:16px}
 .smpdeck{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
 .smpdeck .sec{margin:0;padding:0;border:0;flex-wrap:wrap}
+/* in the loop editor the videos panel joins onto the rack, so the rows and their videos read as one Samples section */
+.rack.joined{border-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:4px}
+.smpdeck.joined{margin-top:-18px;border-top:0;border-top-left-radius:0;border-top-right-radius:0;padding-top:6px}
+.smpdeck .subsec{margin:0;flex-wrap:wrap}
+.smpdeck .subsec .lbl{color:var(--sample)}
 .smpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px}
 .smpcard{display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px}
 .smpcard.flash{border-color:var(--sample);box-shadow:0 0 0 1px var(--sample)}
@@ -289,7 +314,12 @@ textarea{width:100%;resize:vertical}
 .saved{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
 .saved li{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
 .saved li.cur{border-color:var(--orange)}
-.saved .meta{flex:1;min-width:0}
+.saved .meta{flex:1;min-width:0;display:block;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.saved .meta > span{display:block}
+.saved li:not(.empty){cursor:pointer;transition:border-color .12s,background .12s}
+.saved li:not(.empty):not(.cur):hover{border-color:var(--ink-faint);background:color-mix(in srgb,var(--panel-2) 60%,var(--panel-3))}
+.saved li:has(.meta:focus-visible){outline:2px solid var(--orange);outline-offset:2px}
+.saved .meta:focus-visible{outline:none}
 .saved .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .saved .s{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono)}
 .empty{color:var(--ink-faint);font-size:12.5px}
@@ -454,7 +484,7 @@ details.json[open] summary{margin-bottom:10px}
 .iconbtn svg,.cmpbtn svg{width:14px;height:14px}
 .cmpbtn[aria-pressed="true"]{background:var(--cream);border-color:var(--cream);color:#1a1814}
 .cmphint{font-size:12px;font-style:italic;color:var(--ink-faint);white-space:nowrap}
-.cmpbtn:disabled + .cmphint{opacity:.5}
+#revertBtn[hidden],#cmpBtn[hidden],#cmpBtn[hidden] + .cmphint{display:none}
 @media (hover:none),(max-width:1100px){ .cmphint{display:none} }
 @media (hover:none){ .savepill kbd{display:none} .savepill{padding-right:12px} }
 /* while comparing, the page shows the last save and can't be edited */
@@ -594,8 +624,8 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <button class="btn" id="newBtn">New</button>
       <div class="filebar" id="filebar">
         <button class="savepill" id="savePill" data-state="wait" aria-live="polite"><i class="sdot" aria-hidden="true"></i><span class="sname" id="saveName"></span><span class="sstate" id="saveStateTxt"></span><kbd id="saveKey" aria-hidden="true">⌘S</kbd></button>
-        <button class="btn iconbtn" id="revertBtn" disabled aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn cmpbtn" id="cmpBtn" disabled aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
+        <button class="btn iconbtn" id="revertBtn" disabled hidden aria-label="Revert to the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.2 5.2A4.6 4.6 0 1 1 2.6 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn cmpbtn" id="cmpBtn" disabled hidden aria-pressed="false" aria-keyshortcuts="C" aria-label="Compare with the last save"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg><span class="cmplbl">Compare</span></button><span class="cmphint" aria-hidden="true">flip to last save</span>
       </div>
       <div class="spacer"></div>
       <button class="btn ic sharebtn" id="shareBtn" title="Get a link to this beat"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.4 4.6 8.6 3.4a2.6 2.6 0 0 1 3.7 3.7L11.1 8.3"/><path d="M8.6 11.4 7.4 12.6a2.6 2.6 0 0 1-3.7-3.7L4.9 7.7"/></svg><span>Share</span></button>
@@ -604,29 +634,39 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
     <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays" aria-keyshortcuts="L" title="What Play plays (L)"><button type="button" data-pm="loop" aria-pressed="true" title="Loop the pattern with the knobs as set (L)">Loop</button><button type="button" data-pm="auto" aria-pressed="false" title="Play the song with its automation lanes (L)">Automation</button></div><span class="num songpos" id="songPos"></span></div>
     <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="1"><span class="lbl">BPM</span></label>
-    <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
-    <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
-    <div class="field"><label class="lbl" for="tposeIn" title="Double-click the slider to reset">Transpose</label>
-      <span class="ticked"><input type="range" id="tposeIn" min="-1200" max="1200" step="1" value="0" data-default="0" data-fmt="st" aria-describedby="tposeOut" title="Double-click to reset"></span>
-      <span class="num" id="tposeOut">0 st</span>
-      <button class="lfo-btn" id="lfoBtn" aria-pressed="false" aria-expanded="false" aria-controls="lfoPop" title="Warble: LFO on transpose (shift-click to toggle)"><i class="led" aria-hidden="true"></i><svg viewBox="0 0 22 12" aria-hidden="true"><path class="wv" d="M-1 6 Q2 0 5 6 T11 6 T17 6 T23 6 T29 6 T35 6"/></svg></button></div>
-    <label class="field"><span class="lbl">Synth reverb</span>
-      <span class="notched" id="verbWrap"><input type="range" id="verbIn" min="0" max="100" step="1" value="15" data-default="15" data-fmt="%" aria-describedby="verbOut"><i class="notch" aria-hidden="true"></i><span class="washlbl" aria-hidden="true">WASH</span></span>
-      <span class="num" id="verbOut">15%</span></label>
-    <label class="field"><span class="lbl">Sidechain</span><input type="range" id="scIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%" title="How far the synths duck on every kick"><span class="num" id="scOut">0%</span></label>
-    <label class="field"><span class="lbl">Drum drive</span><input type="range" id="driveIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%"><span class="num" id="driveOut">0%</span></label>
-    <label class="field"><span class="lbl">Master</span><input type="range" id="masterIn" min="0" max="100" step="1" value="80" data-default="80" data-fmt="%"></label>
     <div class="spacer"></div>
     <div class="flagbar" id="flagbar" hidden>
       <button class="flagbtn" id="unmuteAll" hidden title="Shortcut: M" aria-keyshortcuts="M"><b>M</b><span></span></button>
       <button class="flagbtn" id="unsoloAll" hidden title="Shortcut: S" aria-keyshortcuts="S"><b>S</b><span></span></button>
     </div>
+    <div class="morectl" id="moreCtl" hidden>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Swing</span><input type="range" id="swingIn" min="0" max="50" step="1" data-default="0" data-fmt="%"><span class="num" id="swingOut">0%</span></label>
+        <div class="field"><label class="lbl" for="tposeIn" title="Double-click the slider to reset">Transpose</label>
+          <span class="ticked"><input type="range" id="tposeIn" min="-1200" max="1200" step="1" value="0" data-default="0" data-fmt="st" aria-describedby="tposeOut" title="Double-click to reset"></span>
+          <span class="num" id="tposeOut">0 st</span>
+          <button class="lfo-btn" id="lfoBtn" aria-pressed="false" aria-expanded="false" aria-controls="lfoPop" title="Warble: LFO on transpose (shift-click to toggle)"><i class="led" aria-hidden="true"></i><svg viewBox="0 0 22 12" aria-hidden="true"><path class="wv" d="M-1 6 Q2 0 5 6 T11 6 T17 6 T23 6 T29 6 T35 6"/></svg></button></div>
+      </div>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Synth tone</span><input type="range" id="toneIn" min="0" max="100" step="1" value="45" data-default="45" data-fmt="%"></label>
+        <label class="field"><span class="lbl">Synth reverb</span>
+          <span class="notched" id="verbWrap"><input type="range" id="verbIn" min="0" max="100" step="1" value="15" data-default="15" data-fmt="%" aria-describedby="verbOut"><i class="notch" aria-hidden="true"></i><span class="washlbl" aria-hidden="true">WASH</span></span>
+          <span class="num" id="verbOut">15%</span></label>
+      </div>
+      <div class="mgrp">
+        <label class="field"><span class="lbl">Sidechain</span><input type="range" id="scIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%" title="How far the synths duck on every kick"><span class="num" id="scOut">0%</span></label>
+        <label class="field"><span class="lbl">Drum drive</span><input type="range" id="driveIn" min="0" max="100" step="1" value="0" data-default="0" data-fmt="%"><span class="num" id="driveOut">0%</span></label>
+        <label class="field"><span class="lbl">Master</span><input type="range" id="masterIn" min="0" max="100" step="1" value="80" data-default="80" data-fmt="%"></label>
+      </div>
+    </div>
+    <button type="button" class="moretog" id="moreTog" aria-expanded="false" aria-controls="moreCtl"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="mtl">More controls</span><span class="mtw" id="moreTw"></span></button>
   </section>
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
   <section class="smpdeck" id="smpDeck" aria-label="Sample videos" hidden>
-    <div class="sec"><h2>Sample videos</h2><span class="hint" id="smpHint"></span></div>
+    <div class="subsec"><span class="lbl">Videos</span><span class="hint" id="smpHint"></span></div>
     <div class="smpgrid" id="smpGrid"></div>
+    <div class="addrow"><button class="btn" id="smpAdd">+ Add sample</button><span class="hint" id="smpAddHint"></span></div>
   </section>
 
   <details class="json spec" id="specDetails">
@@ -1301,7 +1341,7 @@ function docOwner(){ return isLocalId(currentDocId) ? null : me ? me.username : 
 // save tracking: baseline is the last saved version of the open beat (as a JSON string), liveSnap is what's on screen now
 let baseline = null, baselineAt = 0, loadedSnap = null, liveSnap = null, docsLoaded = false, saving = false, saveErr = false, saveOff = false, peek = null;
 const SAVE_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "⌘S" : "Ctrl+S";
-let viewPage = 0, followPlay = true;
+let viewPage = 0;
 // which editor is open and the master level (a setting of this browser, not of the beat)
 let view = saved0?.view==="auto" ? "auto" : "loop", masterLvl = saved0?.master!=null ? clamp(saved0.master/100, 0, 1, .8) : .8;
 let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the song plays from; songAbs: the next step the song schedules
@@ -1309,14 +1349,13 @@ let songCur = 0, songAbs = 0, phAbs = -1, autoWas = false; // songCur: where the
 let laneSnap = ["off","beat","page","loop"].includes(saved0?.snap) ? saved0.snap : "page";
 if(saved0){
   viewPage = Math.max(0, Math.min(S.pages-1, saved0.viewPage|0));
-  followPlay = saved0.followPlay !== false;
   currentDocId = typeof saved0.docId==="string" ? saved0.docId : null;
 }
 function persistLocal(){
   if(peek) return; // never autosave the version you're only comparing against
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
-      beat: toJSON(S), viewPage, followPlay, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
+      beat: toJSON(S), viewPage, docId: currentDocId, docOwner: currentDocId ? docOwner() : null, viewing,
       master: Math.round(masterLvl*100), view, snap: laneSnap, model: $("tierSel").value || saved0?.model || "", prompt: $("prompt").value.slice(0,2000), spec: $("specDetails").open, ai: $("aiDetails").open,
     }));
   } catch {}
@@ -1727,7 +1766,7 @@ function tick(){
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = followPlay ? 0 : viewPage*PAGE; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
+  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
   if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
@@ -1760,8 +1799,8 @@ function setPlayhead(s){
   if(s >= stepCount()) s = -1; // a step from a longer beat that was just replaced: no playhead until the next one
   if(s===phStep && s===phShown) return;
   const pg = s>=0 ? Math.floor(s/PAGE) : -1;
-  if(s>=0 && followPlay && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
-  if(s>=0 && followPlay && pg!==viewPage && !drag && !rangeHeld && popsClosed()){ viewPage = pg; phStep = s; render(); return; }
+  if(s>=0 && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
+  if(s>=0 && pg!==viewPage && !drag && !rangeHeld && popsClosed()){ viewPage = pg; phStep = s; render(); return; }
   if(phShown>=0 && columns[phShown]) columns[phShown].forEach(el => el.classList.remove("ph"));
   phStep = s;
   const local = s>=0 && pg===viewPage ? s%PAGE : -1;
@@ -2137,11 +2176,23 @@ function smpNames(){
     if(d){ const t = d.card.querySelector('[data-f="title"]'); t.textContent = smpName(s, i); t.classList.toggle("empty", !s.title); }
   });
 }
+$("smpAdd").addEventListener("click", addSample);
 function smpPreviewBtn(d){ const b = d.card.querySelector('[data-f="preview"]'); if(b){ b.setAttribute("aria-pressed", !!d.preview); b.textContent = d.preview ? "Stop" : "Preview"; } }
 // keep one card per sample row. Cards live outside the rack because moving a YouTube iframe reloads it;
 // a load, undo or compare hands an old card to the new row with the same video, so the player doesn't reload
+const smpAddHint = () => `${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x`;
+function addSample(){
+  if(S.samples.length>=MAX_SAMPLES) return;
+  const s = newSample(stepCount()); S.samples.push(s);
+  render(); commit();
+  const d = decks.get(s.uid);
+  if(d){ d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"}); d.card.querySelector('[data-f="link"]').focus({preventScroll:true}); }
+}
 function syncDeck(){
   $("smpDeck").hidden = !S.samples.length;
+  const joined = S.samples.length > 0 && view==="loop";
+  rack.classList.toggle("joined", joined); $("smpDeck").classList.toggle("joined", joined);
+  $("smpAdd").disabled = S.samples.length>=MAX_SAMPLES; $("smpAddHint").textContent = smpAddHint();
   $("smpHint").textContent = YT_OK ? "They play in YouTube's own player, so each one learns its start delay over its first hit or two. The ring by each sample drifts while it's lining up and stands still once it's in sync. They aren't in WAV exports."
     : "YouTube can't play inside this Claude page, but samples save with the beat and play in the self-hosted AK-16.";
   const live = new Set(S.samples.map(s => s.uid));
@@ -2521,7 +2572,7 @@ function render(){
     Array.from({length:S.pages},(_,p) => `<button class="ptab" role="tab" data-act="page" data-p="${p}" aria-current="${p===viewPage}">Page ${p+1}<span class="mini">steps ${p*PAGE+1}-${p*PAGE+PAGE}</span></button>`).join("") +
     `</div><button class="btn" data-act="addpage" ${S.pages>=MAX_PAGES?"disabled":""}>+ Add page</button>` +
     (S.pages>1 ? `<button class="btn" data-act="delpage">Delete page ${viewPage+1}</button>` : "") +
-    `<div class="spacer"></div><label class="check"><input type="checkbox" data-act="follow" ${followPlay?"checked":""}> Follow playhead</label>` +
+    `<div class="spacer"></div>` +
     `<span class="hint">${S.pages*PAGE} steps · ${S.pages}/${MAX_PAGES} pages${S.pages>1 ? " · swipe sideways to switch" : ""}</span></div>`;
   const gm = g => `<button class="gmute" data-act="gmute" data-g="${g}" aria-pressed="${groupAll(muted, g)}" title="Mute all ${g}" aria-label="Mute all ${g}">M</button><button class="gsolo" data-act="gsolo" data-g="${g}" aria-pressed="${groupAll(soloed, g)}" title="Solo all ${g}" aria-label="Solo all ${g}">S</button>`;
   h += `<div class="sec"><div class="sech"><h2>Drums</h2>${gm("drums")}</div><span class="hint">Click or drag in any direction to paint · right-click or long-press for rolls</span></div>`;
@@ -2546,7 +2597,7 @@ function render(){
   h += `<div class="addrow"><button class="btn" data-act="addsyn" ${full}>+ Add synth</button><button class="btn" data-act="addpoly" ${full}>+ Add chord synth</button><span class="hint">${userSynths().length}/${MAX_SYNTHS} · mono plays one note at a time, poly plays chords</span></div>`;
   h += `<div class="sec"><div class="sech"><h2>Samples</h2>${S.samples.length ? gm("samples") : ""}</div><span class="hint">Click a step to start the video there · it plays for the length set on its card below · right-click clears</span></div>`;
   S.samples.forEach((s,i) => { h += smpRow(s, i, off); });
-  h += `<div class="addrow"><button class="btn" data-act="addsmp" ${S.samples.length>=MAX_SAMPLES ? "disabled" : ""}>+ Add sample</button><span class="hint">${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x</span></div>`;
+  if(!S.samples.length) h += `<div class="addrow"><button class="btn" data-act="addsmp">+ Add sample</button><span class="hint">${smpAddHint()}</span></div>`; // with samples, it sits under their videos
   const fb = $("flagbar"); fb.remove();           // keep the live Unmute/Unsolo bar across re-renders
   rack.innerHTML = h;
   renderRest(fb);
@@ -3034,11 +3085,7 @@ rack.addEventListener("click", e => {
     closePops(); render(); commit();
     toast(s.poly ? `${s.name} is poly: steps can hold chords` : had ? `${s.name} is mono: kept the top note of each chord (Undo restores them)` : `${s.name} is mono`);
   } else if(act==="addsmp"){
-    if(S.samples.length>=MAX_SAMPLES) return;
-    const s = newSample(stepCount()); S.samples.push(s);
-    render(); commit();
-    const d = decks.get(s.uid);
-    if(d){ d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"}); d.card.querySelector('[data-f="link"]').focus({preventScroll:true}); }
+    addSample();
   } else if(act==="smpgo"){
     const d = decks.get(+b.dataset.uid); if(!d) return;
     d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"});
@@ -3062,7 +3109,6 @@ rack.addEventListener("input", e => {
 });
 rack.addEventListener("change", e => {
   const t = e.target;
-  if(t.dataset.act==="follow"){ followPlay = t.checked; persistLocal(); return; }
   if(["vol","svol","rename","yvol"].includes(t.dataset.act)){ changed(); return; }
 });
 function insertPage(copy){
@@ -3675,7 +3721,7 @@ function loadState(st, docId, src){
 
 /* ---------- JSON panel ---------- */
 function syncJson(){
-  specSoon();
+  specSoon(); moreHint();
   if(peek) return;
   const j = toJSON(S); liveSnap = JSON.stringify(j);
   if(document.activeElement!==$("jsonBox")) $("jsonBox").value = pretty(j);
@@ -3814,7 +3860,7 @@ function paintFrame(){
   const live = S.playMode==="auto" && activeLanes().length > 0;
   if(live || framePainted) withFrame(paintControls);
   framePainted = live;
-  markAuto(); smpVols(); songReadout(); lanesPlayhead();
+  markAuto(); smpVols(); songReadout(); lanesPlayhead(); moreHint();
 }
 function paintControls(){
   const pc = v => Math.round(v*100);
@@ -3844,6 +3890,30 @@ function paintControls(){
 }
 // the on-screen controls a lane drives, and the lane a control belongs to
 const GLOBAL_CTL = {swing:"swingIn", synthTone:"toneIn", transpose:"tposeIn", synthReverb:"verbIn", sidechain:"scIn", drumDrive:"driveIn", master:"masterIn", warble:"lfoBtn"};
+/* More controls: shut by default so a first visit sees Play, what it plays and the tempo; open or shut sticks in this browser */
+const LS_MORE = "ak16:morectl:v1";
+function setMore(open, keep){
+  $("moreCtl").hidden = !open; $("moreTog").setAttribute("aria-expanded", open);
+  $("moreTog").querySelector(".mtl").textContent = open ? "Fewer controls" : "More controls";
+  if(!open && (!lfoPop.hidden || !$("autoPop").hidden)) closePops(); // nothing left pointing at a folded-away slider
+  if(keep) try { localStorage.setItem(LS_MORE, open ? "1" : "0"); } catch {}
+  moreHint();
+}
+// shut, the bar says how many of the folded sliders are off their defaults or have a lane, so nothing changed hides unannounced
+function moreHint(){
+  const el = $("moreTw");
+  if(!S || !$("moreCtl").hidden){ el.textContent = ""; return; }
+  const off = (k, v) => Math.round(v * (k==="transpose" ? 1 : 100)) !== +$(GLOBAL_CTL[k]).dataset.default;
+  let n = 0, a = 0;
+  for(const k of Object.keys(GLOBAL_CTL)){
+    if(k==="warble" ? S.warble?.on : off(k, k==="master" ? masterLvl : S[k])) n++;
+    if(S.lanes?.[k]) a++;
+  }
+  el.textContent = [n && `${n} tweaked`, a && `${a} automated`].filter(Boolean).join(" · ");
+}
+$("moreTog").addEventListener("click", () => setMore($("moreCtl").hidden, true));
+$("masterIn").addEventListener("input", moreHint);
+setMore((() => { try { return localStorage.getItem(LS_MORE)==="1"; } catch { return false; } })(), false);
 const CTL_SEL = "#swingIn,#toneIn,#tposeIn,#verbIn,#scIn,#driveIn,#masterIn,#lfoBtn,#lfoOn,.gmute,.gsolo,.mute[data-kind],.vol[data-act],.knob[data-uid]";
 function ctlEls(id){
   if(GLOBAL_CTL[id]) return [$(GLOBAL_CTL[id])];
@@ -4826,18 +4896,21 @@ function renderSaved(){
   if(!savedDocs.length){ ul.innerHTML = `<li class="empty">No saved beats yet. Press ${SAVE_KEY} to save the one you're on.</li>`; return; }
   const link = db===cloudDb && me?.username;
   ul.innerHTML = savedDocs.map(d => `<li class="${d.id===currentDocId?"cur":""}" data-id="${esc(d.id)}">
-      <div class="meta"><div class="t">${esc(d.name||"Untitled")}</div><div class="s">${Math.round(d.bpm||0)} BPM · ${d.pages||1} pg · ${d.synths||0} synth · ${relTime(d.updatedAt||0)}${link ? ` · /${esc(me.username)}/${esc(d.id)}` : ""}</div></div>
-      <button class="btn" data-act="load">Open</button>
+      <button class="meta" data-act="load" aria-label="${d.id===currentDocId ? `${esc(d.name||"Untitled")} (open now)` : `Open ${esc(d.name||"Untitled")}`}"><span class="t">${esc(d.name||"Untitled")}</span><span class="s">${Math.round(d.bpm||0)} BPM · ${d.pages||1} pg · ${d.synths||0} synth · ${relTime(d.updatedAt||0)}${link ? ` · /${esc(me.username)}/${esc(d.id)}` : ""}</span></button>
+      ${d.id===currentDocId ? `<button class="btn" data-act="revert" hidden title="Go back to the saved version (Undo brings your changes back)">Revert</button>` : ""}
       <button class="btn" data-act="del" aria-label="Delete ${esc(d.name||"beat")}">Delete</button>
     </li>`).join("");
   updateSaveBar();
 }
+// a click anywhere on a card opens it, except on its own buttons. The open one just closes the dialog; its Revert button
+// (shown only while it has unsaved changes) goes back to the save
 $("savedList").addEventListener("click", async e => {
-  const b = e.target.closest("[data-act]") || (e.target.closest(".meta") && e.target.closest("li")?.querySelector("[data-act=load]"));
-  if(!b) return;
-  const id = b.closest("li").dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
+  const li = e.target.closest("li[data-id]"); if(!li) return;
+  const b = e.target.closest("[data-act]") || li.querySelector("[data-act=load]"); if(!b) return;
+  const id = li.dataset.id, d = savedDocs.find(x => x.id===id); if(!d) return;
+  if(b.dataset.act==="revert"){ closeDlg("openDlg"); revertToSaved(); return; }
   if(b.dataset.act==="load"){
-    if(id===currentDocId){ closeDlg("openDlg"); if(saveState()==="dirty") revertToSaved(); return; }
+    if(id===currentDocId){ closeDlg("openDlg"); return; }
     openSaved(d);
   } else if(b.dataset.act==="del"){
     if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirm"; b.classList.add("warn"); setTimeout(() => { if(b.isConnected){ delete b.dataset.armed; b.textContent = "Delete"; b.classList.remove("warn"); } }, 2500); return; }
@@ -5373,15 +5446,13 @@ function updateSaveBar(){
   p.disabled = st==="wait" || st==="saving";
   const r = $("revertBtn");
   const theirEdits = st==="new" && viewing && unsavedWork();
-  r.disabled = st!=="dirty" && st!=="peek" && !theirEdits;
-  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : r.disabled ? "Revert to the last save (nothing to revert)" : "Revert to the last save (Undo brings your changes back)";
+  r.disabled = r.hidden = st!=="dirty" && st!=="peek" && !theirEdits; // nothing to go back to: not there at all
+  r.title = theirEdits ? `Drop your edits and get ${viewing.user}'s latest version (Undo brings your edits back)` : "Revert to the last save (Undo brings your changes back)";
   const c = $("cmpBtn");
-  c.disabled = st!=="dirty" && st!=="peek";
-  c.title = st==="peek" ? "Back to your edits (C or Esc)"
-    : st==="dirty" ? "Compare: flip to the last save to hear and see it, click again to come back (C)"
-    : currentDocId && baseline!=null ? "Nothing to compare yet: no changes since the last save" : "Save this beat once, then you can compare your changes against it";
-  const lb = $("savedList").querySelector("li.cur [data-act=load]");
-  if(lb){ lb.textContent = st==="dirty" ? "Revert" : "Open"; lb.title = st==="dirty" ? "Go back to the saved version (Undo brings your changes back)" : ""; }
+  c.disabled = c.hidden = st!=="dirty" && st!=="peek";
+  c.title = st==="peek" ? "Back to your edits (C or Esc)" : "Compare: flip to the last save to hear and see it, click again to come back (C)";
+  const rb = $("savedList").querySelector("li.cur [data-act=revert]");
+  if(rb) rb.hidden = st!=="dirty";
   const t = (currentDocId && baseline!=null ? name + " · " : viewing ? `${name} by ${viewing.user} · ` : "") + "16.AKS.ZONE";
   document.title = (st==="dirty" || st==="peek" ? "• " : "") + t;
   syncUrl();
