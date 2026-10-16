@@ -1799,6 +1799,8 @@ function smpDue(){
 }
 function smpAt(at, fn, d=null){ const e = {at, fn, d}; smpQ.push(e); setTimeout(smpDue, Math.max(0, at - performance.now())); return e; }
 function smpCancel(e){ const i = e ? smpQ.indexOf(e) : -1; if(i>=0) smpQ.splice(i,1); }
+// a hit's stop. It only clears d.endE if that's still this one, so a stop left over from an earlier hit can't hide the current one
+function smpEnd(d, at){ const e = smpAt(at, () => smpStop(d, e), d); e.stop = true; return e; }
 // plans triggers from the drum clock's next step, so tempo changes and page edits never pull them out of line
 function smpTick(){
   smpDue();
@@ -1844,7 +1846,7 @@ function smpJoin(s, a, t){
   d.run = false; d.busyTill = 0;
   if(sp){ smpTrigger(s, t, a - sp.at, true); return; }
   // nothing of it plays here: whatever it was playing stops on the beat
-  if(d.runAt!=null || d.st===1 || d.st===3){ smpCancel(d.endE); d.endE = smpAt(performance.now() + (t - ctx.currentTime)*1000, () => smpStop(d), d); }
+  if(d.runAt!=null || d.st===1 || d.st===3){ smpCancel(d.endE); d.endE = smpEnd(d, performance.now() + (t - ctx.currentTime)*1000); }
 }
 // the song moved under the samples (a jump, an insert or delete, a switch to the song): drop what was planned
 // for the old position and plan again from the next step
@@ -1863,10 +1865,15 @@ function smpTrigger(s, t, off=0, song=false){
   if(!s.beats){ if(d.run) return; d.run = true; }            // ∞ starts once and keeps going through every loop
   else if(!song && s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
   if(s.beats) d.busyTill = at + rest;
-  if(d.endE && d.endE.at > at - 30){ smpCancel(d.endE); d.endE = null; } // a retrigger cuts the last hit short
+  // a retrigger cuts the last hit short: any stop still queued from after this one can start is dropped, not just d.endE.
+  // Otherwise a stop that lands after this hit's fire stops it just after it starts: one from a sample that ends
+  // inside the next hit's start delay, or one whose time was set before the audio and page clocks slipped (a background tab).
+  const fireAt = at - Math.max(d.lead.play, d.lead.seek)*1000;
+  for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d===d && smpQ[i].stop && smpQ[i].at > fireAt - 30) smpQ.splice(i,1);
+  if(d.endE && !smpQ.includes(d.endE)) d.endE = null;
   const into = off*stepMs/1000; // seconds of the beat it's already played
-  smpAt(at - Math.max(d.lead.play, d.lead.seek)*1000, () => smpFire(d, at, into), d);
-  if(s.beats) d.endE = smpAt(at + rest, () => smpStop(d), d);
+  smpAt(fireAt, () => smpFire(d, at, into), d);
+  if(s.beats) d.endE = smpEnd(d, at + rest);
 }
 function smpFire(d, at, into=0){
   const s = smpOf(d), p = d.player;
@@ -2001,8 +2008,8 @@ function strobeFrame(now){
   strobeRaf = more ? requestAnimationFrame(strobeFrame) : 0;
 }
 // pause and park on the start point, ready for the next hit
-function smpStop(d){
-  d.endE = null; d.preview = false; d.runAt = null; smpPreviewBtn(d);
+function smpStop(d, e=null){
+  if(!e || d.endE===e) d.endE = null; d.preview = false; d.runAt = null; smpPreviewBtn(d);
   const s = smpOf(d), p = d.player; if(!p || !d.ready) return;
   try { p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } } catch {}
 }
@@ -2215,7 +2222,7 @@ $("smpGrid").addEventListener("click", e => {
     d.preview = true; d.priming = false; smpPreviewBtn(d);
     smpUnmute(d);
     smpVol(d, s); d.player.seekTo(s.start, true); d.player.playVideo(); d.cuedAt = null;
-    smpCancel(d.endE); d.endE = smpAt(performance.now() + (s.beats || 8)*60000/S.bpm, () => smpStop(d), d);
+    smpCancel(d.endE); d.endE = smpEnd(d, performance.now() + (s.beats || 8)*60000/S.bpm);
   }
 });
 
