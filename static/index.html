@@ -215,6 +215,11 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .rmenu-sp{flex:none;width:16px}
 .smpdeck{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
 .smpdeck .sec{margin:0;padding:0;border:0;flex-wrap:wrap}
+/* in the loop editor the videos panel joins onto the rack, so the rows and their videos read as one Samples section */
+.rack.joined{border-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:4px}
+.smpdeck.joined{margin-top:-18px;border-top:0;border-top-left-radius:0;border-top-right-radius:0;padding-top:6px}
+.smpdeck .subsec{margin:0;flex-wrap:wrap}
+.smpdeck .subsec .lbl{color:var(--sample)}
 .smpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px}
 .smpcard{display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px}
 .smpcard.flash{border-color:var(--sample);box-shadow:0 0 0 1px var(--sample)}
@@ -630,8 +635,9 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
 
   <section class="rack" id="rack" aria-label="Step sequencer"></section>
   <section class="smpdeck" id="smpDeck" aria-label="Sample videos" hidden>
-    <div class="sec"><h2>Sample videos</h2><span class="hint" id="smpHint"></span></div>
+    <div class="subsec"><span class="lbl">Videos</span><span class="hint" id="smpHint"></span></div>
     <div class="smpgrid" id="smpGrid"></div>
+    <div class="addrow"><button class="btn" id="smpAdd">+ Add sample</button><span class="hint" id="smpAddHint"></span></div>
   </section>
 
   <details class="json spec" id="specDetails">
@@ -2142,11 +2148,23 @@ function smpNames(){
     if(d){ const t = d.card.querySelector('[data-f="title"]'); t.textContent = smpName(s, i); t.classList.toggle("empty", !s.title); }
   });
 }
+$("smpAdd").addEventListener("click", addSample);
 function smpPreviewBtn(d){ const b = d.card.querySelector('[data-f="preview"]'); if(b){ b.setAttribute("aria-pressed", !!d.preview); b.textContent = d.preview ? "Stop" : "Preview"; } }
 // keep one card per sample row. Cards live outside the rack because moving a YouTube iframe reloads it;
 // a load, undo or compare hands an old card to the new row with the same video, so the player doesn't reload
+const smpAddHint = () => `${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x`;
+function addSample(){
+  if(S.samples.length>=MAX_SAMPLES) return;
+  const s = newSample(stepCount()); S.samples.push(s);
+  render(); commit();
+  const d = decks.get(s.uid);
+  if(d){ d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"}); d.card.querySelector('[data-f="link"]').focus({preventScroll:true}); }
+}
 function syncDeck(){
   $("smpDeck").hidden = !S.samples.length;
+  const joined = S.samples.length > 0 && view==="loop";
+  rack.classList.toggle("joined", joined); $("smpDeck").classList.toggle("joined", joined);
+  $("smpAdd").disabled = S.samples.length>=MAX_SAMPLES; $("smpAddHint").textContent = smpAddHint();
   $("smpHint").textContent = YT_OK ? "They play in YouTube's own player, so each one learns its start delay over its first hit or two. The ring by each sample drifts while it's lining up and stands still once it's in sync. They aren't in WAV exports."
     : "YouTube can't play inside this Claude page, but samples save with the beat and play in the self-hosted AK-16.";
   const live = new Set(S.samples.map(s => s.uid));
@@ -2551,7 +2569,7 @@ function render(){
   h += `<div class="addrow"><button class="btn" data-act="addsyn" ${full}>+ Add synth</button><button class="btn" data-act="addpoly" ${full}>+ Add chord synth</button><span class="hint">${userSynths().length}/${MAX_SYNTHS} · mono plays one note at a time, poly plays chords</span></div>`;
   h += `<div class="sec"><div class="sech"><h2>Samples</h2>${S.samples.length ? gm("samples") : ""}</div><span class="hint">Click a step to start the video there · it plays for the length set on its card below · right-click clears</span></div>`;
   S.samples.forEach((s,i) => { h += smpRow(s, i, off); });
-  h += `<div class="addrow"><button class="btn" data-act="addsmp" ${S.samples.length>=MAX_SAMPLES ? "disabled" : ""}>+ Add sample</button><span class="hint">${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x</span></div>`;
+  if(!S.samples.length) h += `<div class="addrow"><button class="btn" data-act="addsmp">+ Add sample</button><span class="hint">${smpAddHint()}</span></div>`; // with samples, it sits under their videos
   const fb = $("flagbar"); fb.remove();           // keep the live Unmute/Unsolo bar across re-renders
   rack.innerHTML = h;
   renderRest(fb);
@@ -3039,11 +3057,7 @@ rack.addEventListener("click", e => {
     closePops(); render(); commit();
     toast(s.poly ? `${s.name} is poly: steps can hold chords` : had ? `${s.name} is mono: kept the top note of each chord (Undo restores them)` : `${s.name} is mono`);
   } else if(act==="addsmp"){
-    if(S.samples.length>=MAX_SAMPLES) return;
-    const s = newSample(stepCount()); S.samples.push(s);
-    render(); commit();
-    const d = decks.get(s.uid);
-    if(d){ d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"}); d.card.querySelector('[data-f="link"]').focus({preventScroll:true}); }
+    addSample();
   } else if(act==="smpgo"){
     const d = decks.get(+b.dataset.uid); if(!d) return;
     d.card.scrollIntoView({block:"nearest", behavior:reduceMotion ? "auto" : "smooth"});
