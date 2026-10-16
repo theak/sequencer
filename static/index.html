@@ -1757,6 +1757,7 @@ function stopPlay(){
 }
 let phStep = -1, phShown = -1, columns = [];
 function setPlayhead(s){
+  if(s >= stepCount()) s = -1; // a step from a longer beat that was just replaced: no playhead until the next one
   if(s===phStep && s===phShown) return;
   const pg = s>=0 ? Math.floor(s/PAGE) : -1;
   if(s>=0 && followPlay && pg!==viewPage && view==="auto") viewPage = pg; // the grid isn't showing: just be on the right page later
@@ -2488,7 +2489,7 @@ $("importJsonIn").addEventListener("change", async e => {
   } catch(err){ toast(`Couldn't open “${f.name}”: ${err instanceof SyntaxError ? "it isn't valid JSON" : err.message}.`, 4000); return; }
   if(!st.name || st.name==="Untitled beat") st.name = f.name.replace(/\.json$/i, "").slice(0,60) || "Imported beat";
   closeDlg("openDlg");
-  loadState(st, null, {msg:`Opened “${st.name}”. Save it to keep it`});
+  openBeat(st, null, {msg:`Opened “${st.name}”. Save it to keep it`});
 });
 
 // the browser downloads it straight away
@@ -3620,11 +3621,11 @@ $("prompt").addEventListener("input", () => { clearTimeout(persistLocal.t); pers
 $("starters").innerHTML = PRESETS.map((p,i) => `<button class="btn starter" data-preset="${i}"><b>${esc(p.name)}</b><span>${p.bpm} BPM · ${p.pages||1} page${(p.pages||1)>1?"s":""}</span></button>`).join("");
 $("starters").addEventListener("click", e => {
   const b = e.target.closest("[data-preset]"); if(!b) return;
-  const p = PRESETS[+b.dataset.preset]; closeDlg("openDlg"); loadState(fromJSON(p), null, {name:p.name});
+  const p = PRESETS[+b.dataset.preset]; closeDlg("openDlg"); openBeat(fromJSON(p), null, {name:p.name});
 });
 function newBeat(){
   const st = blankState(1); st.synths.push(newSynth("Synth 1", PAGE));
-  loadState(st, null, {msg:"Started a new beat"});
+  openBeat(st, null, {msg:"Started a new beat"});
 }
 // what New would throw away: nothing for a saved beat or someone else's untouched one (it's still at its link),
 // the edits for a saved beat with changes, and the whole draft for a beat that was never saved (unless it's blank)
@@ -3653,6 +3654,8 @@ function syncTransport(){
   applyVerb();
   $("swingIn").value = Math.round(S.swing*100); $("swingOut").textContent = Math.round(S.swing*100)+"%";
 }
+// opening a different beat stops playback first, so nothing of the old one (its playhead, its videos) carries over
+function openBeat(st, docId, src){ if(playing) stopPlay(); loadState(st, docId, src); }
 function loadState(st, docId, src){
   if(peek) endPeek();
   const lost = src && unsavedWork();
@@ -4845,7 +4848,7 @@ async function openSaved(d){
     if(!d.beat) Object.assign(d, await from.get(d.id));
     const st = fromJSON(d.beat);
     if(db!==from) return;
-    closeDlg("openDlg"); loadState(st, d.id, {name:d.name}); markOpened(d.id);
+    closeDlg("openDlg"); openBeat(st, d.id, {name:d.name}); markOpened(d.id);
   } catch(err){ toast("That beat couldn't be opened. Try again."); }
 }
 // File > Open recent: the 5 beats you last opened or saved. When you opened them is kept in this browser.
