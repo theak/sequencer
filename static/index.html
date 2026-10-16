@@ -848,7 +848,7 @@ const defaultTones = () => Object.fromEntries(TONE_IDS.map(id => [id, .5]));
 const MAX_SYNTHS = 8;
 const MAX_SAMPLES = 4;
 const YT_OK = true; // the Claude artifact can't embed YouTube, so samples only keep their settings there
-const YT_RATES = [.25,.5,.75,1,1.25,1.5,1.75,2];
+const YT_RATES = Array.from({length:36}, (_, i) => +(.25 + i*.05).toFixed(2)); // 0.25x to 2x in 0.05 steps: the embed takes any of them
 const BEAT_OPTS = [.25,.5,1,2,3,4,6,8,12,16,32,64,0]; // 0 keeps playing until you stop
 const beatLabel = b => !b ? "∞ infinite" : b===.25 ? "¼ beat" : b===.5 ? "½ beat" : b===1 ? "1 beat" : b+" beats";
 function ytId(v){
@@ -2538,7 +2538,7 @@ function render(){
   h += `<div class="addrow"><button class="btn" data-act="addsyn" ${full}>+ Add synth</button><button class="btn" data-act="addpoly" ${full}>+ Add chord synth</button><span class="hint">${userSynths().length}/${MAX_SYNTHS} · mono plays one note at a time, poly plays chords</span></div>`;
   h += `<div class="sec"><div class="sech"><h2>Samples</h2>${S.samples.length ? gm("samples") : ""}</div><span class="hint">Click a step to start the video there · it plays for the length set on its card below · right-click clears</span></div>`;
   S.samples.forEach((s,i) => { h += smpRow(s, i, off); });
-  h += `<div class="addrow"><button class="btn" data-act="addsmp" ${S.samples.length>=MAX_SAMPLES ? "disabled" : ""}>+ Add sample</button><span class="hint">${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at any of YouTube's speeds</span></div>`;
+  h += `<div class="addrow"><button class="btn" data-act="addsmp" ${S.samples.length>=MAX_SAMPLES ? "disabled" : ""}>+ Add sample</button><span class="hint">${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x</span></div>`;
   const fb = $("flagbar"); fb.remove();           // keep the live Unmute/Unsolo bar across re-renders
   rack.innerHTML = h;
   renderRest(fb);
@@ -3626,9 +3626,19 @@ function newBeat(){
   const st = blankState(1); st.synths.push(newSynth("Synth 1", PAGE));
   loadState(st, null, {msg:"Started a new beat"});
 }
+// what New would throw away: nothing for a saved beat or someone else's untouched one (it's still at its link),
+// the edits for a saved beat with changes, and the whole draft for a beat that was never saved (unless it's blank)
+function newLoses(){
+  liveSnap = snapStr();
+  const st = saveState();
+  if(st==="clean" || viewing && !unsavedWork()) return "";
+  if(st==="dirty") return "Discard changes?";
+  const blank = blankState(1); blank.synths.push(newSynth("Synth 1", PAGE));
+  return JSON.stringify(toJSON(blank))===liveSnap ? "" : "Clear everything?";
+}
 $("newBtn").addEventListener("click", e => {
-  const b = e.currentTarget;
-  if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Clear everything?"; b.classList.add("warn"); setTimeout(() => { delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn"); }, 2500); return; }
+  const b = e.currentTarget, ask = !b.dataset.armed && newLoses();
+  if(ask){ b.dataset.armed = "1"; b.textContent = ask; b.classList.add("warn"); setTimeout(() => { delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn"); }, 2500); return; }
   delete b.dataset.armed; b.textContent = "New"; b.classList.remove("warn");
   newBeat();
 });

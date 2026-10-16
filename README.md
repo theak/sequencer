@@ -118,7 +118,7 @@ Lane names:
 
 ## YouTube samples
 
-Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (YouTube's 0.25x to 2x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
+Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (0.25x to 2x in steps of 0.05, like 0.95x or 1.05x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
 
 In Automation playback, a sample plays where the song has it, as if the song had played from the top. Start mid-song, jump with the ruler or the arrow keys, or let the song come round again, and a sample that's mid-hit there picks up mid-way. Starting at loop 8 with a 16-beat sample that hit on loop 5, for example, starts the video 12 beats in.
 
