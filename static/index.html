@@ -53,6 +53,8 @@ button{cursor:pointer}
 .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);font-stretch:112%;font-weight:600}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px}
 #bpmIn{width:78px}
+.taptempo{padding:5px 9px;font-size:11.5px;min-width:46px}
+.taptempo.on{border-color:var(--orange);color:var(--orange)}
 input[type=number]{width:64px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font-family:var(--mono)}
 input[type=text],select,textarea{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
 input[type=range]{accent-color:var(--orange);width:110px}
@@ -662,7 +664,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
     </div>
     <button class="play" id="playBtn" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg><span>Play</span></button>
     <div class="field pmode"><span class="lbl">Plays</span><div class="seg v" id="pmodeSeg" role="group" aria-label="What Play plays" aria-keyshortcuts="L" title="What Play plays (L)"><button type="button" data-pm="loop" aria-pressed="true" title="Loop the pattern with the knobs as set (L)">Loop</button><button type="button" data-pm="auto" aria-pressed="false" title="Play the song with its automation lanes (L)">Automation</button></div><span class="num songpos" id="songPos"></span></div>
-    <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="0.1" inputmode="decimal" title="Tempo, to a tenth of a BPM (arrow keys ±1, Shift ±0.1)"><span class="lbl">BPM</span></label>
+    <label class="field"><span class="lbl">Tempo</span><input type="number" id="bpmIn" min="60" max="200" step="0.1" inputmode="decimal" title="Tempo, to a tenth of a BPM (arrow keys ±1, Shift ±0.1)"><span class="lbl">BPM</span><button type="button" class="btn taptempo" id="bpmTap" aria-keyshortcuts="T" title="Tap the tempo: tap along on every beat, four or more times (T, or Enter or Space on the button)">Tap</button></label>
     <div class="spacer"></div>
     <div class="flagbar" id="flagbar" hidden>
       <button class="flagbtn" id="unmuteAll" hidden title="Shortcut: M" aria-keyshortcuts="M"><b>M</b><span></span></button>
@@ -2440,7 +2442,7 @@ function smpSetVbpm(c, v){
 // arrow keys: speed ±0.05 (one of YouTube's steps), Shift ±0.001; video tempo ±1 BPM, Shift ±0.1
 $("smpGrid").addEventListener("keydown", e => {
   const el = e.target, f = el.dataset?.f;
-  if(f==="tap" && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); if(!e.repeat){ const c = smpCard(el); c?.s && c.d && smpTap(c.d, c.s, e.timeStamp); } return; }
+  if(f==="tap" && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); e.stopPropagation(); if(!e.repeat){ const c = smpCard(el); c?.s && c.d && smpTap(c.d, c.s, e.timeStamp); } return; }
   if((f!=="rate" && f!=="vbpm") || (e.key!=="ArrowUp" && e.key!=="ArrowDown")) return;
   e.preventDefault();
   const c = smpCard(el); if(!c?.s) return;
@@ -3518,7 +3520,7 @@ document.addEventListener("pointerdown", e => {
 // Space plays/stops from anywhere on the page, except while typing in a text box
 const typingTarget = el => !!el && (!!el.closest?.("dialog[open]") || el.tagName==="TEXTAREA" || el.isContentEditable || (el.tagName==="INPUT" && /^(text|search|email|url|number|password|tel)$/i.test(el.type)));
 window.addEventListener("keydown", e => {
-  if(e.code!=="Space" || typingTarget(e.target) || e.target.dataset?.f==="tap") return;
+  if(e.code!=="Space" || typingTarget(e.target) || e.target.dataset?.f==="tap" || e.target.id==="bpmTap") return;
   e.preventDefault(); e.stopPropagation();
   if(e.repeat) return;
   playing ? stopPlay() : startPlay();
@@ -3727,6 +3729,38 @@ $("restBtn").addEventListener("click", () => { if(!popCell) return; const s = sy
 /* ---------- Transport ---------- */
 $("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
 $("bpmIn").addEventListener("change", e => { S.bpm = bpmOf(e.target.value, S.bpm); e.target.value = S.bpm.toFixed(1); smpFollow(); changed(); });
+// Tap tempo: from the fourth tap on, the tempo follows a best fit of every tap so far, and settles (one Undo step)
+// once there's a 2 s pause. Taps count on the press, for timing.
+let bpmTaps = null;
+function bpmTap(t){
+  const b = $("bpmTap");
+  if(!bpmTaps) bpmTaps = {taps:[], was:S.bpm};
+  const k = bpmTaps; k.taps.push(t); clearTimeout(k.idle);
+  k.idle = setTimeout(bpmTapDone, 2000);
+  b.classList.add("on");
+  const n = k.taps.length;
+  if(n < 4){ b.textContent = `Tap ${n}`; return; }
+  const mx = (n - 1)/2, my = k.taps.reduce((a, x) => a + x, 0)/n;
+  let sxy = 0, sxx = 0; k.taps.forEach((y, i) => { sxy += (i - mx)*(y - my); sxx += (i - mx)**2; });
+  if(sxy <= 0) return;
+  S.bpm = bpmOf(60000/(sxy/sxx), S.bpm); $("bpmIn").value = S.bpm.toFixed(1); b.textContent = `Tap ${n}`;
+  smpFollow(); changedSoon();
+}
+function bpmTapDone(){
+  const k = bpmTaps; bpmTaps = null;
+  const b = $("bpmTap"); b.classList.remove("on"); b.textContent = "Tap";
+  if(!k) return;
+  if(k.taps.length < 4){ toast("Tap four or more times, on the beat, to set the tempo"); return; }
+  if(S.bpm!==k.was){ changed(); toast(`Tempo ${S.bpm.toFixed(1)} BPM, from ${k.taps.length} taps`); }
+}
+$("bpmTap").addEventListener("pointerdown", e => { if(!e.button){ e.preventDefault(); bpmTap(e.timeStamp); } });
+$("bpmTap").addEventListener("keydown", e => { if(e.key==="Enter" || e.key===" "){ e.preventDefault(); e.stopPropagation(); if(!e.repeat) bpmTap(e.timeStamp); } });
+$("bpmTap").addEventListener("click", e => e.preventDefault()); // taps count on the press; a click on the label mustn't focus the box
+// T taps the tempo from anywhere (not while typing, or while comparing with the last save)
+window.addEventListener("keydown", e => {
+  if(e.key.toLowerCase()!=="t" || e.metaKey || e.ctrlKey || e.altKey || e.repeat || peek || typingTarget(e.target)) return;
+  e.preventDefault(); bpmTap(e.timeStamp);
+});
 // arrows step a whole BPM and keep the tenths (Shift steps a tenth); the box's own step is a tenth so typed decimals are valid
 $("bpmIn").addEventListener("keydown", e => {
   if(e.key!=="ArrowUp" && e.key!=="ArrowDown") return;
