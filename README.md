@@ -118,9 +118,13 @@ Lane names:
 
 ## YouTube samples
 
-Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (0.25x to 2x in steps of 0.05, like 0.95x or 1.05x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
+Under Synths there's a Samples section. Each sample is a YouTube video with a start time, a speed (any from 0.25x to 2x, to a thousandth, like 0.912x) and a length in beats, or ∞ to keep playing across loops. Click steps in its row to choose where it starts. If the length is longer than the pattern, the video plays out in full while the pattern loops under it. For example, 16 beats on a one-bar pattern plays through four loops before it restarts.
 
 In Automation playback, a sample plays where the song has it, as if the song had played from the top. Start mid-song, jump with the ruler or the arrow keys, or let the song come round again, and a sample that's mid-hit there picks up mid-way. Starting at loop 8 with a 16-beat sample that hit on loop 5, for example, starts the video 12 beats in.
+
+**Matching a video to the song.** Give a sample its video's own tempo, or press **Tap** and tap along: the first tap starts the video and every tap after that is a beat (Enter or Space on the button work too). Setting the tempo sets the speed that puts the video on the song's BPM, and ½ and ×2 fix a tempo that came out half or double. Turn on **Follows song tempo** and changing the song's BPM moves the speed with it. While it follows, changing the speed by hand corrects the video's tempo instead.
+
+**How fine speeds play.** YouTube only plays 0.05 steps (0.90x, 0.95x and so on). A speed between two of them is played by switching between the pair, like PWM: 0.912x is 0.90x for 76% of every cycle and 0.95x for the other 24%. A speed change doesn't seek or buffer, and each cycle is centred on the beat, so the video stays within about 10 ms of where a true 0.912x would be (the card says how close). A cycle is about 1.6 s per 1x of speed, so that's about 1.4 speed changes a second, and a speed on YouTube's own steps sends none.
 
 Samples play in YouTube's own embedded player, not through the audio engine. So:
 
