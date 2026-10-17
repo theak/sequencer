@@ -1804,7 +1804,7 @@ function tick(){
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true;
+  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true; smpOff = null;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
   if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
@@ -1865,6 +1865,7 @@ const decks = new Map();  // sample uid -> its card and player
 const smpQ = [];          // timed player commands, by performance.now()
 let smpDone = -1;         // the last step (counted from Play) that samples were planned for
 let smpResync = false;    // the song just started or jumped: pick each sample up where the song has it
+let smpOff = null;        // performance.now() less the audio clock, in ms. It jumps when the clock stalls (headphones in or out)
 const SMP_AHEAD = .5;
 const smpOf = d => S.samples.find(s => s.uid===d.uid);
 function smpDue(){
@@ -1880,7 +1881,7 @@ function smpCancel(e){ const i = e ? smpQ.indexOf(e) : -1; if(i>=0) smpQ.splice(
 function smpEnd(d, at){ const e = smpAt(at, () => smpStop(d, e), d); e.stop = true; return e; }
 // plans triggers from the drum clock's next step, so tempo changes and page edits never pull them out of line
 function smpTick(){
-  smpDue();
+  smpClock(); smpDue();
   if(!YT_OK) return;
   const sd = 60/S.bpm/4, n = stepCount(), now = ctx.currentTime;
   for(let k=0; nextTime + k*sd < now + SMP_AHEAD; k++){
@@ -1895,6 +1896,24 @@ function smpTick(){
     else for(const s of S.samples) if(s.steps[step] && smpHits(s).has(a)) smpTrigger(s, t, 0, true);
   }
   smpDrift();
+}
+// The audio clock can stall against performance.now(): for about 1.5 s when headphones come out, a few tens of ms when they
+// go in. The drums wait for it, so everything the samples planned in performance.now() time (the queue, each run's start,
+// its speed switching) moves with it, and each playing video is checked once the clock is going again and seeked into line.
+function smpClock(){
+  const off = performance.now() - ctx.currentTime*1000;
+  if(smpOff==null){ smpOff = off; return; }
+  const dt = off - smpOff;
+  if(Math.abs(dt) < 15){ smpOff += dt*.05; return; } // jitter: follow it slowly
+  smpOff = off;
+  const now = performance.now();
+  for(const e of smpQ){ e.at += dt; setTimeout(smpDue, Math.max(0, e.at - now)); }
+  for(const d of decks.values()){
+    if(d.runAt!=null) d.runAt += dt;
+    if(d.busyTill) d.busyTill += dt;
+    if(d.dz){ d.dz.at += dt; smpRateTick(d); }
+    d.meas = null; d.chk = now + 300;
+  }
 }
 /* In the song, each sample plays as if the song had played from the top: a hit while a longer sample is still
    playing out is skipped, a shorter one is cut by the next hit, and ∞ starts on the first hit and keeps going.
@@ -1970,10 +1989,15 @@ function smpRateTick(d){
 function smpRateSet(d, r){ if(d.prate===r || !d.player) return; try { d.player.setPlaybackRate(r); d.prate = r; } catch {} }
 function smpRateEnd(d){ clearTimeout(d.rt); d.dz = null; }
 const smpErr = (d, t) => d.dz ? pairErr(d.dz, t - d.dz.at) : 0;
-// the speed changed under a player: a run carries on at the new one (and stops being drift-checked), a parked one just takes it
+// the speed changed under a player: a run carries on at the new one from where it should be now, and stays drift-checked;
+// a parked one just takes it
 function smpRetune(d, s){
   if(!d?.ready || !s) return;
-  if(d.dz){ if(d.dz.r!==s.rate){ d.runAt = null; smpRateGo(d, s, performance.now()); } }
+  if(d.dz){ if(d.dz.r!==s.rate){
+    const now = performance.now();
+    if(d.runAt!=null){ d.runAt = now - ((now - d.runAt)/1000*d.dz.r + smpErr(d, now))/s.rate*1000; d.meas = null; }
+    smpRateGo(d, s, now);
+  } }
   else smpRateSet(d, smpPair(s.rate).lo);
 }
 // the song's tempo moved: samples that follow it change speed with it
