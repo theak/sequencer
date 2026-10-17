@@ -1890,15 +1890,20 @@ function smpTick(){
     if(S.playMode!=="auto"){ for(const s of S.samples) if(s.steps[step]) smpTrigger(s, t); continue; }
     if(smpResync && t < now + .3) continue; // far enough ahead for a seek to land on time
     const a = (songAbs + k) % songN();
-    // at the start, after a jump and each time the song comes back round, every sample joins mid-hit if it's in one
-    if(smpResync || a===0){ smpResync = false; for(const s of S.samples) smpJoin(s, a, t); }
+    // at the start, after a jump and each time the song comes back round, every sample joins mid-hit if it's in one.
+    // Coming round, an ∞ sample that's still playing just keeps going: that's what ∞ means
+    if(smpResync || a===0){
+      const round = !smpResync; smpResync = false;
+      for(const s of S.samples){ const d = decks.get(s.uid); if(round && !s.beats && d?.run && (d.st===1 || d.st===3)) continue; smpJoin(s, a, t); }
+    }
     else for(const s of S.samples) if(s.steps[step] && smpHits(s).has(a)) smpTrigger(s, t, 0, true);
   }
   smpDrift();
 }
 /* In the song, each sample plays as if the song had played from the top: a hit while a longer sample is still
    playing out is skipped, a shorter one is cut by the next hit, and ∞ starts on the first hit and keeps going.
-   So starting mid-song, jumping, or going round again picks each sample up mid-way, the same on every pass. */
+   So starting mid-song, jumping, or going round again picks each sample up mid-way, the same on every pass,
+   except that an ∞ sample carries on through the song coming round instead of starting over. */
 const smpPlans = new Map();
 function smpHits(s){
   const n = stepCount(), N = songN(), len = s.beats ? s.beats*4 : Infinity;
