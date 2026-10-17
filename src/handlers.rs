@@ -76,7 +76,7 @@ pub async fn beat_page(
     let title = escape_html(&format!("{name} by {username}"));
     let desc = escape_html(&format!(
         "{} BPM. Play it, remix it and make your own on 16.aks.zone.",
-        b["bpm"].as_f64().unwrap_or(0.0).round()
+        (b["bpm"].as_f64().unwrap_or(0.0) * 10.0).round() / 10.0 // 129.2 stays, 120.0 prints as 120
     ));
     page(
         INDEX_HTML

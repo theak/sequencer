@@ -355,6 +355,31 @@ async fn rejects_bad_ids_and_bodies() {
 }
 
 #[tokio::test]
+async fn link_previews_keep_a_fractional_tempo() {
+    let app = app(temp_dir()).await;
+    call(
+        &app,
+        "POST",
+        "/api/beats",
+        Some(json!({"name":"Tenths","beat":{"bpm":129.2}})),
+    )
+    .await;
+    let (_, v) = call(&app, "GET", "/api/u/local/1", None).await;
+    assert_eq!(v["beat"]["bpm"], 129.2);
+    let resp = send(&app, "GET", "/local/1", None, None).await;
+    let html = String::from_utf8(
+        resp.into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(html.contains("129.2 BPM. Play it"), "tempo lost its tenth");
+}
+
+#[tokio::test]
 async fn shared_links_open_anyones_beat() {
     let app = app(temp_dir()).await;
     call(
@@ -386,6 +411,10 @@ async fn shared_links_open_anyones_beat() {
     assert!(
         html.contains(r#"<meta property="og:title" content="Night &lt;Drive&gt; by local">"#),
         "no preview title"
+    );
+    assert!(
+        html.contains("100 BPM. Play it"),
+        "no whole-number tempo in the preview"
     );
     for missing in ["/local/2", "/local/01", "/nobody/1", "/api/1"] {
         let resp = send(&app, "GET", missing, None, None).await;
