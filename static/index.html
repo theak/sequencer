@@ -266,7 +266,35 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .ytmsg a{color:var(--sample)}
 .smpl{display:flex;flex-direction:column;gap:4px;min-width:0}
 .smpl input{width:100%;min-width:0;font-size:12.5px}
-.smpf{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.1fr);gap:8px;align-items:end}
+.smpf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:end}
+/* speed: a box and a slider ruled at YouTube's own steps, the video's tempo, and what YouTube plays */
+.spd{display:flex;flex-direction:column;gap:6px}
+.spdh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.spd input[type=number]{width:84px;text-align:right}
+.spdrule{position:relative;display:block;padding-bottom:9px}
+.spdrule input{width:100%;margin:0}
+.spdrule::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:7px;pointer-events:none;
+  background:linear-gradient(90deg,var(--ink-dim) 0 1px,transparent 1px) 0 0/calc((100% - 1px)/7) 100% repeat-x,
+    repeating-linear-gradient(90deg,var(--ink-faint) 0 1px,transparent 1px calc((100% - 1px)/35)) 0 0/100% 4px no-repeat}
+.spdlbls{position:relative;height:13px;margin:0 8px;font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.spdlbls span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.spdlbls .one{color:var(--ink-dim)}
+.vtrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:9px;margin-top:3px}
+.vtrow .lbl{flex:1 1 auto}
+.smpcard{container-type:inline-size}
+@container (max-width:330px){ .vtrow .lbl{flex-basis:100%} .vtrow input[type=number]{flex:1;width:auto;min-width:0} }
+.vtrow .btn{padding:6px 10px}
+.vtrow .btn.on{border-color:var(--orange);color:var(--orange)}
+.vtfollow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vtfollow .hint{flex:1 1 140px;font-size:11.5px}
+.follow{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel-3);border-radius:6px;padding:6px 11px;font-weight:600;font-size:12.5px;color:var(--ink-dim)}
+.follow i{width:6px;height:6px;border-radius:50%;background:#403c44}
+.follow[aria-pressed="true"]{border-color:var(--orange);color:var(--ink);background:color-mix(in srgb,var(--orange) 10%,var(--panel-3))}
+.follow[aria-pressed="true"] i{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+.spdstat{display:flex;gap:9px;align-items:baseline;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--ink-dim);line-height:1.4}
+.spdstat i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--ink-faint);transform:translateY(-1px)}
+.spdstat.pwm i{background:var(--orange)}
+.spdstat b{font-weight:500;color:var(--ink)}
 .smpf label{display:flex;flex-direction:column;gap:4px;min-width:0}
 .smpf input,.smpf select{width:100%;min-width:0}
 .smpf input[data-f="start"]{font-size:12.5px;padding:7px 8px}
@@ -274,7 +302,7 @@ input[type=range]{accent-color:var(--orange);width:110px}
 .smpbtns .btn{padding:6px 10px}
 .smpbtns .btn[aria-pressed="true"]{border-color:var(--sample);color:var(--sample)}
 .smpstat{font-size:11.5px;color:var(--ink-faint);min-height:1.2em}
-@media (max-width:420px){ .smpf{grid-template-columns:1fr 1fr} .smpf label:first-child{grid-column:1 / -1} .transport .field{flex-wrap:wrap} }
+@media (max-width:420px){ .smpf{grid-template-columns:1fr 1fr} .transport .field{flex-wrap:wrap} }
 .subsec{display:flex;align-items:center;gap:10px;margin:8px 0 2px}
 .subsec .lbl{color:var(--synth)}
 .ptog{border:0;cursor:pointer;min-width:36px;text-align:center;background:color-mix(in srgb,var(--synth) 45%,var(--panel-3))}
@@ -889,7 +917,12 @@ const defaultTones = () => Object.fromEntries(TONE_IDS.map(id => [id, .5]));
 const MAX_SYNTHS = 8;
 const MAX_SAMPLES = 4;
 const YT_OK = true; // the Claude artifact can't embed YouTube, so samples only keep their settings there
-const YT_RATES = Array.from({length:36}, (_, i) => +(.25 + i*.05).toFixed(2)); // 0.25x to 2x in 0.05 steps: the embed takes any of them
+const YT_STEP = .05; // YouTube's own speeds are 0.25x to 2x in 0.05 steps: a speed between two is played by switching between them (smpPair)
+const rateOf = v => +clamp(v, .25, 2, 1).toFixed(3);
+// a video's own tempo at 1x, or null when it isn't known
+const vbpmOf = v => v==null || v==="" || !Number.isFinite(+v) || +v <= 0 ? null : Math.round(clamp(v, 30, 300, 120)*100)/100;
+// following the song: the speed that puts the video on the song's tempo
+const followRate = (s, bpm=S.bpm) => rateOf(bpm / s.vbpm);
 const BEAT_OPTS = [.25,.5,1,2,3,4,6,8,12,16,32,64,0]; // 0 keeps playing until you stop
 const beatLabel = b => !b ? "∞ infinite" : b===.25 ? "¼ beat" : b===.5 ? "½ beat" : b===1 ? "1 beat" : b+" beats";
 function ytId(v){
@@ -930,7 +963,7 @@ function smpSteps(v, len){
 function newSample(len, x={}){
   const b = x.beats==="inf" || x.beats==="∞" || x.beats===0 || x.beats===null ? 0 : nearest(BEAT_OPTS.filter(Boolean), clamp(x.beats,.25,64,4));
   return {uid:++uid, vid: ytId(x.video ?? x.url ?? "") || "", title: String(x.title || "").slice(0,140), start: +clamp(x.start,0,86400,0).toFixed(2),
-    rate: nearest(YT_RATES, clamp(x.speed ?? x.rate,.25,2,1)), beats: b, volume: clamp(x.volume,0,1,.8), steps: smpSteps(x.steps, len)};
+    rate: rateOf(x.speed ?? x.rate), vbpm: vbpmOf(x.tempo ?? x.vbpm), follow: !!x.follow && vbpmOf(x.tempo ?? x.vbpm)!=null, beats: b, volume: clamp(x.volume,0,1,.8), steps: smpSteps(x.steps, len)};
 }
 const smpKey = s => "y"+s.uid;
 const smpByKey = key => S.samples.find(s => smpKey(s)===key);
@@ -1177,6 +1210,7 @@ function fromJSON(o){
     return n;
   })];
   st.samples = (Array.isArray(o.samples) ? o.samples.slice(0,MAX_SAMPLES) : []).map(x => newSample(len, x && typeof x==="object" ? x : {}));
+  for(const s of st.samples) if(s.follow) s.rate = followRate(s, st.bpm);
   parseSong(o, st);
   return st;
 }
@@ -1193,7 +1227,7 @@ function toJSON(st){
     drums, levels, tones: Object.fromEntries(TONE_IDS.map(id => [id, +st.tones[id].toFixed(2)])),
     ...Object.fromEntries(TONAL_IDS.map(k => { const b = tonalRow(k, st); return [k==="808" ? "bass808" : k, {volume:+b.volume.toFixed(2), [TONAL[k].key]:+b.timbre.toFixed(2), steps:b.steps.map(x => x ?? ".")}]; })),
     synths: userSynths(st).map(s => ({name:s.name, ...(s.poly ? {poly:true} : {}), volume:+s.volume.toFixed(2), timbre:+s.timbre.toFixed(2), steps:s.steps.map(x => x ?? ".")})),
-    ...(st.samples?.length ? {samples: st.samples.map(s => ({video:s.vid, ...(s.title ? {title:s.title} : {}), start:s.start, speed:s.rate, beats:s.beats || "inf", volume:+s.volume.toFixed(2),
+    ...(st.samples?.length ? {samples: st.samples.map(s => ({video:s.vid, ...(s.title ? {title:s.title} : {}), start:s.start, speed:s.rate, ...(s.vbpm ? {tempo:s.vbpm} : {}), ...(s.follow ? {follow:true} : {}), beats:s.beats || "inf", volume:+s.volume.toFixed(2),
       steps:s.steps.map(x => x ? "x" : ".").join("").match(/.{1,16}/g).join("|")}))} : {}),
     ...(song ? {song} : {}),
   };
@@ -1899,6 +1933,55 @@ function smpRejoin(){
   for(const d of decks.values()){ d.endE = null; d.meas = null; }
   smpDone = stepAbs - 1; smpResync = true;
 }
+/* Fine speeds. YouTube only plays its own steps, so a speed between two of them is played by switching between the
+   pair, like PWM: 0.912x is 0.90x for 76% of every cycle and 0.95x for the rest. A speed change doesn't seek or buffer,
+   and a switch that lands late barely matters (30 ms late at 0.05x apart is 1.5 ms off). Each cycle is centred (half the
+   low part, the high part, the rest of the low part), so the video is exactly on the beat at every cycle's edge and only
+   a few ms either side in between: a cycle is 1.6 s per 1x of speed, which keeps that within 10 ms. A command only goes
+   out at a switch, and a speed on one of YouTube's steps (or within 1.5 ms of one) sends none. */
+function smpPair(r){
+  const lo = Math.min(2, Math.floor(r/YT_STEP + 1e-6)*YT_STEP), hi = Math.min(2, lo + YT_STEP), w = hi > lo ? (r - lo)/(hi - lo) : 0;
+  const P = Math.min(2000, Math.max(400, 1600*r)), off = w*(1-w)*(hi - lo)*P/2/r; // off: the most it's ever off the beat, in ms
+  if(off < 1.5){ const n = +(w < .5 ? lo : hi).toFixed(2); return {lo:n, hi:n, w:0, P, off:0}; }
+  return {lo:+lo.toFixed(2), hi:+hi.toFixed(2), w, P, off};
+}
+// the speed u ms into a run, and how long until the next switch (null: it never switches)
+function pairAt(z, u){
+  if(!z.w) return {r:z.lo, next:null};
+  const a = (1 - z.w)/2*z.P, b = a + z.w*z.P;
+  if(u < 0) return {r:z.lo, next:a - u};
+  const x = u % z.P;
+  return x < a ? {r:z.lo, next:a - x} : x < b ? {r:z.hi, next:b - x} : {r:z.lo, next:z.P - x + a};
+}
+// how far the switching has the video from a steady speed u ms into a run, in video seconds (0 at each cycle's edge)
+function pairErr(z, u){
+  if(!z.w || u <= 0) return 0;
+  const a = (1 - z.w)/2, f = (u % z.P)/z.P, D = (z.hi - z.lo)*z.P/1000;
+  return f < a ? -z.w*D*f : f < a + z.w ? -z.w*D*a + (1 - z.w)*D*(f - a) : z.w*D*(1 - f);
+}
+// a run heard from at (performance.now ms) plays its speed from there
+function smpRateGo(d, s, at){ d.dz = {...smpPair(s.rate), r:s.rate, at}; smpRateTick(d); }
+function smpRateTick(d){
+  clearTimeout(d.rt); const z = d.dz; if(!z) return;
+  const {r, next} = pairAt(z, performance.now() - z.at);
+  smpRateSet(d, r);
+  if(next!=null) d.rt = setTimeout(() => smpRateTick(d), Math.max(8, next));
+}
+function smpRateSet(d, r){ if(d.prate===r || !d.player) return; try { d.player.setPlaybackRate(r); d.prate = r; } catch {} }
+function smpRateEnd(d){ clearTimeout(d.rt); d.dz = null; }
+const smpErr = (d, t) => d.dz ? pairErr(d.dz, t - d.dz.at) : 0;
+// the speed changed under a player: a run carries on at the new one (and stops being drift-checked), a parked one just takes it
+function smpRetune(d, s){
+  if(!d?.ready || !s) return;
+  if(d.dz){ if(d.dz.r!==s.rate){ d.runAt = null; smpRateGo(d, s, performance.now()); } }
+  else smpRateSet(d, smpPair(s.rate).lo);
+}
+// the song's tempo moved: samples that follow it change speed with it
+function smpFollow(){
+  let moved = false;
+  for(const s of S.samples) if(s.follow && s.vbpm){ const r = followRate(s); if(r!==s.rate){ s.rate = r; moved = true; } }
+  if(moved) syncDeck();
+}
 function smpCued(d, s){ return d.st!==1 && d.st!==3 && d.cuedAt!=null && Math.abs(d.cuedAt - s.start) < .05; }
 // off: how many steps into the hit it starts (joining mid-way). In the song the hits are already decided (song).
 function smpTrigger(s, t, off=0, song=false){
@@ -1924,7 +2007,7 @@ function smpFire(d, at, into=0){
   const cued = !into && smpCued(d, s), lead = (cued ? d.lead.play : d.lead.seek)*1000, from = s.start + into*s.rate;
   if(at - lead - performance.now() > 4){ smpAt(at - lead, () => smpFire(d, at, into), d); return; } // it's already parked on the start: go a little later
   if(d.priming){ d.priming = false; smpUnmute(d); }
-  smpVol(d, s);
+  smpVol(d, s); smpRateGo(d, s, at);
   if(!cued) p.seekTo(from, true);
   p.playVideo(); d.cuedAt = null;
   d.runAt = at - into*1000; d.chk = at + 2500;
@@ -1942,7 +2025,7 @@ function smpMeasure(d){
       const v = d.player.getCurrentTime();
       if(v0==null) v0 = v;
       else if(v!==v0){
-        const began = now - (v - m.start)/m.rate*1000, err = began - m.at; // > 0: it started late
+        const began = now - (v - smpErr(d, now) + smpErr(d, m.at) - m.start)/m.rate*1000, err = began - m.at; // > 0: it started late
         d.meas = null;
         if(v >= m.start && Math.abs(err) < 700){ smpLearn(d, m.kind, err); smpSynced(d, err); }
         return;
@@ -1981,12 +2064,12 @@ function smpDrift(){
     if(d.runAt==null || d.st!==1 || now < d.chk || d.meas) continue;
     const s = smpOf(d); if(!s) continue;
     d.chk = now + 2000;
-    const want = s.start + (now - d.runAt)/1000*s.rate, have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
+    const want = s.start + (now - d.runAt)/1000*s.rate + smpErr(d, now), have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
     if(want >= dur - 1) continue;
     const err = (want - have)/s.rate*1000; // > 0: it's behind
     smpSynced(d, err);
     if(Math.abs(err) > 80){
-      const to = want + d.lead.seek*s.rate;
+      const to = s.start + (now + d.lead.seek*1000 - d.runAt)/1000*s.rate + smpErr(d, now + d.lead.seek*1000);
       d.player.seekTo(to, true); d.chk = now + 4000;
       d.meas = {at: now + d.lead.seek*1000, start: to, rate: s.rate, kind: "seek", t: now};
       smpMeasure(d);
@@ -2052,14 +2135,14 @@ function strobeFrame(now){
 }
 // pause and park on the start point, ready for the next hit
 function smpStop(d, e=null){
-  if(!e || d.endE===e) d.endE = null; d.preview = false; d.runAt = null; smpPreviewBtn(d);
+  if(!e || d.endE===e) d.endE = null; d.preview = false; d.runAt = null; smpRateEnd(d); smpTapEnd(d); smpPreviewBtn(d);
   const s = smpOf(d), p = d.player; if(!p || !d.ready) return;
   try { p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } } catch {}
 }
 function smpHalt(d){
   for(let i=smpQ.length-1; i>=0; i--) if(smpQ[i].d===d) smpQ.splice(i,1);
   d.endE = null;
-  d.run = false; d.runAt = null; d.meas = null; d.busyTill = 0;
+  d.run = false; d.runAt = null; d.meas = null; d.busyTill = 0; smpRateEnd(d);
   if(d.ready && (d.st===1 || d.st===3 || d.preview)) smpStop(d);
 }
 function smpVol(d, s=smpOf(d)){
@@ -2109,7 +2192,7 @@ function ytReady(d){
   const s = smpOf(d); if(!s || !d.player) return;
   d.ready = true; d.err = ""; d.vol = null;
   smpMsg(d, "");
-  try { d.player.setPlaybackRate(s.rate); } catch {}
+  d.prate = null; smpRateSet(d, smpPair(s.rate).lo);
   smpVol(d, s); smpTitle(d);
   if(!playing) smpPrime(d);
 }
@@ -2125,7 +2208,7 @@ function ytState(d, st){
   const s = smpOf(d), p = d.player;
   if(st===1 && d.priming){ d.priming = false; p.pauseVideo(); if(s){ p.seekTo(s.start, true); d.cuedAt = s.start; } smpUnmute(d); smpVol(d); smpTitle(d); return; }
   if(st===5 && d.cueing){ d.cueing = false; ytReady(d); }
-  if(st===0){ d.run = false; d.runAt = null; d.preview = false; smpPreviewBtn(d); }
+  if(st===0){ d.run = false; d.runAt = null; d.preview = false; smpRateEnd(d); smpTapEnd(d); smpPreviewBtn(d); }
   if(st===1 || st===5) smpTitle(d);
   if(st===1 && !playing && !d.preview && !d.priming) d.cuedAt = null; // played from YouTube's own controls
 }
@@ -2164,8 +2247,15 @@ function smpCardHTML(s){
     <label class="smpl"><span class="lbl">YouTube link</span><input type="text" id="${id("link")}" data-f="link" placeholder="Paste a link, like https://youtu.be/…" spellcheck="false" autocomplete="off"></label>
     <div class="smpf">
       <label><span class="lbl">Start at</span><input type="text" id="${id("start")}" data-f="start" class="num" inputmode="decimal" placeholder="0:00.0" title="Minutes:seconds, like 1:23.5"></label>
-      <label><span class="lbl">Speed</span><select id="${id("rate")}" data-f="rate" class="num">${YT_RATES.map(r => `<option value="${r}">${r}×</option>`).join("")}</select></label>
       <label><span class="lbl">Play for</span><select id="${id("beats")}" data-f="beats">${BEAT_OPTS.map(b => `<option value="${b}">${beatLabel(b)}</option>`).join("")}</select></label>
+    </div>
+    <div class="spd">
+      <div class="spdh"><label class="lbl" for="${id("rate")}">Speed</label><input type="number" id="${id("rate")}" data-f="rate" class="num" min="0.25" max="2" step="0.001" inputmode="decimal" title="0.25x to 2x, to a thousandth (arrow keys ±0.05, Shift ±0.001)"></div>
+      <span class="spdrule"><input type="range" data-f="rateR" min="0.25" max="2" step="0.005" aria-label="Speed slider" title="Ticks are YouTube's own speeds: between them it switches between the two either side"></span>
+      <div class="spdlbls" aria-hidden="true">${[".25",".5",".75","1×","1.25","1.5","1.75","2"].map((x,k) => `<span style="left:${(k/7*100).toFixed(3)}%"${k===3 ? ' class="one"' : ""}>${x}</span>`).join("")}</div>
+      <div class="vtrow"><label class="lbl" for="${id("vbpm")}">Video tempo</label><input type="number" id="${id("vbpm")}" data-f="vbpm" class="num" min="30" max="300" step="0.1" inputmode="decimal" placeholder="BPM" title="The video's own tempo at 1x (arrow keys ±1, Shift ±0.1). Setting it matches the speed to the song"><button class="btn" type="button" data-f="tap" ${YT_OK ? "" : "hidden"} title="Tap along on the beat: the first tap starts the video, then keep tapping (Enter or Space work too)">Tap</button><button class="btn" type="button" data-f="half" title="Half the video tempo">½</button><button class="btn" type="button" data-f="dbl" title="Double the video tempo">×2</button></div>
+      <div class="vtfollow"><button class="follow" type="button" data-f="follow" aria-pressed="false"><i aria-hidden="true"></i>Follows song tempo</button><span class="hint" data-f="fhint"></span></div>
+      <div class="spdstat" data-f="plays"><i aria-hidden="true"></i><span></span></div>
     </div>
     <div class="smpbtns" ${YT_OK ? "" : "hidden"}><button class="btn" type="button" data-f="here" title="Set the start to where the video is now">Start here</button><button class="btn" type="button" data-f="preview" aria-pressed="false" title="Play this sample once from its start">Preview</button></div>
     <div class="smpstat" data-f="stat" aria-live="polite"></div>
@@ -2181,10 +2271,65 @@ function smpNames(){
   });
 }
 $("smpAdd").addEventListener("click", addSample);
+// the speed part of a card: the box and slider, the video tempo, Follows song tempo, and what YouTube actually plays
+function smpSpeedShow(d, s){
+  const f = n => d.card.querySelector(`[data-f="${n}"]`), set = (n, v) => { if(document.activeElement!==f(n)) f(n).value = v; };
+  set("rate", s.rate.toFixed(3)); set("rateR", String(s.rate)); set("vbpm", s.vbpm ? s.vbpm.toFixed(1) : "");
+  f("follow").setAttribute("aria-pressed", !!s.follow);
+  const raw = s.follow && s.vbpm ? S.bpm / s.vbpm : null;
+  f("fhint").textContent = s.follow ? "Change the song BPM and the speed moves with it" : s.vbpm ? "Off: the speed stays put when the song BPM changes" : "Set the video's tempo (or tap it) to match it to the song";
+  const z = smpPair(s.rate), st = f("plays"), x = n => `<b class="num">${n}×</b>`;
+  st.classList.toggle("pwm", !!z.w);
+  st.querySelector("span").innerHTML = (raw!=null && (raw > 2.0005 || raw < .2495) ? `The song is ${raw > 2 ? "over twice" : "under a quarter of"} the video's tempo, so the speed holds at ${s.rate}×. ` : "")
+    + (z.w ? `YouTube switches between ${x(z.lo.toFixed(2))} and ${x(z.hi.toFixed(2))} (${Math.round((1 - z.w)*100)}/${Math.round(z.w*100)}) to average ${x(s.rate)}, never more than <b class="num">${Math.ceil(z.off)} ms</b> off the beat.`
+      : `YouTube plays ${x(z.lo.toFixed(2))} as it is${Math.abs(z.lo - s.rate) > .0005 ? ` (within a couple of ms of ${s.rate}×)` : ""}.`);
+}
+// Tap: the first tap starts the video at its start point, every tap after that is a beat. Its tempo comes from those
+// (the first one is left out: the video only starts a moment after it), divided by the speed it played at
+function smpTap(d, s, t){
+  if(playing){ smpTapEnd(d); smpStat(d, "Stop the beat to tap along to the video."); return; }
+  if(!d.ready){ smpStat(d, s.vid ? "The video is still loading." : "Paste a YouTube link first."); return; }
+  let k = d.tap;
+  if(!k){ smpPlayFrom(d, s, null); k = d.tap = {taps:[], r:s.rate}; }
+  else k.taps.push(t);
+  clearTimeout(k.idle); k.idle = setTimeout(() => smpTapDone(d), 2500);
+  k.est = smpTapBpm(k);
+  const b = d.card.querySelector('[data-f="tap"]'); b.classList.add("on"); b.textContent = `Tap · ${k.taps.length + 1}`;
+  const st = d.card.querySelector('[data-f="plays"] span');
+  st.textContent = k.est ? `About ${k.est.toFixed(1)} BPM. Keep tapping to firm it up, or stop for a moment to use it.` : `Tap along on every beat${k.taps.length < 3 ? ` (${3 - k.taps.length} more to get a tempo)` : ""}.`;
+}
+function smpTapBpm(k){
+  const n = k.taps.length; if(n < 3) return null;
+  const mx = (n - 1)/2, my = k.taps.reduce((a, x) => a + x, 0)/n;
+  let sxy = 0, sxx = 0; k.taps.forEach((y, i) => { sxy += (i - mx)*(y - my); sxx += (i - mx)**2; });
+  const ms = sxy/sxx; // ms per beat, as heard
+  return ms > 0 ? vbpmOf(60000/ms/k.r) : null;
+}
+function smpTapDone(d){
+  const k = d.tap, s = smpOf(d); if(!k || !s) return;
+  smpCancel(d.endE); smpStop(d);
+  if(!k.est){ smpStat(d, "Tap at least four times, on the beat, to get the video's tempo."); smpSpeedShow(d, s); return; }
+  s.vbpm = k.est; s.rate = followRate(s);
+  smpSpeedShow(d, s); smpStat(d, `Video tempo ${s.vbpm.toFixed(1)} BPM, from ${k.taps.length} taps`); changed();
+}
+function smpTapEnd(d){
+  if(!d.tap) return;
+  clearTimeout(d.tap.idle); d.tap = null;
+  const b = d.card.querySelector('[data-f="tap"]'); if(b){ b.classList.remove("on"); b.textContent = "Tap"; }
+  const s = smpOf(d); if(s) smpSpeedShow(d, s);
+}
+// play a sample on its own from its start point (ms: for how long; null keeps going)
+function smpPlayFrom(d, s, ms){
+  d.preview = true; d.priming = false; smpPreviewBtn(d);
+  smpUnmute(d); smpVol(d, s);
+  d.player.seekTo(s.start, true); d.player.playVideo(); d.cuedAt = null;
+  smpRateGo(d, s, performance.now() + d.lead.seek*1000);
+  smpCancel(d.endE); d.endE = ms ? smpEnd(d, performance.now() + ms) : null;
+}
 function smpPreviewBtn(d){ const b = d.card.querySelector('[data-f="preview"]'); if(b){ b.setAttribute("aria-pressed", !!d.preview); b.textContent = d.preview ? "Stop" : "Preview"; } }
 // keep one card per sample row. Cards live outside the rack because moving a YouTube iframe reloads it;
 // a load, undo or compare hands an old card to the new row with the same video, so the player doesn't reload
-const smpAddHint = () => `${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at 0.25x to 2x`;
+const smpAddHint = () => `${S.samples.length}/${MAX_SAMPLES} · a YouTube video, from any point, at any speed from 0.25x to 2x`;
 function addSample(){
   if(S.samples.length>=MAX_SAMPLES) return;
   const s = newSample(stepCount()); S.samples.push(s);
@@ -2216,9 +2361,9 @@ function syncDeck(){
     const f = n => d.card.querySelector(`[data-f="${n}"]`), set = (n, v) => { if(document.activeElement!==f(n)) f(n).value = v; };
     f("tag").textContent = "YT"+(i+1);
     if(s.vid || document.activeElement!==f("link")) set("link", s.vid ? "https://youtu.be/"+s.vid : "");
-    set("start", fmtTime(s.start)); set("rate", String(s.rate)); set("beats", String(s.beats));
+    set("start", fmtTime(s.start)); set("beats", String(s.beats)); smpSpeedShow(d, s);
     if(s.vid!==d.vid) smpLoad(d, s);
-    else if(d.ready){ try { if(d.player.getPlaybackRate()!==s.rate) d.player.setPlaybackRate(s.rate); } catch {} smpVol(d, s); }
+    else if(d.ready){ smpRetune(d, s); smpVol(d, s); }
   });
   smpNames();
 }
@@ -2244,6 +2389,36 @@ function smpSetLink(c, raw, final){
 $("smpGrid").addEventListener("input", e => {
   const c = smpCard(e.target); if(!c?.s) return;
   if(e.target.dataset.f==="link") smpSetLink(c, e.target.value, false); // a pasted link loads straight away
+  if(e.target.dataset.f==="rateR"){ smpSetRate(c, e.target.value); c.d && smpSpeedShow(c.d, c.s); }
+});
+// a speed set by hand. Following the song, it's the video's tempo that was off, so that moves instead
+function smpSetRate(c, v){
+  c.s.rate = rateOf(v);
+  if(c.s.follow && c.s.vbpm) c.s.vbpm = vbpmOf(S.bpm / c.s.rate);
+  smpRetune(c.d, c.s);
+}
+// a new video tempo matches the speed to the song
+function smpSetVbpm(c, v){
+  c.s.vbpm = vbpmOf(v);
+  if(!c.s.vbpm) c.s.follow = false; else c.s.rate = followRate(c.s);
+  smpRetune(c.d, c.s); c.d && smpSpeedShow(c.d, c.s);
+}
+// arrow keys: speed ±0.05 (one of YouTube's steps), Shift ±0.001; video tempo ±1 BPM, Shift ±0.1
+$("smpGrid").addEventListener("keydown", e => {
+  const el = e.target, f = el.dataset?.f;
+  if(f==="tap" && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); if(!e.repeat){ const c = smpCard(el); c?.s && c.d && smpTap(c.d, c.s, e.timeStamp); } return; }
+  if((f!=="rate" && f!=="vbpm") || (e.key!=="ArrowUp" && e.key!=="ArrowDown")) return;
+  e.preventDefault();
+  const c = smpCard(el); if(!c?.s) return;
+  const by = (f==="rate" ? (e.shiftKey ? .001 : YT_STEP) : (e.shiftKey ? .1 : 1)) * (e.key==="ArrowUp" ? 1 : -1);
+  const cur = f==="rate" ? c.s.rate : c.s.vbpm ?? vbpmOf(S.bpm / c.s.rate);
+  f==="rate" ? smpSetRate(c, Math.round((cur + by)*1000)/1000) : smpSetVbpm(c, Math.round((cur + by)*100)/100);
+  if(c.d){ el.blur(); smpSpeedShow(c.d, c.s); el.focus(); }
+  changed();
+});
+$("smpGrid").addEventListener("pointerdown", e => {
+  const b = e.target.closest('[data-f="tap"]'); if(!b || e.button) return;
+  const c = smpCard(b); if(c?.s && c.d) smpTap(c.d, c.s, e.timeStamp);
 });
 $("smpGrid").addEventListener("change", e => {
   const c = smpCard(e.target); if(!c?.s) return;
@@ -2258,7 +2433,8 @@ $("smpGrid").addEventListener("change", e => {
     c.s.start = +Math.min(t, 86400).toFixed(2); e.target.value = fmtTime(c.s.start);
     if(!playing && c.d?.ready) smpStop(c.d);
   }
-  else if(f==="rate"){ c.s.rate = +v; if(c.d?.ready){ try { c.d.player.setPlaybackRate(c.s.rate); } catch {} c.d.runAt = null; } }
+  else if(f==="rate" || f==="rateR"){ if(!Number.isFinite(parseFloat(v))){ c.d && smpSpeedShow(c.d, c.s); return; } smpSetRate(c, v); c.d && smpSpeedShow(c.d, c.s); }
+  else if(f==="vbpm") smpSetVbpm(c, v);
   else if(f==="beats"){ c.s.beats = +v; c.d && (c.d.run = false, c.d.busyTill = 0); paintRow(smpKey(c.s)); }
   changed();
 });
@@ -2266,6 +2442,17 @@ $("smpGrid").addEventListener("click", e => {
   const b = e.target.closest("button[data-f]"); if(!b) return;
   const c = smpCard(b); if(!c?.s || !c.d) return;
   const {s, d} = c;
+  if(b.dataset.f==="tap") return; // taps count on the press (pointerdown or a key), for timing
+  if(b.dataset.f==="half" || b.dataset.f==="dbl"){
+    const v = (s.vbpm ?? S.bpm / s.rate) * (b.dataset.f==="half" ? .5 : 2);
+    if(v < 30 || v > 300){ smpStat(d, "The video tempo goes from 30 to 300 BPM."); return; }
+    smpSetVbpm(c, v); changed(); return;
+  }
+  if(b.dataset.f==="follow"){
+    if(!s.vbpm) s.vbpm = vbpmOf(S.bpm / s.rate); // from the speed it's at now
+    s.follow = !s.follow; if(s.follow) s.rate = followRate(s);
+    smpRetune(d, s); smpSpeedShow(d, s); changed(); return;
+  }
   if(!d.ready){ smpStat(d, s.vid ? "The video is still loading." : "Paste a YouTube link first."); return; }
   if(b.dataset.f==="here"){
     s.start = +d.player.getCurrentTime().toFixed(2);
@@ -2274,10 +2461,7 @@ $("smpGrid").addEventListener("click", e => {
   } else if(b.dataset.f==="preview"){
     if(playing){ smpStat(d, "Stop the beat to preview on its own."); return; }
     if(d.preview){ smpCancel(d.endE); smpStop(d); return; }
-    d.preview = true; d.priming = false; smpPreviewBtn(d);
-    smpUnmute(d);
-    smpVol(d, s); d.player.seekTo(s.start, true); d.player.playVideo(); d.cuedAt = null;
-    smpCancel(d.endE); d.endE = smpEnd(d, performance.now() + (s.beats || 8)*60000/S.bpm);
+    smpPlayFrom(d, s, (s.beats || 8)*60000/S.bpm);
   }
 });
 
@@ -3300,7 +3484,7 @@ document.addEventListener("pointerdown", e => {
 // Space plays/stops from anywhere on the page, except while typing in a text box
 const typingTarget = el => !!el && (!!el.closest?.("dialog[open]") || el.tagName==="TEXTAREA" || el.isContentEditable || (el.tagName==="INPUT" && /^(text|search|email|url|number|password|tel)$/i.test(el.type)));
 window.addEventListener("keydown", e => {
-  if(e.code!=="Space" || typingTarget(e.target)) return;
+  if(e.code!=="Space" || typingTarget(e.target) || e.target.dataset?.f==="tap") return;
   e.preventDefault(); e.stopPropagation();
   if(e.repeat) return;
   playing ? stopPlay() : startPlay();
@@ -3508,7 +3692,7 @@ $("restBtn").addEventListener("click", () => { if(!popCell) return; const s = sy
 
 /* ---------- Transport ---------- */
 $("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
-$("bpmIn").addEventListener("change", e => { S.bpm = bpmOf(e.target.value, S.bpm); e.target.value = S.bpm.toFixed(1); changed(); });
+$("bpmIn").addEventListener("change", e => { S.bpm = bpmOf(e.target.value, S.bpm); e.target.value = S.bpm.toFixed(1); smpFollow(); changed(); });
 // arrows step a whole BPM and keep the tenths (Shift steps a tenth); the box's own step is a tenth so typed decimals are valid
 $("bpmIn").addEventListener("keydown", e => {
   if(e.key!=="ArrowUp" && e.key!=="ArrowDown") return;
