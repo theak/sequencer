@@ -1804,7 +1804,7 @@ function tick(){
 }
 function startPlay(){
   ensureCtx();
-  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true; smpOff = null;
+  playing = true; stepIx = 0; vq.length = 0; stepAbs = 0; smpDone = -1; smpResync = true; smpOff = null; smpOffs.length = 0;
   songAbs = Math.min(songCur, songN()-1); phAbs = -1; autoWas = false; autoLast.clear();
   if(S.playMode==="auto") stepIx = songAbs % stepCount();
   // a loaded video needs a moment to start, so the very first hit waits a little for it
@@ -1904,13 +1904,18 @@ function smpTick(){
 // The audio clock can stall against performance.now(): for about 1.5 s when headphones come out, a few tens of ms when they
 // go in. The drums wait for it, so everything the samples planned in performance.now() time (the queue, each run's start,
 // its speed switching) moves with it, and each playing video is checked once the clock is going again and seeked into line.
+// currentTime moves in steps, one per audio buffer (20-40 ms on some setups), so a single reading can run up to a step high
+// and look like a slip. The lowest reading of the last 250 ms is the real gap: a slip still shows in it whole, just a moment late.
+const smpOffs = []; // recent [performance.now(), gap] readings
 function smpClock(){
-  const off = performance.now() - ctx.currentTime*1000;
+  const now = performance.now();
+  smpOffs.push([now, now - ctx.currentTime*1000]);
+  while(smpOffs[0][0] < now - 250) smpOffs.shift();
+  const off = Math.min(...smpOffs.map(x => x[1]));
   if(smpOff==null){ smpOff = off; return; }
   const dt = off - smpOff;
   if(Math.abs(dt) < 15){ smpOff += dt*.05; return; } // jitter: follow it slowly
   smpOff = off;
-  const now = performance.now();
   for(const e of smpQ){ e.at += dt; setTimeout(smpDue, Math.max(0, e.at - now)); }
   for(const d of decks.values()){
     if(d.runAt!=null) d.runAt += dt;
