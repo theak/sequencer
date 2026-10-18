@@ -1852,7 +1852,7 @@ function setPlayhead(s){
 }
 function draw(){
   if(!playing) return;
-  const now = ctx.currentTime;
+  const now = ctx.currentTime - outLat()/1000; // the step being heard, not the one being rendered
   let cur = null;
   while(vq.length && vq[0].t <= now) cur = vq.shift();
   if(cur){ setPlayhead(cur.step); if(cur.abs!==phAbs){ phAbs = cur.abs; if(S.playMode==="auto") paintFrame(); } }
@@ -1870,6 +1870,11 @@ let smpResync = false;    // the song just started or jumped: pick each sample u
 let smpOff = null;        // performance.now() less the audio clock, in ms. It jumps when the clock stalls (headphones in or out)
 const SMP_AHEAD = .5;
 const smpOf = d => S.samples.find(s => s.uid===d.uid);
+// how long the output takes to play what the audio clock has rendered, in ms: ~10-25 ms wired, 100-250 ms over Bluetooth.
+// YouTube's player already allows for it, so the videos are lined up with when the drums are heard, not when they're rendered.
+const outLat = () => (ctx?.outputLatency || 0)*1000;
+// when audio-clock time t is heard, in performance.now() time
+const heardAt = t => performance.now() + (t - ctx.currentTime)*1000 + outLat();
 function smpDue(){
   const now = performance.now();
   for(let i=0; i<smpQ.length;){
@@ -1908,10 +1913,11 @@ function smpTick(){
 // its speed switching) moves with it, and each playing video is checked once the clock is going again and seeked into line.
 // currentTime moves in steps, one per audio buffer (20-40 ms on some setups), so a single reading can run up to a step high
 // and look like a slip. The lowest reading of the last 250 ms is the real gap: a slip still shows in it whole, just a moment late.
+// The gap counts the output latency, so switching to or from Bluetooth moves everything by the change, the same as a slip.
 const smpOffs = []; // recent [performance.now(), gap] readings
 function smpClock(){
   const now = performance.now();
-  smpOffs.push([now, now - ctx.currentTime*1000]);
+  smpOffs.push([now, now - ctx.currentTime*1000 + outLat()]);
   while(smpOffs[0][0] < now - 250) smpOffs.shift();
   const off = Math.min(...smpOffs.map(x => x[1]));
   if(smpOff==null){ smpOff = off; return; }
@@ -1954,7 +1960,7 @@ function smpJoin(s, a, t){
   d.run = false; d.busyTill = 0;
   if(sp){ smpTrigger(s, t, a - sp.at, true); return; }
   // nothing of it plays here: whatever it was playing stops on the beat
-  if(d.runAt!=null || d.st===1 || d.st===3){ smpCancel(d.endE); d.endE = smpEnd(d, performance.now() + (t - ctx.currentTime)*1000); }
+  if(d.runAt!=null || d.st===1 || d.st===3){ smpCancel(d.endE); d.endE = smpEnd(d, heardAt(t)); }
 }
 // the song moved under the samples (a jump, an insert or delete, a switch to the song): drop what was planned
 // for the old position and plan again from the next step
@@ -2022,7 +2028,7 @@ function smpCued(d, s){ return d.st!==1 && d.st!==3 && d.cuedAt!=null && Math.ab
 // off: how many steps into the hit it starts (joining mid-way). In the song the hits are already decided (song).
 function smpTrigger(s, t, off=0, song=false){
   const d = decks.get(s.uid); if(!d?.ready || d.err) return;
-  const at = performance.now() + (t - ctx.currentTime)*1000; // when this step is heard
+  const at = heardAt(t); // when this step is heard
   const stepMs = 15000/S.bpm, rest = s.beats ? (s.beats*4 - off)*stepMs : 0;
   if(!s.beats){ if(d.run) return; d.run = true; }            // ∞ starts once and keeps going through every loop
   else if(!song && s.beats*4 > stepCount() && d.busyTill > at + 30) return; // longer than the pattern: it plays out in full while the pattern loops under it
