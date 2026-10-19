@@ -129,6 +129,7 @@ In Automation playback, a sample plays where the song has it, as if the song had
 Samples play in YouTube's own embedded player, not through the audio engine. So:
 
 - **Loose timing.** They follow the beat loosely. Each player measures how late it starts and fires that much earlier next time, which usually lands hits within a few tens of milliseconds once it has warmed up. An ad, or slow buffering, can still throw off a hit.
+- **Best on wired audio.** Bluetooth delays the sound by 100 ms or more, and the delay shifts around. Samples are lined up with when you hear the drums, but they can't follow every shift, so they drift. When the browser reports a delay like that and the beat has samples, a banner suggests wired headphones or speakers.
 - **No effects.** Swing timing applies, but the master effects, sidechain and spectrogram don't touch them.
 - **Not exported.** They aren't in WAV exports. Saved beats and JSON keep their settings.
 - **Visible player.** The video stays visible, as YouTube requires.
