@@ -1963,7 +1963,7 @@ function smpClock(){
     if(d.busyTill) d.busyTill += dt;
     d.nz = null; // a catch-up in progress was for the old timeline: the drift check sorts it out again
     if(d.dz){ d.dz.at += dt; smpRateTick(d); }
-    d.meas = null; d.chk = now + 300;
+    d.meas = null; d.chk = now + 300; d.slip = true;
   }
 }
 /* In the song, each sample plays as if the song had played from the top: a hit while a longer sample is still
@@ -2164,7 +2164,9 @@ function smpDrift(){
     if(want >= dur - 1) continue;
     const err = (want - have)/s.rate*1000; // > 0: it's behind
     smpSynced(d, err);
-    if(Math.abs(err) > 80 && !(Math.abs(err) < 400 && smpNudge(d, s, err))){
+    // the first check after the clock moved pulls in anything over 30 ms: the move is known, it isn't jitter
+    const lim = d.slip ? SYNC_OK : 80; d.slip = false;
+    if(Math.abs(err) > lim && !(Math.abs(err) < 400 && smpNudge(d, s, err))){
       const to = s.start + (now + d.lead.seek*1000 - d.runAt)/1000*s.rate + smpErr(d, now + d.lead.seek*1000);
       d.player.seekTo(to, true); d.chk = now + 4000;
       d.meas = {at: now + d.lead.seek*1000, start: to, rate: s.rate, kind: "seek", t: now};
