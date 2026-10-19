@@ -717,7 +717,7 @@ details.aicard summary .hint{text-transform:none;letter-spacing:0;font-weight:50
       <label class="field"><span class="lbl">model</span>
         <select id="tierSel" class="num"></select>
       </label>
-      <label class="check beatonly"><input type="checkbox" id="buildOn"> Build on the current beat</label>
+      <label class="check beatonly"><input type="checkbox" id="buildOn" checked> Build on the current beat</label>
       <label class="check beatonly" id="hearLbl" hidden><input type="checkbox" id="hearOn"> <span id="hearTxt">Share spectrogram</span></label>
       <div class="spacer"></div>
       <span class="quota" id="aiQuota"></span>
@@ -1922,6 +1922,7 @@ function smpClock(){
   for(const d of decks.values()){
     if(d.runAt!=null) d.runAt += dt;
     if(d.busyTill) d.busyTill += dt;
+    d.nz = null; // a catch-up in progress was for the old timeline: the drift check sorts it out again
     if(d.dz){ d.dz.at += dt; smpRateTick(d); }
     d.meas = null; d.chk = now + 300;
   }
@@ -1991,15 +1992,31 @@ function pairErr(z, u){
   return f < a ? -z.w*D*f : f < a + z.w ? -z.w*D*a + (1 - z.w)*D*(f - a) : z.w*D*(1 - f);
 }
 // a run heard from at (performance.now ms) plays its speed from there
-function smpRateGo(d, s, at){ d.dz = {...smpPair(s.rate), r:s.rate, at}; smpRateTick(d); }
+function smpRateGo(d, s, at){ d.nz = null; d.dz = {...smpPair(s.rate), r:s.rate, at}; smpRateTick(d); }
 function smpRateTick(d){
-  clearTimeout(d.rt); const z = d.dz; if(!z) return;
-  const {r, next} = pairAt(z, performance.now() - z.at);
+  clearTimeout(d.rt);
+  const now = performance.now();
+  if(d.nz && now >= d.nz.until) d.nz = null;
+  const z = d.nz || d.dz; if(!z) return;
+  const {r, next} = pairAt(z, now - z.at);
   smpRateSet(d, r);
-  if(next!=null) d.rt = setTimeout(() => smpRateTick(d), Math.max(8, next));
+  const wait = d.nz ? Math.min(next ?? Infinity, d.nz.until - now) : next;
+  if(wait!=null) d.rt = setTimeout(() => smpRateTick(d), Math.max(8, wait));
+}
+/* A run that's off by up to 400 ms is pulled in by playing up to 20% faster (or slower) for a moment instead of seeking.
+   A seek stalls for a different time each go, which is what put it off in the first place; a speed change takes straight
+   away and doesn't stall. The run's own timeline (dz) doesn't change, only what the player is told to play for a while. */
+const NUDGE = .2;
+function smpNudge(d, s, err){ // err: ms, > 0 behind
+  const r = s.rate, rn = Math.min(2, Math.max(.25, r*(1 + Math.sign(err)*NUDGE)));
+  if(!d.dz || Math.abs(rn - r) < .02) return false; // already at the end of YouTube's range: seek instead
+  const now = performance.now(), ms = Math.abs(err)*r/Math.abs(rn - r);
+  d.nz = {...smpPair(rn), at:now, until: now + ms};
+  d.chk = now + ms + 400; smpRateTick(d);
+  return true;
 }
 function smpRateSet(d, r){ if(d.prate===r || !d.player) return; try { d.player.setPlaybackRate(r); d.prate = r; } catch {} }
-function smpRateEnd(d){ clearTimeout(d.rt); d.dz = null; }
+function smpRateEnd(d){ clearTimeout(d.rt); d.dz = null; d.nz = null; }
 const smpErr = (d, t) => d.dz ? pairErr(d.dz, t - d.dz.at) : 0;
 // the speed changed under a player: a run carries on at the new one from where it should be now, and stays drift-checked;
 // a parked one just takes it
@@ -2063,7 +2080,11 @@ function smpMeasure(d){
       else if(v!==v0){
         const began = now - (v - smpErr(d, now) + smpErr(d, m.at) - m.start)/m.rate*1000, err = began - m.at; // > 0: it started late
         d.meas = null;
-        if(v >= m.start && Math.abs(err) < 700){ smpLearn(d, m.kind, err); smpSynced(d, err); }
+        if(v >= m.start && Math.abs(err) < 700){
+          smpLearn(d, m.kind, err); smpSynced(d, err);
+          // off by more than 40 ms: pull it in now rather than at the next drift check, 2.5 s in
+          if(Math.abs(err) > 40 && d.runAt!=null){ const s = smpOf(d); if(!(Math.abs(err) < 400 && s && smpNudge(d, s, err))) d.chk = performance.now(); }
+        }
         return;
       }
     }
@@ -2097,14 +2118,14 @@ function smpLearn(d, kind, err){
 function smpDrift(){
   const now = performance.now();
   for(const d of decks.values()){
-    if(d.runAt==null || d.st!==1 || now < d.chk || d.meas) continue;
+    if(d.runAt==null || d.st!==1 || now < d.chk || d.meas || d.nz) continue;
     const s = smpOf(d); if(!s) continue;
     d.chk = now + 2000;
     const want = s.start + (now - d.runAt)/1000*s.rate + smpErr(d, now), have = d.player.getCurrentTime(), dur = d.player.getDuration?.() || Infinity;
     if(want >= dur - 1) continue;
     const err = (want - have)/s.rate*1000; // > 0: it's behind
     smpSynced(d, err);
-    if(Math.abs(err) > 80){
+    if(Math.abs(err) > 80 && !(Math.abs(err) < 400 && smpNudge(d, s, err))){
       const to = s.start + (now + d.lead.seek*1000 - d.runAt)/1000*s.rate + smpErr(d, now + d.lead.seek*1000);
       d.player.seekTo(to, true); d.chk = now + 4000;
       d.meas = {at: now + d.lead.seek*1000, start: to, rate: s.rate, kind: "seek", t: now};
